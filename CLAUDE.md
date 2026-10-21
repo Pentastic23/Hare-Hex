@@ -216,7 +216,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 - Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, unit inspector, end screen.
 - Last finished: the Known issues audit (combat start/end resets, shop phase check, path casing, prep-only merges, unit data, leftovers). Checked with a headless run: units start combat at full health with synergy bonuses, bonuses clear afterwards. Buying during combat is allowed but bench-only (also checked headless: no mid-fight merge, merges happen at next PREP). Not playtested by hand.
-- Next: build Items (roadmap item 3) from `docs/items-plan.md`, one step at a time in its build order. The plan is done; Sonnet can build it. Progress: step 1 (ItemData + 6 items in `tres/items/`) done; next is step 2 (unit stats).
+- Next: build Items (roadmap item 3) from `docs/items-plan.md`, one step at a time in its build order. The plan is done; Sonnet can build it. Progress: steps 1 (ItemData + 6 items in `tres/items/`) and 2 (unit item stats and equip API in unit.gd) done; next is step 3 (inventory and drops).
 
 ## Known issues
 

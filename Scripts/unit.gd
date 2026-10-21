@@ -27,6 +27,16 @@ var bonus_mana := 0.0
 var dmg_reduction := 0.0
 var lifesteal := 0.0
 
+# Items live apart from the synergy bonuses above: clear_bonuses() runs every combat and must not wipe them.
+const MAX_ITEMS := 3
+var items: Array[ItemData] = []
+var item_hp := 0.0
+var item_dmg := 0.0
+var item_as := 0.0
+var item_mana := 0.0
+var item_dr := 0.0
+var item_lifesteal := 0.0
+
 const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2}
 const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45}
 @onready var board: Board = get_parent().get_parent()
@@ -40,10 +50,10 @@ const MANA_OFFSET := 0.13       # how far below the health bar the mana bar sits
 const DEFAULT_ABILITY := preload("res://Scripts/ability.gd")
 
 func max_hp() -> float:
-	return data.max_health * stat_scale * STAR_MULT[star] * (1.0 + bonus_hp)
+	return (data.max_health + item_hp) * stat_scale * STAR_MULT[star] * (1.0 + bonus_hp)
 
 func damage() -> float:
-	return data.attack_damage * stat_scale * STAR_MULT[star] * (1.0 + bonus_dmg)
+	return (data.attack_damage + item_dmg) * stat_scale * STAR_MULT[star] * (1.0 + bonus_dmg)
 
 func _make_letter():
 	if letter_label != null:
@@ -164,7 +174,7 @@ func begin_combat():
 	cooldown = 0.0
 	moving = false
 	_last_ratio = -1.0
-	mana = minf(data.start_mana + bonus_mana, data.max_mana)
+	mana = minf(data.start_mana + bonus_mana + item_mana, data.max_mana)
 	_last_mana_ratio = -1.0
 
 func end_combat():
@@ -201,8 +211,9 @@ func combat_step(delta: float):
 			var dmg := damage()
 			target.take_damage(dmg)
 			gain_mana(MANA_PER_ATTACK)
-			if lifesteal > 0.0:
-				health = minf(health + dmg * lifesteal, max_hp())
+			var steal := lifesteal + item_lifesteal
+			if steal > 0.0:
+				health = minf(health + dmg * steal, max_hp())
 	else:
 		var next := board.next_step(coord, target.coord, rng)
 		if next == Board.NO_STEP:
@@ -217,7 +228,7 @@ func combat_step(delta: float):
 func take_damage(amount: float):
 	if dead:
 		return
-	amount *= 1.0 - minf(dmg_reduction, 0.6)
+	amount *= 1.0 - minf(dmg_reduction + item_dr, 0.6)
 	health -= amount
 	gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
 	if health <= 0.0:
@@ -247,7 +258,55 @@ func clear_bonuses():
 	lifesteal = 0.0
 
 func attack_interval() -> float:
-	return 1.0 / (data.attacks_per_second * (1.0 + bonus_as))
+	return 1.0 / (data.attacks_per_second * (1.0 + bonus_as + item_as))
+
+func can_equip() -> bool:
+	return items.size() < MAX_ITEMS
+
+# in_combat: the unit is mid-fight, so keep its current health and mana and add the boost on top.
+func equip(item: ItemData, in_combat := false) -> bool:
+	if item == null or dead or not can_equip():
+		return false
+	var old_max := max_hp()
+	items.append(item)
+	_recalc_items()
+	if in_combat:
+		health += max_hp() - old_max
+		gain_mana(item.mana)
+	else:
+		health = max_hp()
+	return true
+
+# Replaces all items (opponent provider, save loading).
+func set_items(list: Array[ItemData]) -> void:
+	items = list.duplicate()
+	if items.size() > MAX_ITEMS:
+		items.resize(MAX_ITEMS)
+	_recalc_items()
+	health = minf(health, max_hp())
+
+# Removes and returns every item (selling, merging).
+func take_items() -> Array[ItemData]:
+	var out: Array[ItemData] = items.duplicate()
+	items.clear()
+	_recalc_items()
+	health = minf(health, max_hp())
+	return out
+
+func _recalc_items() -> void:
+	item_hp = 0.0
+	item_dmg = 0.0
+	item_as = 0.0
+	item_mana = 0.0
+	item_dr = 0.0
+	item_lifesteal = 0.0
+	for it in items:
+		item_hp += it.hp
+		item_dmg += it.dmg
+		item_as += it.attack_speed
+		item_mana += it.mana
+		item_dr += it.damage_reduction
+		item_lifesteal += it.lifesteal
 
 func _ability() -> Ability:
 	if data.ability != null:
