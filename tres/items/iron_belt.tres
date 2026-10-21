@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"iron_belt"
+display_name = "Iron Belt"
+description = "+150 max HP"
+color = Color(0.75, 0.3, 0.3, 1)
+hp = 150.0
