@@ -216,7 +216,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 - Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, unit inspector, end screen.
 - Last finished: the Known issues audit (combat start/end resets, shop phase check, path casing, prep-only merges, unit data, leftovers). Checked with a headless run: units start combat at full health with synergy bonuses, bonuses clear afterwards. Buying during combat is allowed but bench-only (also checked headless: no mid-fight merge, merges happen at next PREP). Not playtested by hand.
-- Next: Items (roadmap item 3). Plan it with Opus first (see Roadmap tags).
+- Next: build Items (roadmap item 3) from `docs/items-plan.md`, one step at a time in its build order. The plan is done; Sonnet can build it.
 
 ## Known issues
 
@@ -239,7 +239,7 @@ Model tags: **[Sonnet]** = do directly. **[Opus]** = recommend switching before 
 ### Phase 1: Shared core
 1. Abilities **[Opus plan, Sonnet build]**: real designs deferred until unit visuals exist; placeholder system is in place.
 2. ~~Shared unit pool~~: done (see Game rules).
-3. **Items** (next up, after Known issues) **[Opus plan, Sonnet build]**: drag onto units for stat boosts. Touches drag_controller, unit stats, inspector and combat bonuses.
+3. **Items** (next up) **[Sonnet build]**: drag onto units for stat boosts. Planned in `docs/items-plan.md` (data, stat formulas, drops, UI, drag rules, sell/merge, build order). Follow it; if something in the plan doesn't fit the code, stop and ask instead of redesigning.
 4. Opponent provider layer **[Opus]**: `_spawn_enemies()` asks a provider for a board (units, stars, tile positions) instead of rolling randomly. Its board format is reused by campaign waves and PvP snapshots, so get it right once.
 
 ### Phase 2: Campaign
