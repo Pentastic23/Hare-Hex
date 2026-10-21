@@ -313,12 +313,13 @@ func is_over_sell_zone(p: Vector3) -> bool:
 func sell_unit(u: Unit):
 	if u == null or u.data == null:
 		return
-	var refund := u.data.cost * int(pow(3, u.star - 1))   # use `u.data.cost` for a flat refund
+	var refund := u.data.cost * UnitPool.copies_in(u.star)   # use `u.data.cost` for a flat refund
 	var d := u.data
+	var star := u.star
 	detach(u)
 	u.queue_free()
 	GameState.gold += refund
-	Events.unit_sold.emit(d, refund)
+	Events.unit_sold.emit(d, star, refund)
 
 func _build_sell_zone():
 	var s: Node3D = tile_scene.instantiate()

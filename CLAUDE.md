@@ -6,17 +6,34 @@ A 3D TFT-style auto battler built in **Godot 4.7** with GDScript. Single player 
 
 ---
 
+## Model guidance
+
+I usually work with Sonnet 5.5. Before starting a task, if it would clearly benefit from Opus 5.5, say so in one line at the top of your reply, explain why, and wait for me to switch or tell you to go ahead. Flag it for:
+- Planning game architecture (state machines, save/load, opponent providers, campaign structure, per-player state)
+- Bugs that survive two fix attempts, especially combat timing, tween, physics, or signal-order issues. Count attempts across the conversation: if I report the same bug is still happening after your second fix, recommend Opus instead of trying a third time.
+- Refactors that touch many scripts or scenes (e.g. refactoring global GameState)
+- Deterministic combat, networking/PvP, shaders, pathfinding, or other math-heavy systems
+- Any roadmap item tagged **[Opus]** below
+
+Don't flag routine work like writing GDScript, setting up nodes or UI, tweaking unit data, or small fixes. Items tagged **[Sonnet]** are fine to do directly.
+
+When recommending Opus, also write a 3-5 line handoff (what the task is, what's been tried, which files matter) so I can paste it into the Opus session.
+
+At the start of a session, read **Current status** and **Known issues** below. When you finish a task, update both (and the roadmap) so the next session knows where things stand.
+
+---
+
 ## Folder layout
 
 ```
 res://
-  Scenes/        main.tscn, tile.tscn, unit.tscn
+  scenes/        main.tscn, Tiles.tscn (one hex tile), unit.tscn, ui.tscn (all UI, instanced in main)
   Scripts/       all .gd files
-  data/units/    UnitData .tres files (one per unit type)
-  panel_style.tres   shared StyleBoxFlat for UI boxes
+  tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
+  addons/        third-party plugins; don't edit
 ```
 
-Folder names are capitalized (`Scenes`, `Scripts`). Every `preload` path must use the same casing, or exports to case-sensitive platforms break.
+Casing is mixed on disk: `scenes/` is lowercase, `Scripts/` is capitalized. Every `preload` / `load` path must match the on-disk casing exactly, or exports to case-sensitive platforms break (Godot prints a "Case mismatch" warning when it's wrong).
 
 ---
 
@@ -26,33 +43,48 @@ Folder names are capitalized (`Scenes`, `Scripts`). Every `preload` path must us
 Main (Node3D)
  ├─ WorldEnvironment
  ├─ DirectionalLight3D
- ├─ CameraRig (Node3D)            pos ~(6, 0, 7)
- │   └─ Camera3D                  pos ~(0, 20, 9.5), rot (-65, 0, 0)
  ├─ Board (Node3D)                board.gd, in group "board"
- │   ├─ Tiles (Node3D)            plain Node3D, tiles spawned at runtime
  │   ├─ Bench (Node3D)            plain Node3D, bench + sell hexes spawned at runtime
- │   └─ Units (Node3D)            plain Node3D, ALL unit instances live here
- ├─ GameManager (Node)            game_manager.gd
+ │   ├─ Units (Node3D)            plain Node3D, ALL unit instances live here
+ │   └─ Tiles (Node3D)            plain Node3D, tiles spawned at runtime
+ ├─ UI                            instance of ui.tscn (see below)
+ ├─ "Game Manager" (Node)         game_manager.gd  -- note the SPACE in the node name
  ├─ DragController (Node)         drag_controller.gd
- └─ UI (CanvasLayer)
-     ├─ TopBar (HBoxContainer)    stage label, etc.
-     ├─ HPLabel                   hp_label.gd (right side)
-     ├─ SynergyBox (PanelContainer, panel_style.tres)
-     │   └─ SynergyPanel (VBoxContainer)   synergy_panel.gd
-     ├─ UnitInspector (PanelContainer, panel_style.tres)   unit_inspector.gd
-     │   └─ VBoxContainer: NameLabel, TagsLabel, StatsLabel
-     ├─ BottomInfo (VBoxContainer)
-     │   ├─ OddsLabel             odds_label.gd
-     │   └─ InfoRow (HBox): StreakLabel, BoardLabel (unit cap)
-     ├─ ShopPanel (PanelContainer)   shop_panel.gd
-     │   └─ HBoxContainer: StatBox (Gold, Level), BuyXPButton, RerollButton, Slot1..Slot5 (ShopSlot)
-     └─ EndScreen (ColorRect, last child)   end_screen.gd
-         └─ CenterContainer/Backing/Margin/VBoxContainer: TitleLabel, DetailLabel, RestartButton
+ └─ CameraRig (Node3D)            pos (6, 0, 7)
+     └─ Camera3D                  pos (0, 10, 9.5), rot ~(-55, 0, 0)
 ```
 
-`unit.tscn`: root Node3D with `unit.gd`, children `ModelHolder` (Node3D, y offset = half model height, holds a capsule placeholder) and `Area3D` (layer 2, for picking). Health bar, mana bar and letter label are created in code.
+The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 10 unit .tres files (this is the **roster**, not the shared pool), `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05`.
 
-`tile.tscn`: StaticBody3D root with `tile.gd` (collision layer 1), hex CylinderMesh rotated 30 deg on Y so hexes are **pointy-top**, matching the layout math.
+**ui.tscn** (root `UI`, CanvasLayer):
+
+```
+UI
+ ├─ TopBar (HBoxContainer, top center)
+ │   ├─ Timer (Label)             no script, unused
+ │   └─ StageLabel                stage_label.gd
+ ├─ ShopPanel (PanelContainer, bottom center)   shop_panel.gd
+ │   └─ HBoxContainer
+ │       ├─ StatBox/VBoxContainer: Gold (gold_label.gd), Level (label.gd = XP/level label)
+ │       ├─ BuyXPButton, RerollButton
+ │       └─ "Slot 1" .. "Slot 5"  (ShopSlot, shop_slot.gd)
+ ├─ BottomInfo (VBoxContainer)    bottom_info.gd
+ │   ├─ OddsLabel                 odds_label.gd
+ │   └─ InfoRow (HBox): BoardLabel (board_label.gd, unit cap), StreakLabel (streak_label.gd)
+ ├─ HpLabel                       hp_label.gd (right side)
+ ├─ "End Screen" (ColorRect)      end_screen.gd
+ │   └─ CenterContainer/Backing/Margin/VBoxContainer: TitleLabel, DetailLabel, RestartButton
+ ├─ SynergyBox (PanelContainer, panel_style.tres)
+ │   └─ SynergyPanel (VBoxContainer)   synergy_panel.gd
+ └─ UnitInspector (PanelContainer, panel_style.tres)   unit_inspector.gd
+     └─ VBoxContainer: NameLabel, TagsLabel, StatsLabel
+```
+
+Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any `get_node` path must use the exact name.
+
+`unit.tscn`: root Node3D with `unit.gd`, children `ModelHolder` (Node3D, holds a capsule MeshInstance3D at y = 1) and `Area3D` (layer 2, for picking). Health bar, mana bar and letter label are created in code. The scene also has leftover `Health bar` (Sprite3D) and `AnimationPlayer` nodes that nothing uses.
+
+`Tiles.tscn`: StaticBody3D root with `tile.gd` (collision layer 1), 6-sided CylinderMesh (radius 0.95, no rotation applied in the scene). Hex layout math in board.gd is **pointy-top**.
 
 ---
 
@@ -61,7 +93,7 @@ Main (Node3D)
 - **Events** (`events.gd`): all global signals, plus `enum Phase { PREP, COMBAT, RESULT }`.
 - **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `reset()`.
 
-Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `board_count_changed`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold`, `run_won`, `run_lost`.
+Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `board_count_changed` (declared, never emitted), `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`.
 
 ---
 
@@ -75,9 +107,12 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | `unit_data.gd` (class UnitData) | Resource: name, cost, stats, tags, mana, model, ability |
 | `ability.gd` (class Ability) | Resource base class; `cast(caster, target)` does nothing yet (placeholder) |
 | `synergies.gd` (class Synergies) | Static synergy table + count / tier / apply |
-| `game_manager.gd` | Phase loop, shop rolling, buying, enemy spawning, combat loop, end of combat, run end |
+| `game_manager.gd` | Phase loop, shop rolling (from `shared_pool`), buying, enemy spawning, combat loop, end of combat, run end |
 | `drag_controller.gd` | Left-drag units, swaps, snapping, sell zone, F-to-sell, drag cancel on phase change |
-| `shop_slot.gd` (class ShopSlot) | Shop button; checks gold, bench space (or completing a merge), phase |
+| `unit_pool.gd` (class UnitPool) | Shared unit pool: copies left per UnitData, weighted `pick(cost)`, `take` / `give_back`, `copies_in(star)` |
+| `shop_slot.gd` (class ShopSlot) | Shop button; checks gold, bench space (or completing a merge), phase; `clear_offer()` for empty slots |
+| `shop_panel.gd` | Wires shop buttons, fills slots from `shop_rolled` |
+| UI labels | `gold_label.gd`, `label.gd` (XP/level), `stage_label.gd`, `hp_label.gd`, `odds_label.gd`, `streak_label.gd`, `board_label.gd`, `bottom_info.gd`, `synergy_panel.gd`, `unit_inspector.gd`, `end_screen.gd` |
 
 ---
 
@@ -106,7 +141,9 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Shop odds (% for 1/2/3/4/5 cost) by level:** 1-2: 100/0/0/0/0, 3: 75/25, 4: 55/30/15, 5: 45/33/20/2, 6: 30/40/25/5, 7: 19/30/35/15/1, 8: 15/20/35/25/5, 9: 10/15/30/30/15. If no unit exists at a rolled cost, falls back to the nearest cost.
 
-**Units and merging:** 3 copies (same `display_name`, same star) merge into the next star, max 3. Star multipliers: HP/dmg x1.0 / x1.8 / x3.2, model scale 1.0 / 1.2 / 1.45. Merges run after buys, after drops (prep only), and at PREP start. Buying on a full bench is allowed if it completes a merge.
+**Shared unit pool:** Copies per unit by cost: 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 (`UnitPool.COPIES_PER_COST`). Shop offers are taken from the pool when rolled; unbought offers go back on the next roll. Bought units stay out. Selling returns `3^(star-1)` copies. Picks within a cost are weighted by copies left; an empty cost falls back to the nearest cost with copies; if the pool runs dry the slot is left empty. Enemies do not draw from the pool. `GameManager.shared_pool` owns it (rebuilt on scene reload).
+
+**Units and merging:** 3 copies (same `display_name`, same star) merge into the next star, max 3. Star multipliers: HP/dmg x1.0 / x1.8 / x3.2, model scale 1.0 / 1.2 / 1.45. Merges run after buys, after drops (intended prep only; currently also during combat, see Known issues), and at PREP start. Buying on a full bench is allowed if it completes a merge.
 
 **Combat:** Tile-to-tile movement on the hex grid (BFS, occupied tiles are walls, units claim their next tile before tweening). `attack_range` is in tiles, `move_speed` is tiles/sec. Units target the nearest enemy. Dead units are hidden, not freed, and restored after combat. Player board positions are snapshotted at combat start and restored after. 60 s timeout counts as a loss.
 
@@ -116,7 +153,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Player HP:** Starts at 100. Loss damage = `round(5 * stage + 0.25 * sum of surviving enemy star levels)`. HP 0 = defeat screen; finishing the last round = victory screen. Restart calls `GameState.reset()` then reloads the scene.
 
-**Synergies:** Each unique unit on the board counts once per tag. Applied at combat start, cleared at combat end.
+**Synergies:** Each unique unit on the board counts once per tag. `Synergies.apply()` clears and re-applies bonuses at combat start. They are NOT cleared at combat end yet (intended; see Known issues).
 
 | Tag | Thresholds | Bonus | Scope |
 |---|---|---|---|
@@ -151,11 +188,13 @@ Damage reduction is capped at 60%.
 
 All move speed 1.5. Display names must be unique (merging groups by name). Tag spelling must match the keys in `Synergies.DEFS` exactly.
 
+This table is the **intended** roster. The .tres files currently differ (see Known issues): Cleric and Guardian have the wrong stats, Guardian is spelled "Gaurdian", Assassin and Thief are tagged "Rouge", Assassin's move speed is 3.1.
+
 ---
 
 ## UI behaviour
 
-- Shop stays visible during combat (dimmed); slots and reroll are blocked outside PREP, Buy XP is not.
+- Shop stays visible during combat; reroll is blocked outside PREP, Buy XP is not. Shop slots are meant to be blocked outside PREP too, but currently aren't (see Known issues). The shop is not dimmed yet.
 - Right-click any unit (ally or enemy) to open the Unit Inspector (base stats at current star, tags). Right-clicking empty space closes it; it also closes if the unit dies or is removed.
 - Synergy box (top left) lists active synergies in gold and inactive in grey, with tooltips; hidden when the board is empty.
 - Odds, streak and unit cap sit above the shop bar.
@@ -170,6 +209,29 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Units must be instances of `unit.tscn` under `Board/Units`; `unit.gd` finds the board via `get_parent().get_parent()` and needs `ModelHolder`.
 - Never place enemies with `put_on_tile` (it falls back to the bench); use `put_enemy_on_tile`.
 - Combat is not deterministic yet (tweens + frame delta + unseeded random). Required before networked PvP.
+- `GameManager.unit_pool` is the roster export (all unit types). The limited-copies pool is `GameManager.shared_pool` (UnitPool). Don't confuse them, and don't rename the export (main.tscn stores its value by name).
+- Testing without the editor: `Godot_v4.7.2-stable_win64.exe --headless --path . --quit-after 600` runs the main scene for ~10 s and prints script errors. Autoloads don't exist in `--script` mode, so test scripts that touch GameState/Events must run through the main scene.
+
+---
+
+## Current status (2026-10-21)
+
+- Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies (partly, see below), unit inspector, end screen.
+- Last finished: shared unit pool (roadmap item 2), committed.
+- Next: fix the Known issues below, then Items (roadmap item 3).
+
+## Known issues
+
+Fix these before building on top of them. Each is tagged with the model to use.
+
+1. **[Sonnet] `start_combat()` never calls `begin_combat()` on real units.** The loop near the end of `start_combat()` does `unit_scene.instantiate()` instead of `n as Unit`, so it creates and leaks a throwaway unit per unit, and real units skip their combat reset. Effects: Caster bonus mana never applies, units don't start at full health after Order's HP bonus.
+2. **[Sonnet] Shop slots allow buying during combat.** `shop_slot.gd` looks up `Main/GameManager`, but the node is named `"Game Manager"`. `_on_unit_bought` doesn't check the phase either.
+3. **[Sonnet] Unit data typos and wrong stats** in `tres/`: Assassin and Thief tags `Rouge` (so the Rogue synergy never activates), Guardian named `Gaurdian` with Knight's stats, Cleric has Guardian's intended stats and cost 2 (so only Knight and Archer are 1-cost), Assassin move speed 3.1. The roster table above is the target.
+4. **[Sonnet] Path casing:** `game_manager.gd` loads `res://Scenes/unit.tscn` twice; the folder is `scenes/`. Breaks exports.
+5. **[Sonnet] Merges can run during combat:** `drag_controller._drop()` calls `merge_all()` unconditionally at the end, plus an extra early `merge_all()` before `detach()` that can merge away the unit being dragged.
+6. **[Sonnet] Synergy bonuses not cleared at combat end** (`Unit.end_combat()` doesn't call `clear_bonuses()`).
+7. **[Sonnet] Leftovers to clean up:** unused `enum Phase` in game_manager.gd; end-of-combat check duplicated in `_physics_process`; `_on_unit_bought` preloads the unit scene again instead of using `unit_scene`; `board_count_changed` never emitted; label.gd header says xp_label.gd; unit label changes from two letters ("KN") to one plus stars ("K*") after a merge; board_label.gd refreshes every frame and on signals; unused nodes in unit.tscn and ui.tscn (`TopBar/Timer`).
+8. **[Opus if a fix doesn't hold]** If fixing 1, 5 or 6 changes combat in ways that don't make sense (units with wrong health, merges eating units, bonuses stacking across rounds), stop after two attempts and recommend switching to Opus 5.5. These touch combat start/end ordering and signal timing.
 
 ---
 
@@ -177,24 +239,26 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 Goal: a **campaign mode** and a **PvP mode** sharing the same core game.
 
+Model tags: **[Sonnet]** = do directly. **[Opus]** = recommend switching before starting. **[Opus plan, Sonnet build]** = use Opus to design it (data format, which scripts change), then Sonnet can implement the plan.
+
 ### Phase 1: Shared core
-1. Abilities: real designs deferred until unit visuals exist; placeholder system is in place.
-2. **Shared unit pool** (next up): limited copies per unit, returned on sell.
-3. Items: drag onto units for stat boosts.
-4. Opponent provider layer: `_spawn_enemies()` asks a provider for a board (units, stars, tile positions) instead of rolling randomly.
+1. Abilities **[Opus plan, Sonnet build]**: real designs deferred until unit visuals exist; placeholder system is in place.
+2. ~~Shared unit pool~~: done (see Game rules).
+3. **Items** (next up, after Known issues) **[Opus plan, Sonnet build]**: drag onto units for stat boosts. Touches drag_controller, unit stats, inspector and combat bonuses.
+4. Opponent provider layer **[Opus]**: `_spawn_enemies()` asks a provider for a board (units, stars, tile positions) instead of rolling randomly. Its board format is reused by campaign waves and PvP snapshots, so get it right once.
 
 ### Phase 2: Campaign
-5. Hand-authored waves as resources (plus bosses).
-6. Campaign structure: chapters/levels with their own waves, gold, modifiers.
-7. Save system for progress and unlocks.
-8. Main menu with mode select.
+5. Hand-authored waves as resources (plus bosses) **[Sonnet]**, once item 4's format exists.
+6. Campaign structure **[Opus]**: chapters/levels with their own waves, gold, modifiers.
+7. Save system **[Opus]** for progress and unlocks.
+8. Main menu with mode select **[Sonnet]**.
 
 ### Phase 3: PvP
-9. Board snapshots in the same format as waves; fight your own past boards offline.
-10. Deterministic combat (seeded RNG, fixed timestep).
-11. Per-player state (refactor global GameState).
-12. Async PvP: fight other players' uploaded snapshots.
-13. Live 8-player lobbies with a dedicated server (optional).
+9. Board snapshots **[Sonnet]** in the same format as waves; fight your own past boards offline.
+10. Deterministic combat **[Opus]** (seeded RNG, fixed timestep).
+11. Per-player state **[Opus]** (refactor global GameState).
+12. Async PvP **[Opus]**: fight other players' uploaded snapshots.
+13. Live 8-player lobbies with a dedicated server **[Opus]** (optional).
 
 ### Phase 4: Polish
-14. Combat speed button, real models and animations, sound, VFX, menus and settings.
+14. **[Sonnet]** Combat speed button, real models and animations, sound, VFX, menus and settings.

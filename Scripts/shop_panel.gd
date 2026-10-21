@@ -18,3 +18,5 @@ func _on_shop_rolled(offers: Array):
 	for i in slots.size():
 		if i < offers.size():
 			slots[i].show_offer(offers[i])
+		else:
+			slots[i].clear_offer()   # pool ran dry; don't leave last roll's offer up

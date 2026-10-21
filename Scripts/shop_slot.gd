@@ -8,6 +8,11 @@ func show_offer(d: UnitData):
 	text = "%s\n%d g" % [d.display_name, d.cost]
 	disabled = false
 
+func clear_offer():
+	offer = null
+	text = ""
+	disabled = true
+
 func _pressed():
 	var gm := get_tree().root.get_node_or_null("Main/GameManager")
 	if gm != null and gm.phase != Events.Phase.PREP:

@@ -16,6 +16,8 @@ const BUY_XP_COST := 4
 @export var enemy_base_scale := 0.6        # round 1 enemies are 60% strength
 @export var enemy_scale_per_round := 0.08  # +8% each round
 var game_over := false
+var shared_pool: UnitPool
+var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool until the next roll
 
 
 
@@ -23,6 +25,7 @@ func _on_unit_bought(d: UnitData):
 	var slot = board.first_free_bench()
 	if slot == -1 and not board.would_complete_merge(d): return
 	GameState.gold -= d.cost
+	shop_offers.erase(d)   # stays out of the pool; it's ours now
 	var u := preload("res://Scenes/unit.tscn").instantiate() as Unit
 	board.get_node("Units").add_child(u)
 	u.setup(d, 0)
@@ -62,7 +65,9 @@ func _enter(p: int):
 
 			
 func _ready():
+	shared_pool = UnitPool.new(unit_pool)
 	Events.unit_bought.connect(_on_unit_bought)
+	Events.unit_sold.connect(_on_unit_sold)
 	Events.reroll_pressed.connect(_on_reroll)
 	Events.buy_xp_pressed.connect(_on_buy_xp)
 	await get_tree().process_frame
@@ -70,13 +75,23 @@ func _ready():
 
 func roll_shop():
 	if unit_pool.is_empty(): return
+	_return_offers()
 	var offers: Array = []
 	for i in 5:
 		var tier: int = 1 if GameState.cheap_shop else _pick_cost_tier()
 		var d: UnitData = _random_unit_of_cost(tier)
-		if d != null:
+		if d != null and shared_pool.take(d):
 			offers.append(d)
+			shop_offers.append(d)
 	Events.shop_rolled.emit(offers)
+
+func _return_offers():
+	for d in shop_offers:
+		shared_pool.give_back(d)
+	shop_offers.clear()
+
+func _on_unit_sold(d: UnitData, star: int, _refund: int):
+	shared_pool.give_back(d, UnitPool.copies_in(star))
 
 func _pick_cost_tier() -> int:
 	var odds: Array = GameState.odds_for_level(GameState.level)
@@ -89,15 +104,15 @@ func _pick_cost_tier() -> int:
 	return 1
 
 func _random_unit_of_cost(tier: int) -> UnitData:
-	var options: Array = unit_pool.filter(func(x): return x != null and x.cost == tier)
-	if not options.is_empty():
-		return options.pick_random()
-	# No unit at this cost yet: fall back to the nearest cost that exists.
+	var d := shared_pool.pick(tier)
+	if d != null:
+		return d
+	# No copies left at this cost: fall back to the nearest cost that has some.
 	for off in range(1, 6):
 		for t in [tier - off, tier + off]:
-			options = unit_pool.filter(func(x): return x != null and x.cost == t)
-			if not options.is_empty():
-				return options.pick_random()
+			d = shared_pool.pick(t)
+			if d != null:
+				return d
 	return null
 
 func _on_reroll():
