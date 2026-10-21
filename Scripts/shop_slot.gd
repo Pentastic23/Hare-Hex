@@ -14,7 +14,7 @@ func clear_offer():
 	disabled = true
 
 func _pressed():
-	var gm := get_tree().root.get_node_or_null("Main/GameManager")
+	var gm := get_tree().get_first_node_in_group("game_manager")
 	if gm != null and gm.phase != Events.Phase.PREP:
 		_flash("Fighting...")
 		return

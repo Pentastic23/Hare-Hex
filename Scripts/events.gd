@@ -12,7 +12,6 @@ signal xp_changed(level: int, xp: int, needed: int)
 signal reroll_pressed
 signal buy_xp_pressed
 signal board_limit_hit
-signal board_count_changed(current: int, limit: int)
 signal unit_sold(data: UnitData, star: int, refund: int)
 signal round_changed(stage: int, round_in_stage: int)
 signal streak_changed(wins: int, losses: int)

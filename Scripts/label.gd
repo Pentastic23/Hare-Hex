@@ -1,5 +1,5 @@
 
-# xp_label.gd
+# label.gd  (XP / level label)
 extends Label
 
 func _ready():

@@ -12,5 +12,5 @@ attack_range = 1.0
 attacks_per_second = 0.9
 move_speed = 1.5
 cost = 2
-tags = Array[StringName]([&"Shadow", &"Rouge"])
+tags = Array[StringName]([&"Shadow", &"Rogue"])
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

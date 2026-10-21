@@ -77,9 +77,6 @@ func _drop():
 		tile = board.nearest_tile(ground)
 		if not in_prep:
 			tile = null
-	if in_prep:
-		board.merge_all()
-
 	board.detach(u)   # u's origin slot is now free
 
 	if bench_i != -1:
@@ -101,7 +98,8 @@ func _drop():
 	else:
 		_place_at_origin(u, ob, oc)
 
-	board.merge_all()
+	if in_prep:
+		board.merge_all()
 
 func _place_at_origin(u: Unit, ob: int, oc: Vector2i):
 	if ob != -1:

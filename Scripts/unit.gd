@@ -68,7 +68,8 @@ func set_star(s: int):
 	health = max_hp()
 	_last_ratio = -1.0
 	$ModelHolder.scale = Vector3.ONE * STAR_SIZE[star]
-	letter_label.text = data.display_name.substr(0, 1).to_upper() + ("*".repeat(star - 1))
+	if letter_label != null:
+		letter_label.text = data.display_name.substr(0, 2).to_upper() + ("*".repeat(star - 1))
 
 func _ready():
 	_make_bar()
@@ -172,6 +173,7 @@ func end_combat():
 	moving = false
 	dead = false
 	visible = true
+	clear_bonuses()   # synergies are re-applied at the next combat start
 	health = max_hp()
 	target = null
 	_last_ratio = -1.0

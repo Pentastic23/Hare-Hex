@@ -4,13 +4,13 @@
 
 [resource]
 script = ExtResource("1_03o0m")
-display_name = "Gaurdian"
-max_health = 650.0
-max_mana = 80.0
-start_mana = 20.0
-attack_damage = 50.0
+display_name = "Guardian"
+max_health = 850.0
+max_mana = 100.0
+start_mana = 40.0
+attack_damage = 45.0
 attack_range = 1.0
-attacks_per_second = 0.7
+attacks_per_second = 0.6
 move_speed = 1.5
 cost = 2
 tags = Array[StringName]([&"Order", &"Protector"])

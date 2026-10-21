@@ -2,11 +2,10 @@
 extends Node
 
 var phase: int = Events.Phase.PREP
-enum Phase { PREP, COMBAT, RESULT }
 var fighting := false
 var combat_time := 0.0
 var snapshot := {}   # Unit -> Vector2i
-var unit_scene: PackedScene = preload("res://Scenes/unit.tscn")
+var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
 @export var prep_time := 10
 @onready var board: Board = $"../Board"
 @export var unit_pool: Array[UnitData] = []
@@ -22,11 +21,12 @@ var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool u
 
 
 func _on_unit_bought(d: UnitData):
+	if game_over or phase != Events.Phase.PREP: return
 	var slot = board.first_free_bench()
 	if slot == -1 and not board.would_complete_merge(d): return
 	GameState.gold -= d.cost
 	shop_offers.erase(d)   # stays out of the pool; it's ours now
-	var u := preload("res://Scenes/unit.tscn").instantiate() as Unit
+	var u := unit_scene.instantiate() as Unit
 	board.get_node("Units").add_child(u)
 	u.setup(d, 0)
 	if slot != -1:
@@ -65,6 +65,7 @@ func _enter(p: int):
 
 			
 func _ready():
+	add_to_group("game_manager")   # shop_slot.gd finds us by group; the node name has a space
 	shared_pool = UnitPool.new(unit_pool)
 	Events.unit_bought.connect(_on_unit_bought)
 	Events.unit_sold.connect(_on_unit_sold)
@@ -156,8 +157,8 @@ func start_combat():
 	Synergies.apply(mine)
 	_spawn_enemies()
 	for n in units_node.get_children():
-		var u := unit_scene.instantiate() as Unit
-		if u:
+		var u := n as Unit
+		if u and u.coord.x >= 0:
 			u.begin_combat()
 	combat_time = 0.0
 	fighting = true
@@ -206,8 +207,6 @@ func _physics_process(delta):
 		else:
 			alive_e += 1
 			enemy_stars += u.star
-	if alive_p == 0 or alive_e == 0 or combat_time > 60.0:
-		_end_combat(alive_e == 0 and alive_p > 0, enemy_stars)
 	if alive_p == 0 or alive_e == 0 or combat_time > 60.0:
 		_end_combat(alive_e == 0 and alive_p > 0, enemy_stars)
 

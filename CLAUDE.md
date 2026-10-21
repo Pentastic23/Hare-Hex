@@ -82,8 +82,7 @@ UI
 
 Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any `get_node` path must use the exact name.
 
-`unit.tscn`: root Node3D with `unit.gd`, children `ModelHolder` (Node3D, holds a capsule MeshInstance3D at y = 1) and `Area3D` (layer 2, for picking). Health bar, mana bar and letter label are created in code. The scene also has leftover `Health bar` (Sprite3D) and `AnimationPlayer` nodes that nothing uses.
-
+`unit.tscn`: root Node3D with `unit.gd`, children `ModelHolder` (Node3D, holds a capsule MeshInstance3D at y = 1) and `Area3D` (layer 2, for picking). Health bar, mana bar and letter label are created in code.
 `Tiles.tscn`: StaticBody3D root with `tile.gd` (collision layer 1), 6-sided CylinderMesh (radius 0.95, no rotation applied in the scene). Hex layout math in board.gd is **pointy-top**.
 
 ---
@@ -93,7 +92,7 @@ Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any 
 - **Events** (`events.gd`): all global signals, plus `enum Phase { PREP, COMBAT, RESULT }`.
 - **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `reset()`.
 
-Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `board_count_changed` (declared, never emitted), `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`.
+Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`.
 
 ---
 
@@ -143,7 +142,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Shared unit pool:** Copies per unit by cost: 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 (`UnitPool.COPIES_PER_COST`). Shop offers are taken from the pool when rolled; unbought offers go back on the next roll. Bought units stay out. Selling returns `3^(star-1)` copies. Picks within a cost are weighted by copies left; an empty cost falls back to the nearest cost with copies; if the pool runs dry the slot is left empty. Enemies do not draw from the pool. `GameManager.shared_pool` owns it (rebuilt on scene reload).
 
-**Units and merging:** 3 copies (same `display_name`, same star) merge into the next star, max 3. Star multipliers: HP/dmg x1.0 / x1.8 / x3.2, model scale 1.0 / 1.2 / 1.45. Merges run after buys, after drops (intended prep only; currently also during combat, see Known issues), and at PREP start. Buying on a full bench is allowed if it completes a merge.
+**Units and merging:** 3 copies (same `display_name`, same star) merge into the next star, max 3. Star multipliers: HP/dmg x1.0 / x1.8 / x3.2, model scale 1.0 / 1.2 / 1.45. Merges run after buys, after drops (prep only), and at PREP start. Buying on a full bench is allowed if it completes a merge.
 
 **Combat:** Tile-to-tile movement on the hex grid (BFS, occupied tiles are walls, units claim their next tile before tweening). `attack_range` is in tiles, `move_speed` is tiles/sec. Units target the nearest enemy. Dead units are hidden, not freed, and restored after combat. Player board positions are snapshotted at combat start and restored after. 60 s timeout counts as a loss.
 
@@ -153,7 +152,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Player HP:** Starts at 100. Loss damage = `round(5 * stage + 0.25 * sum of surviving enemy star levels)`. HP 0 = defeat screen; finishing the last round = victory screen. Restart calls `GameState.reset()` then reloads the scene.
 
-**Synergies:** Each unique unit on the board counts once per tag. `Synergies.apply()` clears and re-applies bonuses at combat start. They are NOT cleared at combat end yet (intended; see Known issues).
+**Synergies:** Each unique unit on the board counts once per tag. `Synergies.apply()` clears and re-applies bonuses at combat start; `Unit.end_combat()` clears them again.
 
 | Tag | Thresholds | Bonus | Scope |
 |---|---|---|---|
@@ -186,15 +185,13 @@ Damage reduction is capped at 60%.
 | Berserker | 4 | Wild, Warrior | 1000 | 85 | 1 | 0.8 | 80 | 0 |
 | Dragon | 5 | Arcane, Protector | 1400 | 90 | 2 | 0.7 | 100 | 30 |
 
-All move speed 1.5. Display names must be unique (merging groups by name). Tag spelling must match the keys in `Synergies.DEFS` exactly.
-
-This table is the **intended** roster. The .tres files currently differ (see Known issues): Cleric and Guardian have the wrong stats, Guardian is spelled "Gaurdian", Assassin and Thief are tagged "Rouge", Assassin's move speed is 3.1.
+All move speed 1.5. Display names must be unique (merging groups by name). Tag spelling must match the keys in `Synergies.DEFS` exactly. The .tres files in `tres/` match this table (fixed 2026-10-21). 1-cost units: Knight, Archer, Cleric.
 
 ---
 
 ## UI behaviour
 
-- Shop stays visible during combat; reroll is blocked outside PREP, Buy XP is not. Shop slots are meant to be blocked outside PREP too, but currently aren't (see Known issues). The shop is not dimmed yet.
+- Shop stays visible during combat; slots and reroll are blocked outside PREP (`_on_unit_bought` also checks the phase), Buy XP is not. The shop is not dimmed yet.
 - Right-click any unit (ally or enemy) to open the Unit Inspector (base stats at current star, tags). Right-clicking empty space closes it; it also closes if the unit dies or is removed.
 - Synergy box (top left) lists active synergies in gold and inactive in grey, with tooltips; hidden when the board is empty.
 - Odds, streak and unit cap sit above the shop bar.
@@ -209,6 +206,7 @@ This table is the **intended** roster. The .tres files currently differ (see Kno
 - Units must be instances of `unit.tscn` under `Board/Units`; `unit.gd` finds the board via `get_parent().get_parent()` and needs `ModelHolder`.
 - Never place enemies with `put_on_tile` (it falls back to the bench); use `put_enemy_on_tile`.
 - Combat is not deterministic yet (tweens + frame delta + unseeded random). Required before networked PvP.
+- `game_manager.gd` joins group `game_manager`; other scripts find it with `get_first_node_in_group` (its node name "Game Manager" has a space, so path lookups are fragile).
 - `GameManager.unit_pool` is the roster export (all unit types). The limited-copies pool is `GameManager.shared_pool` (UnitPool). Don't confuse them, and don't rename the export (main.tscn stores its value by name).
 - Testing without the editor: `Godot_v4.7.2-stable_win64.exe --headless --path . --quit-after 600` runs the main scene for ~10 s and prints script errors. Autoloads don't exist in `--script` mode, so test scripts that touch GameState/Events must run through the main scene.
 
@@ -216,22 +214,19 @@ This table is the **intended** roster. The .tres files currently differ (see Kno
 
 ## Current status (2026-10-21)
 
-- Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies (partly, see below), unit inspector, end screen.
-- Last finished: shared unit pool (roadmap item 2), committed.
-- Next: fix the Known issues below, then Items (roadmap item 3).
+- Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, unit inspector, end screen.
+- Last finished: the Known issues audit (combat start/end resets, shop phase check, path casing, prep-only merges, unit data, leftovers). Checked with a headless run: units start combat at full health with synergy bonuses, bonuses clear afterwards, buying during combat is refused. Not playtested by hand.
+- Next: Items (roadmap item 3). Plan it with Opus first (see Roadmap tags).
 
 ## Known issues
 
-Fix these before building on top of them. Each is tagged with the model to use.
+No blocking issues. Small things left:
 
-1. **[Sonnet] `start_combat()` never calls `begin_combat()` on real units.** The loop near the end of `start_combat()` does `unit_scene.instantiate()` instead of `n as Unit`, so it creates and leaks a throwaway unit per unit, and real units skip their combat reset. Effects: Caster bonus mana never applies, units don't start at full health after Order's HP bonus.
-2. **[Sonnet] Shop slots allow buying during combat.** `shop_slot.gd` looks up `Main/GameManager`, but the node is named `"Game Manager"`. `_on_unit_bought` doesn't check the phase either.
-3. **[Sonnet] Unit data typos and wrong stats** in `tres/`: Assassin and Thief tags `Rouge` (so the Rogue synergy never activates), Guardian named `Gaurdian` with Knight's stats, Cleric has Guardian's intended stats and cost 2 (so only Knight and Archer are 1-cost), Assassin move speed 3.1. The roster table above is the target.
-4. **[Sonnet] Path casing:** `game_manager.gd` loads `res://Scenes/unit.tscn` twice; the folder is `scenes/`. Breaks exports.
-5. **[Sonnet] Merges can run during combat:** `drag_controller._drop()` calls `merge_all()` unconditionally at the end, plus an extra early `merge_all()` before `detach()` that can merge away the unit being dragged.
-6. **[Sonnet] Synergy bonuses not cleared at combat end** (`Unit.end_combat()` doesn't call `clear_bonuses()`).
-7. **[Sonnet] Leftovers to clean up:** unused `enum Phase` in game_manager.gd; end-of-combat check duplicated in `_physics_process`; `_on_unit_bought` preloads the unit scene again instead of using `unit_scene`; `board_count_changed` never emitted; label.gd header says xp_label.gd; unit label changes from two letters ("KN") to one plus stars ("K*") after a merge; board_label.gd refreshes every frame and on signals; unused nodes in unit.tscn and ui.tscn (`TopBar/Timer`).
-8. **[Opus if a fix doesn't hold]** If fixing 1, 5 or 6 changes combat in ways that don't make sense (units with wrong health, merges eating units, bonuses stacking across rounds), stop after two attempts and recommend switching to Opus 5.5. These touch combat start/end ordering and signal timing.
+1. **[Sonnet] `TopBar/Timer`** in ui.tscn is an empty Label with no script. Either wire it up as a prep countdown or delete it.
+2. **[Sonnet] Stray editor temp files** `scenes/main.tscn*.tmp` (left by interrupted editor saves, they contain old `Scenes/` paths). Safe to delete once the editor is closed.
+3. **[Sonnet] Combat is not tested by hand** after the 2026-10-21 fixes: play a few rounds and check merging, selling, and the shop during combat.
+
+If a combat bug survives two fix attempts, stop and recommend Opus 5.5 (see Model guidance).
 
 ---
 
