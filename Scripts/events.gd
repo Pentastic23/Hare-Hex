@@ -18,3 +18,6 @@ signal streak_changed(wins: int, losses: int)
 signal hp_changed(hp: int)
 signal run_won
 signal run_lost
+signal items_changed                  # GameState.items changed (drop, equip, sell, merge)
+signal item_drag_started(index: int)  # index into GameState.items
+signal item_drag_ended

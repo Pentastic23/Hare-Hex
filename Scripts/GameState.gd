@@ -20,6 +20,10 @@ const SHOP_ODDS := {
 	9: [10, 15, 30, 30, 15],
 }
 
+# Overall round numbers whose PREP start drops a free item: 1-2, 1-3, and the last round of stages 2-6.
+const ITEM_DROP_ROUNDS := [2, 3, 9, 15, 21, 27, 33]
+
+var items: Array[ItemData] = []   # unequipped items the player owns
 var gold := 2:
 	set(v):
 		gold = v
@@ -121,4 +125,6 @@ func reset():
 	win_streak = 0
 	loss_streak = 0
 	cheap_shop = false
+	items.clear()
+	Events.items_changed.emit()
 	Events.streak_changed.emit(0, 0)

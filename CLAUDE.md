@@ -92,7 +92,7 @@ Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any 
 - **Events** (`events.gd`): all global signals, plus `enum Phase { PREP, COMBAT, RESULT }`.
 - **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `reset()`.
 
-Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`.
+Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`, `items_changed`, `item_drag_started(index)`, `item_drag_ended`.
 
 ---
 
@@ -216,7 +216,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 - Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, unit inspector, end screen.
 - Last finished: the Known issues audit (combat start/end resets, shop phase check, path casing, prep-only merges, unit data, leftovers). Checked with a headless run: units start combat at full health with synergy bonuses, bonuses clear afterwards. Buying during combat is allowed but bench-only (also checked headless: no mid-fight merge, merges happen at next PREP). Not playtested by hand.
-- Next: build Items (roadmap item 3) from `docs/items-plan.md`, one step at a time in its build order. The plan is done; Sonnet can build it. Progress: steps 1 (ItemData + 6 items in `tres/items/`) and 2 (unit item stats and equip API in unit.gd) done; next is step 3 (inventory and drops).
+- Next: build Items (roadmap item 3) from `docs/items-plan.md`, one step at a time in its build order. The plan is done; Sonnet can build it. Progress: steps 1-5 done (ItemData + 6 items in `tres/items/`; item stats and equip API in unit.gd; `GameState.items` and drops via `GameManager.item_roster`; items return on sell/merge in board.gd; `item_bar.gd` + `ItemBar` node in ui.tscn). Step 5 needs a look in the editor. Next is step 6 (dragging items onto units: wire the bar buttons to `Events.item_drag_started` and handle the drop in drag_controller.gd; each button stores its inventory index in meta `item_index`).
 
 ## Known issues
 

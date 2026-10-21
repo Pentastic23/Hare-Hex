@@ -9,6 +9,7 @@ var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
 @export var prep_time := 10
 @onready var board: Board = $"../Board"
 @export var unit_pool: Array[UnitData] = []
+@export var item_roster: Array[ItemData] = []   # items that can drop; also resolves ids when loading saves
 @export_range(0.0, 1.0) var enemy_variation_chance := 0.3   # 30% of rounds get +1 or -1
 const REROLL_COST := 2
 const BUY_XP_COST := 4
@@ -46,6 +47,7 @@ func _enter(p: int):
 	match p:
 		Events.Phase.PREP:
 			GameState.gold += GameState.total_income_for_round(GameState.round_number)
+			_drop_item()
 			board.merge_all()
 			GameState.cheap_shop = (GameState.round_number == 1)
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
@@ -88,6 +90,12 @@ func roll_shop():
 			offers.append(d)
 			shop_offers.append(d)
 	Events.shop_rolled.emit(offers)
+
+func _drop_item():
+	if item_roster.is_empty() or not GameState.ITEM_DROP_ROUNDS.has(GameState.round_number):
+		return
+	GameState.items.append(item_roster.pick_random())
+	Events.items_changed.emit()
 
 func _return_offers():
 	for d in shop_offers:

@@ -15,6 +15,13 @@
 [ext_resource type="Script" uid="uid://ce2pb23tyvtfo" path="res://Scripts/drag_controller.gd" id="11_ya4ey"]
 [ext_resource type="Resource" uid="uid://20gip7sufmpd" path="res://tres/mage.tres" id="11_yc10j"]
 [ext_resource type="Resource" uid="uid://b2mytmpbefx1k" path="res://tres/thief.tres" id="14_gqmmt"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="15_itemdata"]
+[ext_resource type="Resource" path="res://tres/items/iron_belt.tres" id="16_ironbelt"]
+[ext_resource type="Resource" path="res://tres/items/longsword.tres" id="17_longsword"]
+[ext_resource type="Resource" path="res://tres/items/quick_bow.tres" id="18_quickbow"]
+[ext_resource type="Resource" path="res://tres/items/mana_charm.tres" id="19_manacharm"]
+[ext_resource type="Resource" path="res://tres/items/chain_vest.tres" id="20_chainvest"]
+[ext_resource type="Resource" path="res://tres/items/blood_fang.tres" id="21_bloodfang"]
 
 [node name="Main" type="Node3D" unique_id=1680323474]
 
@@ -38,6 +45,7 @@ script = ExtResource("1_ya4ey")
 script = ExtResource("6_jbj1t")
 prep_time = 15
 unit_pool = Array[ExtResource("7_muem4")]([ExtResource("8_dp3eg"), ExtResource("9_0ld40"), ExtResource("7_jkv2x"), ExtResource("8_jbj1t"), ExtResource("9_muem4"), ExtResource("10_dp3eg"), ExtResource("11_0ld40"), ExtResource("10_gqmmt"), ExtResource("11_yc10j"), ExtResource("14_gqmmt")])
+item_roster = Array[ExtResource("15_itemdata")]([ExtResource("16_ironbelt"), ExtResource("17_longsword"), ExtResource("18_quickbow"), ExtResource("19_manacharm"), ExtResource("20_chainvest"), ExtResource("21_bloodfang")])
 enemy_base_scale = 0.4
 enemy_scale_per_round = 0.05
 

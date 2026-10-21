@@ -188,6 +188,7 @@ func try_merge() -> bool:
 			continue
 		g.sort_custom(func(a, b): return a.coord.x >= 0 and b.coord.x < 0)
 		var keeper: Unit = g[0]
+		_move_items_to(keeper, [g[1], g[2]])
 		for i in [1, 2]:
 			detach(g[i])
 			g[i].queue_free()
@@ -198,6 +199,26 @@ func try_merge() -> bool:
 func merge_all():
 	while try_merge():
 		pass
+
+# Gives the consumed units' items to the keeper (up to its limit); the rest go back to the inventory.
+func _move_items_to(keeper: Unit, consumed: Array) -> void:
+	var returned := false
+	for c in consumed:
+		var cu: Unit = c
+		for item in cu.take_items():
+			if not keeper.equip(item):
+				GameState.items.append(item)
+				returned = true
+	if returned:
+		Events.items_changed.emit()
+
+# Puts a unit's items back in the inventory (selling, or a unit removed for lack of room).
+func _return_items(u: Unit) -> void:
+	var taken := u.take_items()
+	if taken.is_empty():
+		return
+	GameState.items.append_array(taken)
+	Events.items_changed.emit()
 
 func nearest_tile(p: Vector3, max_dist := HEX * 1.2) -> Tile:
 	var best: Tile = null
@@ -238,6 +259,7 @@ func merge_pending_unit(newbie: Unit):
 		newbie.queue_free()
 		return
 	var keeper: Unit = copies[0]
+	_move_items_to(keeper, [copies[1]])
 	detach(copies[1])
 	copies[1].queue_free()
 	newbie.queue_free()
@@ -278,6 +300,7 @@ func put_on_tile(u: Unit, c: Vector2i):
 			put_on_bench(u, slot)
 		else:
 			push_warning("No room for unit; removed")
+			_return_items(u)
 			u.queue_free()
 		return
 	tiles[c].occupant = u
@@ -289,6 +312,7 @@ func put_on_bench(u: Unit, i: int):
 		i = first_free_bench()
 		if i == -1:
 			push_warning("Bench full; unit removed")
+			_return_items(u)
 			u.queue_free()
 			return
 	bench[i] = u
@@ -316,6 +340,7 @@ func sell_unit(u: Unit):
 	var refund := u.data.cost * UnitPool.copies_in(u.star)   # use `u.data.cost` for a flat refund
 	var d := u.data
 	var star := u.star
+	_return_items(u)
 	detach(u)
 	u.queue_free()
 	GameState.gold += refund
