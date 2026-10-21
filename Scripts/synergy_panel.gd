@@ -50,10 +50,16 @@ func _refresh():
 		var parts: PackedStringArray = []
 		for th in thresholds:
 			parts.append(str(th))
+		# Progress toward the next tier; once every tier is reached it shows the last one (e.g. 3/3).
+		var target: int = int(thresholds.back())
+		for th in thresholds:
+			if n < int(th):
+				target = int(th)
+				break
 
 		var l := Label.new()
-		l.text = "%s  %d  (%s)" % [tag, n, " / ".join(parts)]
-		l.tooltip_text = Synergies.DEFS[tag]["desc"]
+		l.text = "%s  %d/%d" % [tag, n, target]
+		l.tooltip_text = "%s\nTiers: %s units" % [Synergies.DEFS[tag]["desc"], " / ".join(parts)]
 		l.mouse_filter = Control.MOUSE_FILTER_STOP
 		l.modulate = Color(1.0, 0.85, 0.3) if t >= 0 else Color(0.65, 0.65, 0.65)
 		add_child(l)

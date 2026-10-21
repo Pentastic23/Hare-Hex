@@ -193,7 +193,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 - Shop stays visible during combat. Shop slots and Buy XP work during combat (bought units go to the bench only); reroll is blocked outside PREP. The shop is not dimmed yet.
 - Right-click any unit (ally or enemy) to open the Unit Inspector (base stats at current star, tags). Right-clicking empty space closes it; it also closes if the unit dies or is removed.
-- Synergy box (top left) lists active synergies in gold and inactive in grey, with tooltips; hidden when the board is empty.
+- Synergy box (top left) lists every tag on the board as `Tag  count/next threshold` (e.g. Order 2/3, or 3/3 once all tiers are reached): active in gold, inactive in grey. Tooltips show the effect and all tiers. Hidden when the board is empty.
 - Odds, streak and unit cap sit above the shop bar.
 
 ---
