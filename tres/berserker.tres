@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://m4qbus7x7gkb"]
+
+[ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_5wenf"]
+
+[resource]
+script = ExtResource("1_5wenf")
+display_name = "Berserker"
+max_health = 1000.0
+max_mana = 80.0
+attack_damage = 85.0
+attack_range = 1.0
+attacks_per_second = 0.8
+move_speed = 1.5
+cost = 4
+tags = Array[StringName]([&"Wild", &"Warrior"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"

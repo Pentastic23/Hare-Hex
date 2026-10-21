@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://b2esie1m2euni"]
+
+[ext_resource type="Script" uid="uid://bvm58bmptjbr3" path="res://Scripts/unit.gd" id="1_o7ajc"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_8ib2y"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_o7ajc"]
+size = Vector3(1.6, 2.2, 1.6)
+
+[node name="Unit" type="Node3D" unique_id=877990226]
+script = ExtResource("1_o7ajc")
+
+[node name="ModelHolder" type="Node3D" parent="." unique_id=926626483]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ModelHolder" unique_id=476651990]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("CapsuleMesh_8ib2y")
+
+[node name="Area3D" type="Area3D" parent="." unique_id=1568666580]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=1302471192]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("BoxShape3D_o7ajc")
+
+[node name="Health bar" type="Sprite3D" parent="." unique_id=268889712]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=266448108]

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://cxrh0yix5vapk"]
+
+[ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_g715d"]
+
+[resource]
+script = ExtResource("1_g715d")
+display_name = "Hunter"
+max_health = 750.0
+max_mana = 70.0
+attack_damage = 80.0
+attack_range = 4.0
+attacks_per_second = 0.85
+move_speed = 1.5
+cost = 4
+tags = Array[StringName]([&"Wild", &"Ranger"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"

@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://k16twlfjjky5"]
+
+[ext_resource type="Script" uid="uid://f7ptqaaw660r" path="res://Scripts/board.gd" id="1_ya4ey"]
+[ext_resource type="PackedScene" uid="uid://df83a14ngjth8" path="res://scenes/ui.tscn" id="5_jkv2x"]
+[ext_resource type="Script" uid="uid://bh1hjcky8ybb2" path="res://Scripts/game_manager.gd" id="6_jbj1t"]
+[ext_resource type="Resource" uid="uid://m4qbus7x7gkb" path="res://tres/berserker.tres" id="7_jkv2x"]
+[ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="7_muem4"]
+[ext_resource type="Resource" uid="uid://bf5mnelyuie12" path="res://tres/archer.tres" id="8_dp3eg"]
+[ext_resource type="Resource" uid="uid://c6cblum6v7l3s" path="res://tres/cleric.tres" id="8_jbj1t"]
+[ext_resource type="Resource" uid="uid://dhr8hhqvq5qm2" path="res://tres/assassin.tres" id="9_0ld40"]
+[ext_resource type="Resource" uid="uid://dd5p8b76jdon6" path="res://tres/dragon.tres" id="9_muem4"]
+[ext_resource type="Resource" uid="uid://c03onp3oa6u1j" path="res://tres/guardian.tres" id="10_dp3eg"]
+[ext_resource type="Resource" uid="uid://bamcjn6fw8vpi" path="res://tres/knight.tres" id="10_gqmmt"]
+[ext_resource type="Resource" uid="uid://cxrh0yix5vapk" path="res://tres/hunter.tres" id="11_0ld40"]
+[ext_resource type="Script" uid="uid://ce2pb23tyvtfo" path="res://Scripts/drag_controller.gd" id="11_ya4ey"]
+[ext_resource type="Resource" uid="uid://20gip7sufmpd" path="res://tres/mage.tres" id="11_yc10j"]
+[ext_resource type="Resource" uid="uid://b2mytmpbefx1k" path="res://tres/thief.tres" id="14_gqmmt"]
+
+[node name="Main" type="Node3D" unique_id=1680323474]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1869755004]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1037157775]
+transform = Transform3D(1, 0, 0, 0, 0.75363743, 0.65729046, 0, -0.65729046, 0.75363743, 0, 18.175846, 32)
+
+[node name="Board" type="Node3D" parent="." unique_id=162744776]
+script = ExtResource("1_ya4ey")
+
+[node name="Bench" type="Node3D" parent="Board" unique_id=905298598]
+
+[node name="Units" type="Node3D" parent="Board" unique_id=1399458978]
+
+[node name="Tiles" type="Node3D" parent="Board" unique_id=1474179]
+
+[node name="UI" parent="." unique_id=1303589865 instance=ExtResource("5_jkv2x")]
+
+[node name="Game Manager" type="Node" parent="." unique_id=1676986043]
+script = ExtResource("6_jbj1t")
+prep_time = 15
+unit_pool = Array[ExtResource("7_muem4")]([ExtResource("8_dp3eg"), ExtResource("9_0ld40"), ExtResource("7_jkv2x"), ExtResource("8_jbj1t"), ExtResource("9_muem4"), ExtResource("10_dp3eg"), ExtResource("11_0ld40"), ExtResource("10_gqmmt"), ExtResource("11_yc10j"), ExtResource("14_gqmmt")])
+enemy_base_scale = 0.4
+enemy_scale_per_round = 0.05
+
+[node name="DragController" type="Node" parent="." unique_id=2097779487]
+script = ExtResource("11_ya4ey")
+
+[node name="CameraRig" type="Node3D" parent="." unique_id=1343660408]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 7)
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig" unique_id=616434430]
+transform = Transform3D(1, 0, 0, 0, 0.57357645, 0.81915206, 0, -0.81915206, 0.57357645, 0, 10, 9.5)
+current = true

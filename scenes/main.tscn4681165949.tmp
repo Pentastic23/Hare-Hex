@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://k16twlfjjky5"]
+
+[ext_resource type="Script" uid="uid://f7ptqaaw660r" path="res://Scripts/board.gd" id="1_jjgbg"]
+[ext_resource type="Script" uid="uid://bh1hjcky8ybb2" path="res://Scripts/game_manager.gd" id="2_bo1nx"]
+[ext_resource type="PackedScene" uid="uid://bv1fy60f1653m" path="res://Scenes/Tiles.tscn" id="2_kry3j"]
+[ext_resource type="PackedScene" uid="uid://b2esie1m2euni" path="res://Scenes/unit.tscn" id="3_21xkr"]
+[ext_resource type="PackedScene" uid="uid://df83a14ngjth8" path="res://Scenes/ui.tscn" id="5_6bp64"]
+
+[node name="Main" type="Node3D" unique_id=1680323474]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1869755004]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1037157775]
+transform = Transform3D(1, 0, 0, 0, 0.75363743, 0.65729046, 0, -0.65729046, 0.75363743, 0, 18.175846, 32)
+
+[node name="XRCamera3D" type="XRCamera3D" parent="DirectionalLight3D" unique_id=1722401827]
+transform = Transform3D(1, 0, 0, 0, 0.9598893, 0.280379, 0, -0.280379, 0.9598893, 5.353226, 4.6068697, -22.29541)
+
+[node name="Board" type="Node3D" parent="." unique_id=162744776]
+script = ExtResource("1_jjgbg")
+tile_scene = ExtResource("2_kry3j")
+
+[node name="Bench" type="Node3D" parent="Board" unique_id=905298598]
+
+[node name="Tiles" parent="Board" unique_id=1706502684 instance=ExtResource("2_kry3j")]
+
+[node name="Unit" parent="Board" unique_id=877990226 instance=ExtResource("3_21xkr")]
+
+[node name="UI" parent="." unique_id=1303589865 instance=ExtResource("5_6bp64")]
+
+[node name="Game Manager" type="Node" parent="." unique_id=1676986043]
+script = ExtResource("2_bo1nx")

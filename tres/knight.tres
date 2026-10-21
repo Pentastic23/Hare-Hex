@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://bamcjn6fw8vpi"]
+
+[ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_wudis"]
+
+[resource]
+script = ExtResource("1_wudis")
+display_name = "Knight"
+max_health = 650.0
+max_mana = 80.0
+start_mana = 20.0
+attack_damage = 50.0
+attack_range = 1.0
+attacks_per_second = 0.7
+move_speed = 1.5
+tags = Array[StringName]([&"Order", &"Warrior"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"

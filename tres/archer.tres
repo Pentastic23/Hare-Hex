@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://bf5mnelyuie12"]
+
+[ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_joqmt"]
+
+[resource]
+script = ExtResource("1_joqmt")
+display_name = "Archer"
+max_health = 450.0
+attack_damage = 45.0
+attack_range = 4.0
+attacks_per_second = 0.8
+move_speed = 1.5
+tags = Array[StringName]([&"Wild", &"Ranger"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"

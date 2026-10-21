@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://dhr8hhqvq5qm2"]
+
+[ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_e4i5r"]
+
+[resource]
+script = ExtResource("1_e4i5r")
+display_name = "Assassin"
+max_health = 700.0
+attack_damage = 75.0
+attack_range = 1.0
+attacks_per_second = 0.9
+move_speed = 3.1
+cost = 3
+tags = Array[StringName]([&"Shadow", &"Rouge"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"

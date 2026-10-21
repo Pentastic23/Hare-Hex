@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://b2mytmpbefx1k"]
+
+[ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_fs067"]
+
+[resource]
+script = ExtResource("1_fs067")
+display_name = "Thief"
+max_health = 550.0
+max_mana = 50.0
+attack_damage = 60.0
+attack_range = 1.0
+attacks_per_second = 0.9
+move_speed = 1.5
+cost = 2
+tags = Array[StringName]([&"Shadow", &"Rouge"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"
