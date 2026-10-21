@@ -36,6 +36,12 @@ var item_as := 0.0
 var item_mana := 0.0
 var item_dr := 0.0
 var item_lifesteal := 0.0
+var item_icons: Node3D   # row of coloured squares above the health bar, one per item
+static var _icon_tex: ImageTexture
+const ICON_PX := 16
+const ICON_SIZE := 0.22    # world size of one icon square
+const ICON_STEP := 0.3     # spacing between icon centers
+const ICON_HEIGHT := 0.28  # how far above the health bar the row sits
 
 const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2}
 const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45}
@@ -125,6 +131,8 @@ func _make_bar_sprite(tex: Texture2D, priority: int) -> Sprite3D:
 	return s
 
 func _process(_delta):
+	if item_icons != null:
+		item_icons.global_position = global_position + Vector3(0, BAR_HEIGHT + ICON_HEIGHT, 0)
 	if data == null or bar_fill == null:
 		return
 
@@ -307,6 +315,42 @@ func _recalc_items() -> void:
 		item_mana += it.mana
 		item_dr += it.damage_reduction
 		item_lifesteal += it.lifesteal
+	_update_item_icons()
+
+# One coloured square per item above the health bar, so items are visible on the board
+# without the inspector. The row is top_level so it keeps facing the camera when the unit turns;
+# _process moves it along with the unit.
+func _update_item_icons() -> void:
+	if item_icons == null:
+		item_icons = Node3D.new()
+		item_icons.top_level = true
+		add_child(item_icons)
+		if is_inside_tree():
+			item_icons.global_position = global_position + Vector3(0, BAR_HEIGHT + ICON_HEIGHT, 0)   # _process keeps it there
+	for c in item_icons.get_children():
+		item_icons.remove_child(c)
+		c.queue_free()
+	var n := items.size()
+	for i in n:
+		var x := (i - (n - 1) / 2.0) * ICON_STEP
+		item_icons.add_child(_icon_sprite(Color(0.05, 0.05, 0.05, 0.9), ICON_SIZE * 1.3, 1, x))   # border
+		item_icons.add_child(_icon_sprite(items[i].color, ICON_SIZE, 2, x))
+
+func _icon_sprite(color: Color, world_size: float, priority: int, x: float) -> Sprite3D:
+	if _icon_tex == null:
+		var img := Image.create(ICON_PX, ICON_PX, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		_icon_tex = ImageTexture.create_from_image(img)
+	var s := Sprite3D.new()
+	s.texture = _icon_tex
+	s.pixel_size = world_size / ICON_PX
+	s.modulate = color
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.shaded = false
+	s.no_depth_test = true    # draw over the model
+	s.render_priority = priority
+	s.position = Vector3(x, 0, 0)
+	return s
 
 func _ability() -> Ability:
 	if data.ability != null:

@@ -3,6 +3,7 @@ extends PanelContainer
 
 @onready var name_label: Label = $VBoxContainer/NameLabel
 @onready var tags_label: Label = $VBoxContainer/TagsLabel
+@onready var items_label: Label = $VBoxContainer/ItemsLabel
 @onready var stats_label: Label = $VBoxContainer/StatsLabel
 
 var board: Board
@@ -72,11 +73,25 @@ func _fill():
 		tags.append(String(t))
 	tags_label.text = "%s  |  %s" % ["Ally" if u.team == 0 else "Enemy", ", ".join(tags)]
 
-	stats_label.text = "\n".join([
-		"Health: %d" % roundi(d.max_health * mult),
-		"Damage: %d" % roundi(d.attack_damage * mult),
-		"Attack speed: %.2f" % d.attacks_per_second,
+	var item_names: PackedStringArray = []
+	for item in u.items:
+		item_names.append(item.display_name)
+	items_label.text = "Items: " + (", ".join(item_names) if not item_names.is_empty() else "none")
+
+	# Base stats at the current star, plus items (synergy bonuses are not shown).
+	var lines: PackedStringArray = [
+		"Health: %d%s" % [roundi((d.max_health + u.item_hp) * mult), _items_note(u.item_hp, "+%d" % roundi(u.item_hp * mult))],
+		"Damage: %d%s" % [roundi((d.attack_damage + u.item_dmg) * mult), _items_note(u.item_dmg, "+%d" % roundi(u.item_dmg * mult))],
+		"Attack speed: %.2f%s" % [d.attacks_per_second * (1.0 + u.item_as), _items_note(u.item_as, "+%d%%" % roundi(u.item_as * 100.0))],
 		"Range: %d" % roundi(d.attack_range),
-		"Mana: %d  (start %d)" % [roundi(d.max_mana), roundi(d.start_mana)],
-		"Cost: %d g" % d.cost,
-	])
+		"Mana: %d  (start %d)%s" % [roundi(d.max_mana), roundi(minf(d.start_mana + u.item_mana, d.max_mana)), _items_note(u.item_mana, "+%d" % roundi(u.item_mana))],
+	]
+	if u.item_dr > 0.0:
+		lines.append("Damage reduction: %d%%  (items)" % roundi(u.item_dr * 100.0))
+	if u.item_lifesteal > 0.0:
+		lines.append("Lifesteal: %d%%  (items)" % roundi(u.item_lifesteal * 100.0))
+	lines.append("Cost: %d g" % d.cost)
+	stats_label.text = "\n".join(lines)
+
+func _items_note(value: float, text: String) -> String:
+	return "" if is_zero_approx(value) else "  (%s items)" % text

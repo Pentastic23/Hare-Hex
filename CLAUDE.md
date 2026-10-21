@@ -30,6 +30,8 @@ res://
   scenes/        main.tscn, Tiles.tscn (one hex tile), unit.tscn, ui.tscn (all UI, instanced in main)
   Scripts/       all .gd files
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
+  tres/items/    ItemData .tres files (one per item)
+  docs/          design plans (items-plan.md)
   addons/        third-party plugins; don't edit
 ```
 
@@ -54,7 +56,7 @@ Main (Node3D)
      └─ Camera3D                  pos (0, 10, 9.5), rot ~(-55, 0, 0)
 ```
 
-The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 10 unit .tres files (this is the **roster**, not the shared pool), `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05`.
+The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 10 unit .tres files (this is the **roster**, not the shared pool), `item_roster` = the 6 item .tres files, `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05`.
 
 **ui.tscn** (root `UI`, CanvasLayer):
 
@@ -76,8 +78,10 @@ UI
  │   └─ CenterContainer/Backing/Margin/VBoxContainer: TitleLabel, DetailLabel, RestartButton
  ├─ SynergyBox (PanelContainer, panel_style.tres)
  │   └─ SynergyPanel (VBoxContainer)   synergy_panel.gd
- └─ UnitInspector (PanelContainer, panel_style.tres)   unit_inspector.gd
-     └─ VBoxContainer: NameLabel, TagsLabel, StatsLabel
+ ├─ UnitInspector (PanelContainer, panel_style.tres)   unit_inspector.gd
+ │   └─ VBoxContainer: NameLabel, TagsLabel, ItemsLabel, StatsLabel
+ └─ ItemBar (PanelContainer, panel_style.tres, left of screen below center)   item_bar.gd
+     └─ Grid (GridContainer, 2 columns): item buttons built in code
 ```
 
 Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any `get_node` path must use the exact name.
@@ -90,7 +94,7 @@ Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any 
 ## Autoloads
 
 - **Events** (`events.gd`): all global signals, plus `enum Phase { PREP, COMBAT, RESULT }`.
-- **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `reset()`.
+- **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `items` (unequipped item inventory), `ITEM_DROP_ROUNDS`, `reset()`.
 
 Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`, `items_changed`, `item_drag_started(index)`, `item_drag_ended`.
 
@@ -102,12 +106,14 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 |---|---|
 | `board.gd` (class Board) | Hex grid (7 cols x 8 rows; rows 0-3 enemy, 4-7 player), bench (9 slots), sell zone, tile unlocking by level, seam border, hex math + BFS pathfinding, merging, selling |
 | `tile.gd` (class Tile) | `coord`, `occupant`, `unlocked`, pop-in animation |
-| `unit.gd` (class Unit) | Stats, star level, combat step, health/mana bars, letter label, synergy bonus fields, placeholder ability casting |
+| `unit.gd` (class Unit) | Stats, star level, combat step, health/mana bars, letter label, synergy bonus fields, items (`items`, `item_*` fields, `equip` / `set_items` / `take_items`, item icons above the health bar), placeholder ability casting |
+| `item_data.gd` (class ItemData) | Resource: stable `id`, name, description, color, stat boosts (hp, dmg, attack_speed, mana, damage_reduction, lifesteal) |
+| `item_bar.gd` | Inventory panel: one button per item, starts item drags, drag ghost label |
 | `unit_data.gd` (class UnitData) | Resource: name, cost, stats, tags, mana, model, ability |
 | `ability.gd` (class Ability) | Resource base class; `cast(caster, target)` does nothing yet (placeholder) |
 | `synergies.gd` (class Synergies) | Static synergy table + count / tier / apply |
 | `game_manager.gd` | Phase loop, shop rolling (from `shared_pool`), buying, enemy spawning, combat loop, end of combat, run end |
-| `drag_controller.gd` | Left-drag units, swaps, snapping, sell zone, F-to-sell, drag cancel on phase change |
+| `drag_controller.gd` | Left-drag units, swaps, snapping (board tiles only on the player half, rows 4-7; a drop on an enemy-side tile returns the unit to where it came from), sell zone, F-to-sell, drag cancel on phase change; dropping dragged items on units (`equip_item_on`) |
 | `unit_pool.gd` (class UnitPool) | Shared unit pool: copies left per UnitData, weighted `pick(cost)`, `take` / `give_back`, `copies_in(star)` |
 | `shop_slot.gd` (class ShopSlot) | Shop button; checks gold and bench space (in PREP, completing a merge also counts); `clear_offer()` for empty slots |
 | `shop_panel.gd` | Wires shop buttons, fills slots from `shop_rolled` |
@@ -152,6 +158,13 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Player HP:** Starts at 100. Loss damage = `round(5 * stage + 0.25 * sum of surviving enemy star levels)`. HP 0 = defeat screen; finishing the last round = victory screen. Restart calls `GameState.reset()` then reloads the scene.
 
+**Items:** `ItemData` resources in `tres/items/` (Iron Belt +150 HP, Longsword +15 dmg, Quick Bow +15% attack speed, Mana Charm +15 start mana, Chain Vest +10% damage reduction, Blood Fang +10% lifesteal). Details and reasoning in `docs/items-plan.md`.
+- **Drops:** a random item from `GameManager.item_roster` at PREP start on rounds in `GameState.ITEM_DROP_ROUNDS` (1-2, 1-3, and the last round of stages 2-6) goes into `GameState.items`. The inventory is unlimited and cleared by `reset()`.
+- **Equipping:** drag an item from the item bar onto one of your units (board or bench, any phase, including units that are fighting). Max 3 items per unit; dead units, enemies and full units refuse. Released over the UI, enemies or empty ground, the item stays in the inventory. Fighting units get the boost immediately (HP is added to current health; mana item adds to current mana once).
+- **No removal:** items only leave a unit when it is sold (they return to the inventory) or merged (the kept unit takes them up to 3, extras return). Units removed for lack of room also return their items.
+- **Stats:** kept in `Unit.item_*` fields, separate from the synergy `bonus_*` fields (those are cleared every combat). Flat HP and damage add to base stats before the star and synergy multipliers (so they scale with stars); attack speed, damage reduction and lifesteal add to the synergy percentages; item mana adds to starting mana. The 60% damage-reduction cap covers both sources.
+- **Enemies have no items yet.** `Unit.set_items(list)` is the hook for the opponent provider, and board entries should carry `items`. Items must be saved by `ItemData.id` (never rename an id).
+
 **Synergies:** Each unique unit on the board counts once per tag. `Synergies.apply()` clears and re-applies bonuses at combat start; `Unit.end_combat()` clears them again.
 
 | Tag | Thresholds | Bonus | Scope |
@@ -192,7 +205,8 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 ## UI behaviour
 
 - Shop stays visible during combat. Shop slots and Buy XP work during combat (bought units go to the bench only); reroll is blocked outside PREP. The shop is not dimmed yet.
-- Right-click any unit (ally or enemy) to open the Unit Inspector (base stats at current star, tags). Right-clicking empty space closes it; it also closes if the unit dies or is removed.
+- Right-click any unit (ally or enemy) to open the Unit Inspector (base stats at current star plus items, tags, item list; synergy bonuses are not shown). Right-clicking empty space closes it; it also closes if the unit dies or is removed.
+- Item bar (left side, below center): one coloured button per owned item, hover for a tooltip, hidden when empty. Press and hold an item, drag it onto a unit and release to equip; a label with the item name follows the mouse. Units (board and bench) show a row of small coloured squares above their health bar, one per item in the item's colour (`Unit._update_item_icons`; the row is top_level so it stays level when the unit turns).
 - Synergy box (top left) lists every tag on the board as `Tag  count/next threshold` (e.g. Order 2/3, or 3/3 once all tiers are reached): active in gold, inactive in grey. Tooltips show the effect and all tiers. Hidden when the board is empty.
 - Odds, streak and unit cap sit above the shop bar.
 
@@ -214,9 +228,9 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 ## Current status (2026-10-21)
 
-- Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, unit inspector, end screen.
-- Last finished: the Known issues audit (combat start/end resets, shop phase check, path casing, prep-only merges, unit data, leftovers). Checked with a headless run: units start combat at full health with synergy bonuses, bonuses clear afterwards. Buying during combat is allowed but bench-only (also checked headless: no mid-fight merge, merges happen at next PREP). Not playtested by hand.
-- Next: build Items (roadmap item 3) from `docs/items-plan.md`, one step at a time in its build order. The plan is done; Sonnet can build it. Progress: steps 1-5 done (ItemData + 6 items in `tres/items/`; item stats and equip API in unit.gd; `GameState.items` and drops via `GameManager.item_roster`; items return on sell/merge in board.gd; `item_bar.gd` + `ItemBar` node in ui.tscn). Step 5 needs a look in the editor. Next is step 6 (dragging items onto units: wire the bar buttons to `Events.item_drag_started` and handle the drop in drag_controller.gd; each button stores its inventory index in meta `item_index`).
+- Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, items, unit inspector, end screen.
+- Last finished: Items (roadmap item 3), all steps of `docs/items-plan.md`. Checked headless, including simulated mouse drags (equip in prep, on the bench, on a fighting unit; refused on enemies, full units, empty ground and over the UI). Not yet tried by hand in the game window.
+- Next: playtest Items by hand, then the opponent provider layer (roadmap item 4, Opus plans it first).
 
 ## Known issues
 
@@ -224,7 +238,7 @@ No blocking issues. Small things left:
 
 1. **[Sonnet] `TopBar/Timer`** in ui.tscn is an empty Label with no script. Either wire it up as a prep countdown or delete it.
 2. **[Sonnet] Stray editor temp files** `scenes/main.tscn*.tmp` (left by interrupted editor saves, they contain old `Scenes/` paths). Safe to delete once the editor is closed.
-3. **[Sonnet] Combat is not tested by hand** after the 2026-10-21 fixes: play a few rounds and check merging, selling, and buying from the shop during combat.
+3. **[Sonnet] Combat and items are not tested by hand** after the 2026-10-21 changes: play a few rounds and check merging, selling, buying during combat, item drops, dragging items onto units, and the item bar layout.
 
 If a combat bug survives two fix attempts, stop and recommend Opus 5.5 (see Model guidance).
 
@@ -239,8 +253,8 @@ Model tags: **[Sonnet]** = do directly. **[Opus]** = recommend switching before 
 ### Phase 1: Shared core
 1. Abilities **[Opus plan, Sonnet build]**: real designs deferred until unit visuals exist; placeholder system is in place.
 2. ~~Shared unit pool~~: done (see Game rules).
-3. **Items** (next up) **[Sonnet build]**: drag onto units for stat boosts. Planned in `docs/items-plan.md` (data, stat formulas, drops, UI, drag rules, sell/merge, build order). Follow it; if something in the plan doesn't fit the code, stop and ask instead of redesigning.
-4. Opponent provider layer **[Opus]**: `_spawn_enemies()` asks a provider for a board (units, stars, tile positions) instead of rolling randomly. Its board format is reused by campaign waves and PvP snapshots, so get it right once.
+3. ~~Items~~: done (see Game rules and `docs/items-plan.md`). Not yet playtested by hand.
+4. **Opponent provider layer** (next up) **[Opus]**: it should also give enemies items (`Unit.set_items`). `_spawn_enemies()` asks a provider for a board (units, stars, tile positions) instead of rolling randomly. Its board format is reused by campaign waves and PvP snapshots, so get it right once.
 
 ### Phase 2: Campaign
 5. Hand-authored waves as resources (plus bosses) **[Sonnet]**, once item 4's format exists.

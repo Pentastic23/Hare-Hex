@@ -168,7 +168,7 @@ func _move_items_to(keeper: Unit, consumed: Array) -> void
 
 ## Small 3D indicator (optional, last)
 
-A `Label3D` under the unit's letter showing one dot per item (`●●`), so items are visible on the board without the inspector. Updated from `_recalc_items()`.
+Built as a row of small coloured squares (one per item, in the item's colour) above the health bar, updated from `_recalc_items()`. The first version was text dots under the unit's letter; they were too easy to miss, so they were replaced.
 
 ## Compatibility with later roadmap items
 

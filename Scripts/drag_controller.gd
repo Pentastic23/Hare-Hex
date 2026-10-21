@@ -7,9 +7,11 @@ var in_prep := true
 var dragging: Unit = null
 var origin_coord := Vector2i(-1, -1)
 var origin_bench := -1
+var dragging_item: ItemData = null   # item picked up from the item bar
 
 func _ready():
 	Events.phase_changed.connect(_on_phase_changed)
+	Events.item_drag_started.connect(_on_item_drag_started)
 
 func _on_phase_changed(p: int):
 	in_prep = (p == Events.Phase.PREP)
@@ -22,6 +24,8 @@ func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_pick()
+		elif dragging_item != null:
+			_drop_item()
 		else:
 			_drop()
 	elif event is InputEventMouseMotion and dragging:
@@ -77,6 +81,8 @@ func _drop():
 		tile = board.nearest_tile(ground)
 		if not in_prep:
 			tile = null
+		elif tile != null and not board.is_player_side(tile.coord):
+			tile = null   # your units only go on your half; the drop falls back to the origin spot
 	board.detach(u)   # u's origin slot is now free
 
 	if bench_i != -1:
@@ -107,7 +113,41 @@ func _place_at_origin(u: Unit, ob: int, oc: Vector2i):
 	else:
 		board.put_on_tile(u, oc)
 
+func _on_item_drag_started(index: int):
+	if index >= 0 and index < GameState.items.size():
+		dragging_item = GameState.items[index]
+
+func _end_item_drag():
+	if dragging_item == null:
+		return
+	dragging_item = null
+	Events.item_drag_ended.emit()
+
+# Items go on units only, in any phase. A fighting unit gets the boost immediately.
+# Released over the UI, an enemy, a full or dead unit, or empty ground: the item stays in the inventory.
+func _drop_item():
+	var item := dragging_item
+	_end_item_drag()
+	if get_viewport().gui_get_hovered_control() != null:
+		return
+	var hit := _ray(2, true, false)   # layer 2 = units
+	if hit.is_empty():
+		return
+	equip_item_on(hit.collider.get_parent() as Unit, item)
+
+func equip_item_on(u: Unit, item: ItemData) -> bool:
+	var index := GameState.items.find(item)
+	if index == -1 or u == null or u.team != 0:
+		return false
+	if not u.equip(item, not in_prep and u.coord.x >= 0):
+		return false
+	GameState.items.remove_at(index)
+	Events.items_changed.emit()
+	return true
+
 func _sell_with_key():
+	if dragging_item != null:
+		return
 	var u: Unit = dragging
 	if u != null:
 		# Selling mid-drag: forget the drag so the mouse release does nothing.
@@ -133,6 +173,7 @@ func _unit_near_mouse() -> Unit:
 	return best
 
 func _cancel_drag():
+	_end_item_drag()
 	if dragging == null:
 		return
 	var u := dragging
