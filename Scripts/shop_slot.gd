@@ -14,17 +14,16 @@ func clear_offer():
 	disabled = true
 
 func _pressed():
-	var gm := get_tree().get_first_node_in_group("game_manager")
-	if gm != null and gm.phase != Events.Phase.PREP:
-		_flash("Fighting...")
-		return
 	if offer == null:
 		return
 	if GameState.gold < offer.cost:
 		_flash("Not enough\ngold")
 		return
+	var gm := get_tree().get_first_node_in_group("game_manager")
+	var in_prep: bool = gm == null or gm.phase == Events.Phase.PREP
 	var board := get_tree().get_first_node_in_group("board") as Board
-	if board != null and board.first_free_bench() == -1 and not board.would_complete_merge(offer):
+	# During combat a purchase must land on the bench, so completing a merge doesn't help.
+	if board != null and board.first_free_bench() == -1 and not (in_prep and board.would_complete_merge(offer)):
 		_flash("Bench full")
 		return
 	Events.unit_bought.emit(offer)

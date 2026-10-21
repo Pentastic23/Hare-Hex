@@ -109,7 +109,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | `game_manager.gd` | Phase loop, shop rolling (from `shared_pool`), buying, enemy spawning, combat loop, end of combat, run end |
 | `drag_controller.gd` | Left-drag units, swaps, snapping, sell zone, F-to-sell, drag cancel on phase change |
 | `unit_pool.gd` (class UnitPool) | Shared unit pool: copies left per UnitData, weighted `pick(cost)`, `take` / `give_back`, `copies_in(star)` |
-| `shop_slot.gd` (class ShopSlot) | Shop button; checks gold, bench space (or completing a merge), phase; `clear_offer()` for empty slots |
+| `shop_slot.gd` (class ShopSlot) | Shop button; checks gold and bench space (in PREP, completing a merge also counts); `clear_offer()` for empty slots |
 | `shop_panel.gd` | Wires shop buttons, fills slots from `shop_rolled` |
 | UI labels | `gold_label.gd`, `label.gd` (XP/level), `stage_label.gd`, `hp_label.gd`, `odds_label.gd`, `streak_label.gd`, `board_label.gd`, `bottom_info.gd`, `synergy_panel.gd`, `unit_inspector.gd`, `end_screen.gd` |
 
@@ -142,7 +142,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Shared unit pool:** Copies per unit by cost: 1: 30, 2: 25, 3: 18, 4: 10, 5: 9 (`UnitPool.COPIES_PER_COST`). Shop offers are taken from the pool when rolled; unbought offers go back on the next roll. Bought units stay out. Selling returns `3^(star-1)` copies. Picks within a cost are weighted by copies left; an empty cost falls back to the nearest cost with copies; if the pool runs dry the slot is left empty. Enemies do not draw from the pool. `GameManager.shared_pool` owns it (rebuilt on scene reload).
 
-**Units and merging:** 3 copies (same `display_name`, same star) merge into the next star, max 3. Star multipliers: HP/dmg x1.0 / x1.8 / x3.2, model scale 1.0 / 1.2 / 1.45. Merges run after buys, after drops (prep only), and at PREP start. Buying on a full bench is allowed if it completes a merge.
+**Units and merging:** 3 copies (same `display_name`, same star) merge into the next star, max 3. Star multipliers: HP/dmg x1.0 / x1.8 / x3.2, model scale 1.0 / 1.2 / 1.45. Merges run after buys (prep only), after drops (prep only), and at PREP start. Buying on a full bench is allowed in PREP if it completes a merge. Units bought during combat go to the bench only (full bench = refused) and are not merged until the next PREP start.
 
 **Combat:** Tile-to-tile movement on the hex grid (BFS, occupied tiles are walls, units claim their next tile before tweening). `attack_range` is in tiles, `move_speed` is tiles/sec. Units target the nearest enemy. Dead units are hidden, not freed, and restored after combat. Player board positions are snapshotted at combat start and restored after. 60 s timeout counts as a loss.
 
@@ -191,7 +191,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 ## UI behaviour
 
-- Shop stays visible during combat; slots and reroll are blocked outside PREP (`_on_unit_bought` also checks the phase), Buy XP is not. The shop is not dimmed yet.
+- Shop stays visible during combat. Shop slots and Buy XP work during combat (bought units go to the bench only); reroll is blocked outside PREP. The shop is not dimmed yet.
 - Right-click any unit (ally or enemy) to open the Unit Inspector (base stats at current star, tags). Right-clicking empty space closes it; it also closes if the unit dies or is removed.
 - Synergy box (top left) lists active synergies in gold and inactive in grey, with tooltips; hidden when the board is empty.
 - Odds, streak and unit cap sit above the shop bar.
@@ -215,7 +215,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 ## Current status (2026-10-21)
 
 - Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, unit inspector, end screen.
-- Last finished: the Known issues audit (combat start/end resets, shop phase check, path casing, prep-only merges, unit data, leftovers). Checked with a headless run: units start combat at full health with synergy bonuses, bonuses clear afterwards, buying during combat is refused. Not playtested by hand.
+- Last finished: the Known issues audit (combat start/end resets, shop phase check, path casing, prep-only merges, unit data, leftovers). Checked with a headless run: units start combat at full health with synergy bonuses, bonuses clear afterwards. Buying during combat is allowed but bench-only (also checked headless: no mid-fight merge, merges happen at next PREP). Not playtested by hand.
 - Next: Items (roadmap item 3). Plan it with Opus first (see Roadmap tags).
 
 ## Known issues
@@ -224,7 +224,7 @@ No blocking issues. Small things left:
 
 1. **[Sonnet] `TopBar/Timer`** in ui.tscn is an empty Label with no script. Either wire it up as a prep countdown or delete it.
 2. **[Sonnet] Stray editor temp files** `scenes/main.tscn*.tmp` (left by interrupted editor saves, they contain old `Scenes/` paths). Safe to delete once the editor is closed.
-3. **[Sonnet] Combat is not tested by hand** after the 2026-10-21 fixes: play a few rounds and check merging, selling, and the shop during combat.
+3. **[Sonnet] Combat is not tested by hand** after the 2026-10-21 fixes: play a few rounds and check merging, selling, and buying from the shop during combat.
 
 If a combat bug survives two fix attempts, stop and recommend Opus 5.5 (see Model guidance).
 

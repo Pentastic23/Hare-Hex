@@ -21,9 +21,11 @@ var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool u
 
 
 func _on_unit_bought(d: UnitData):
-	if game_over or phase != Events.Phase.PREP: return
+	if game_over: return
+	# Outside PREP a purchase only goes to the bench: no merges while units are fighting.
+	var in_prep := phase == Events.Phase.PREP
 	var slot = board.first_free_bench()
-	if slot == -1 and not board.would_complete_merge(d): return
+	if slot == -1 and not (in_prep and board.would_complete_merge(d)): return
 	GameState.gold -= d.cost
 	shop_offers.erase(d)   # stays out of the pool; it's ours now
 	var u := unit_scene.instantiate() as Unit
@@ -34,7 +36,8 @@ func _on_unit_bought(d: UnitData):
 	else:
 		board.merge_pending_unit(u)
 		return
-	board.merge_all()
+	if in_prep:
+		board.merge_all()   # merges that were skipped during combat run at the next PREP start
 
 func _enter(p: int):
 	if game_over: return
