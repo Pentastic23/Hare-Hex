@@ -285,7 +285,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Done and committed: shop lock (59e5cb6, d55302b), damage meter, team planner, HUD button bar, fold-out lists.
 - Done and committed (cdd6999): deterministic combat (roadmap 10), per-player state (roadmap 11), seeded run RNG, `docs/multiplayer-design.md`.
 - Done and committed (c609132): main menu split into Single player (Tutorial, Campaign, Free Play) and PvP (Async/Live placeholders with info panels); a guided tutorial level with a step panel and Start fight; `GameManager.end_prep_early()`; fix so levels outside a chapter can't touch the saved chapter run; `tools/tutorial_checks` (27) and more `menu_checks` (28). A flaky crash in `combat_checks` (test freed the scene mid-signal) fixed. Not yet played by hand.
-- Last finished (2026-10-21, Sonnet, **not committed yet**): synergy bonuses folded into the Unit Inspector stats; the TopBar Timer label is now a prep countdown and a combat timer (`phase_timer.gd`; PREP counts down `GameManager.prep_left` in `_process`); the bot plays any chapter (`-- chapter2`); campaign panel scrolls; two new chapters (The Ashen Frontier, The Shattered Sky: 6 levels, 45 waves, 6 bosses) tuned with the bot; checks updated (campaign 80, HUD 53, menu 31). Stray .tmp files left in place (editor open). Not yet played by hand.
+- Last finished (2026-10-21, Sonnet, **not committed yet**): synergy bonuses folded into the Unit Inspector stats; the TopBar Timer label is now a prep countdown and a combat timer (`phase_timer.gd`; PREP counts down `GameManager.prep_left` in `_process`); the bot plays any chapter (`-- chapter2`); campaign panel scrolls; two new chapters (The Ashen Frontier, The Shattered Sky: 6 levels, 45 waves, 6 bosses) tuned with the bot; checks updated (campaign 80, HUD 53, menu 31). Not yet played by hand.
 - Next: async PvP Part 1 (local-first ghost opponents), following the build order in `docs/multiplayer-design.md`. Volume has no effect until there's sound.
 - Ideas for later: `docs/item-ideas.md` (item mechanics brainstorm; resonance/item combinations first).
 
@@ -293,8 +293,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 No blocking issues. Small things left:
 
-1. **[Sonnet] Stray editor temp files** `scenes/main.tscn*.tmp` (3 files, left by interrupted editor saves, they contain old `Scenes/` paths; git ignores them). Delete them once the editor is closed (they were left alone on 2026-10-21 because the editor was open).
-2. **[Sonnet] Combat, items, the menu, tutorial and the new HUD are not tested by hand** after the 2026-10-21 changes: play a few rounds and check merging, selling, buying during combat, item drops, dragging items onto units, and the item bar layout.
+1. **[Sonnet] Combat, items, the menu, tutorial and the new HUD are not tested by hand** after the 2026-10-21 changes: play a few rounds and check merging, selling, buying during combat, item drops, dragging items onto units, and the item bar layout.
 
 If a combat bug survives two fix attempts, stop and recommend Opus 5.5 (see Model guidance).
 
