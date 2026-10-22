@@ -68,12 +68,16 @@ func nearest_enemy(u: Unit) -> Unit:
 		if o == null or o.team == u.team or o.dead or o.coord.x < 0 or o.is_queued_for_deletion():
 			continue
 		var d := hex_distance(u.coord, o.coord)
-		if d < best_d:
+		# Ties go to the lower tile (row, then column), so node order never decides a target.
+		if d < best_d or (d == best_d and tile_order(o.coord) < tile_order(best.coord)):
 			best_d = d
 			best = o
 	return best
 
-# Logical move only (no position change; the unit tweens itself).
+static func tile_order(c: Vector2i) -> int:
+	return c.y * COLS + c.x
+
+# Logical move only (no position change; the unit steps itself each combat tick).
 func claim(u: Unit, c: Vector2i):
 	vacate(u)
 	tiles[c].occupant = u
@@ -96,7 +100,7 @@ func _ready():
 			tiles[t.coord] = t
 	player_order = _order_for(true)
 	enemy_order = _order_for(false)
-	refresh_unlocks(GameState.level, false)
+	refresh_unlocks(GameState.me.level, false)
 	Events.xp_changed.connect(_on_xp_changed)
 	Events.phase_changed.connect(_on_phase_for_unlocks)
 	_build_bench_slots()
@@ -207,7 +211,7 @@ func _move_items_to(keeper: Unit, consumed: Array) -> void:
 		var cu: Unit = c
 		for item in cu.take_items():
 			if not keeper.equip(item):
-				GameState.items.append(item)
+				GameState.me.items.append(item)
 				returned = true
 	if returned:
 		Events.items_changed.emit()
@@ -217,7 +221,7 @@ func _return_items(u: Unit) -> void:
 	var taken := u.take_items()
 	if taken.is_empty():
 		return
-	GameState.items.append_array(taken)
+	GameState.me.items.append_array(taken)
 	Events.items_changed.emit()
 
 func nearest_tile(p: Vector3, max_dist := HEX * 1.2) -> Tile:
@@ -343,7 +347,7 @@ func sell_unit(u: Unit):
 	_return_items(u)
 	detach(u)
 	u.queue_free()
-	GameState.gold += refund
+	GameState.me.gold += refund
 	Events.unit_sold.emit(d, star, refund)
 
 func _build_sell_zone():
@@ -438,4 +442,4 @@ func _on_xp_changed(l: int, _x: int, _n: int):
 func _on_phase_for_unlocks(p: int):
 	_in_prep = (p == Events.Phase.PREP)
 	if _in_prep:
-		refresh_unlocks(GameState.level, true)
+		refresh_unlocks(GameState.me.level, true)

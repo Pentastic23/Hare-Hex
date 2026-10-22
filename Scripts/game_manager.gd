@@ -25,11 +25,12 @@ const DEFAULT_CAMPAIGN := "res://tres/campaign/campaign.tres"
 var roster: Array[UnitData] = []   # units the shop can offer: unit_pool, or the level's allowed_units
 var opponents: OpponentProvider
 var current_board: EnemyBoard      # the enemy board of the current/last fight (for its hp_reward)
-var last_combat_won := false
-var shop_locked := false       # locked: the shop keeps its offers into the next round
-var shop_has_rolled := false
+const COMBAT_TICK := 1.0 / 60.0   # seconds of fight per tick
+const COMBAT_MAX_TICKS := 3600    # 60 s; reaching it counts as a loss
+var combatants: Array[Unit] = []  # fixed acting order for the current fight (_combat_order)
+var combat_ticks := 0
+var rng := RandomNumberGenerator.new()   # run RNG (seeded): random enemies and placement. Shop and drops use GameState.me.rng.
 var shared_pool: UnitPool
-var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool until the next roll
 
 
 
@@ -39,8 +40,8 @@ func _on_unit_bought(d: UnitData):
 	var in_prep := phase == Events.Phase.PREP
 	var slot = board.first_free_bench()
 	if slot == -1 and not (in_prep and board.would_complete_merge(d)): return
-	GameState.gold -= d.cost
-	shop_offers.erase(d)   # stays out of the pool; it's ours now
+	GameState.me.gold -= d.cost
+	GameState.me.shop_offers.erase(d)   # stays out of the pool; it's ours now
 	var u := unit_scene.instantiate() as Unit
 	board.get_node("Units").add_child(u)
 	u.setup(d, 0)
@@ -58,12 +59,12 @@ func _enter(p: int):
 	Events.phase_changed.emit(p)
 	match p:
 		Events.Phase.PREP:
-			GameState.gold += GameState.total_income_for_round(GameState.round_number)
+			GameState.me.gold += GameState.me.total_income_for_round(GameState.round_number)
 			_drop_item()
 			board.merge_all()
-			GameState.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
+			GameState.me.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
-			if not shop_locked or not shop_has_rolled:
+			if not GameState.me.shop_locked or not GameState.me.shop_has_rolled:
 				roll_shop()
 			await get_tree().create_timer(prep_time, false).timeout   # false: the prep timer stops while paused
 			if game_over: return
@@ -71,18 +72,18 @@ func _enter(p: int):
 		Events.Phase.COMBAT:
 			start_combat()
 		Events.Phase.RESULT:
-			if GameState.player_hp <= 0:
+			if GameState.me.player_hp <= 0:
 				_lose_run()
 				return
 			if GameState.is_final_round():
 				# A campaign level is only complete if the final wave is beaten.
-				if GameState.run_level != null and not last_combat_won:
+				if GameState.run_level != null and not GameState.me.last_combat_won:
 					_lose_run()
 				else:
 					_win_run()
 				return
 			GameState.round_number += 1
-			GameState.add_xp(2)
+			GameState.me.add_xp(2)
 			_enter(Events.Phase.PREP)
 
 			
@@ -119,6 +120,7 @@ func _begin_run():
 	if lvl == null:
 		camp = null
 	var carry := GameState.begin_run(lvl, camp)
+	rng.seed = GameState.run_seed
 	roster = unit_pool
 	if lvl != null and not lvl.allowed_units.is_empty():
 		roster = lvl.allowed_units
@@ -132,7 +134,7 @@ func _begin_run():
 			push_warning(problem)
 		opponents = WaveOpponents.new(lvl.waves, lvl.enemy_stat_mult)
 	else:
-		opponents = RandomOpponents.new(unit_pool, enemy_base_scale, enemy_scale_per_round, enemy_variation_chance)
+		opponents = RandomOpponents.new(unit_pool, enemy_base_scale, enemy_scale_per_round, enemy_variation_chance, rng)
 
 # What a chapter run carries into its next level; the save file stores the same dictionary.
 # Units are stored by display_name, items by id; board units keep their tile, bench units their slot.
@@ -148,12 +150,12 @@ func make_carry(next_level: CampaignLevel) -> Dictionary:
 		units.append(e)
 	return {
 		"level": String(next_level.id),
-		"hp": GameState.player_hp,
-		"max_hp": GameState.start_hp,
-		"gold": GameState.gold,
-		"player_level": GameState.level,
-		"xp": GameState.xp,
-		"items": GameState.items.map(func(i): return String(i.id)),
+		"hp": GameState.me.player_hp,
+		"max_hp": GameState.me.start_hp,
+		"gold": GameState.me.gold,
+		"player_level": GameState.me.level,
+		"xp": GameState.me.xp,
+		"items": GameState.me.items.map(func(i): return String(i.id)),
 		"units": units,
 	}
 
@@ -162,7 +164,7 @@ func _restore_carry(carry: Dictionary) -> void:
 	for id in carry.get("items", []):
 		var item := EnemyBoard.lookup_item(item_roster, StringName(str(id)))
 		if item != null:
-			GameState.items.append(item)
+			GameState.me.items.append(item)
 	Events.items_changed.emit()
 	for e in carry.get("units", []):
 		if not e is Dictionary:
@@ -194,7 +196,7 @@ func _restore_carry(carry: Dictionary) -> void:
 				slot = board.first_free_bench()
 			if slot == -1:
 				push_warning("No room for carried unit %s; returned its items" % d.display_name)
-				GameState.items.append_array(u.take_items())
+				GameState.me.items.append_array(u.take_items())
 				u.queue_free()
 				continue
 			board.put_on_bench(u, slot)
@@ -202,39 +204,39 @@ func _restore_carry(carry: Dictionary) -> void:
 			board.put_on_tile(u, tile)   # falls back to the bench if the tile is taken
 
 func set_shop_locked(on: bool):
-	shop_locked = on
+	GameState.me.shop_locked = on
 	Events.shop_lock_changed.emit(on)
 
 func roll_shop():
 	if roster.is_empty(): return
-	shop_has_rolled = true
+	GameState.me.shop_has_rolled = true
 	_return_offers()
 	var offers: Array = []
 	for i in 5:
-		var tier: int = 1 if GameState.cheap_shop else _pick_cost_tier()
+		var tier: int = 1 if GameState.me.cheap_shop else _pick_cost_tier()
 		var d: UnitData = _random_unit_of_cost(tier)
 		if d != null and shared_pool.take(d):
 			offers.append(d)
-			shop_offers.append(d)
+			GameState.me.shop_offers.append(d)
 	Events.shop_rolled.emit(offers)
 
 func _drop_item():
 	if item_roster.is_empty() or not GameState.item_drop_rounds().has(GameState.round_number):
 		return
-	GameState.items.append(item_roster.pick_random())
+	GameState.me.items.append(item_roster[GameState.me.rng.randi_range(0, item_roster.size() - 1)])
 	Events.items_changed.emit()
 
 func _return_offers():
-	for d in shop_offers:
+	for d in GameState.me.shop_offers:
 		shared_pool.give_back(d)
-	shop_offers.clear()
+	GameState.me.shop_offers.clear()
 
 func _on_unit_sold(d: UnitData, star: int, _refund: int):
 	shared_pool.give_back(d, UnitPool.copies_in(star))
 
 func _pick_cost_tier() -> int:
-	var odds: Array = GameState.odds_for_level(GameState.level)
-	var r := randf() * 100.0
+	var odds: Array = GameState.odds_for_level(GameState.me.level)
+	var r := GameState.me.rng.randf() * 100.0   # the player's own shop RNG
 	var acc := 0.0
 	for i in odds.size():
 		acc += odds[i]
@@ -243,32 +245,32 @@ func _pick_cost_tier() -> int:
 	return 1
 
 func _random_unit_of_cost(tier: int) -> UnitData:
-	var d := shared_pool.pick(tier)
+	var d := shared_pool.pick(tier, GameState.me.rng)
 	if d != null:
 		return d
 	# No copies left at this cost: fall back to the nearest cost that has some.
 	for off in range(1, 6):
 		for t in [tier - off, tier + off]:
-			d = shared_pool.pick(t)
+			d = shared_pool.pick(t, GameState.me.rng)
 			if d != null:
 				return d
 	return null
 
 func _on_reroll():
-	if shop_locked or phase != Events.Phase.PREP or GameState.gold < REROLL_COST: return   # unlock to reroll
-	GameState.gold -= REROLL_COST
-	GameState.cheap_shop = false
+	if GameState.me.shop_locked or phase != Events.Phase.PREP or GameState.me.gold < REROLL_COST: return   # unlock to reroll
+	GameState.me.gold -= REROLL_COST
+	GameState.me.cheap_shop = false
 	roll_shop()
 
 func _on_buy_xp():
-	if game_over or GameState.gold < BUY_XP_COST: return
-	GameState.gold -= BUY_XP_COST
-	GameState.add_xp(4)
+	if game_over or GameState.me.gold < BUY_XP_COST: return
+	GameState.me.gold -= BUY_XP_COST
+	GameState.me.add_xp(4)
 
 
 func start_combat():
 	# Safety: if somehow over the limit, send the extras back to the bench.
-	var over := board.units_on_board() - GameState.max_board_units()
+	var over := board.units_on_board() - GameState.me.max_board_units()
 	if over > 0:
 		for t in board.tiles.values():
 			if over <= 0: break
@@ -298,8 +300,27 @@ func start_combat():
 		var u := n as Unit
 		if u and u.coord.x >= 0:
 			u.begin_combat()
+	combatants = _combat_order()
+	combat_ticks = 0
 	combat_time = 0.0
 	fighting = true
+
+# Fixed acting order for a fight: each side sorted by tile (row, then column), then interleaved
+# player/enemy so neither side always acts first. Node order never matters.
+func _combat_order() -> Array[Unit]:
+	var sides := [[], []]
+	for n in board.get_node("Units").get_children():
+		var u := n as Unit
+		if u != null and u.data != null and u.coord.x >= 0 and not u.is_queued_for_deletion():
+			sides[clampi(u.team, 0, 1)].append(u)
+	for side in sides:
+		side.sort_custom(func(a, b): return Board.tile_order(a.coord) < Board.tile_order(b.coord))
+	var order: Array[Unit] = []
+	for i in maxi(sides[0].size(), sides[1].size()):
+		for side in sides:
+			if i < side.size():
+				order.append(side[i])
+	return order
 
 func _spawn_enemies():
 	current_board = opponents.board_for_round(GameState.round_number) if opponents != null else null
@@ -329,7 +350,7 @@ func spawn_board(def: EnemyBoard) -> Array[Unit]:
 			var c := _nearest_free(bu.coord, free)
 			free.erase(c)
 			spawned.append(_spawn_enemy(bu, c, def.stat_scale))
-	free.shuffle()
+	_shuffle(free)
 	for bu in autos:
 		if free.is_empty():
 			skipped += 1
@@ -366,29 +387,50 @@ func _spawn_enemy(bu: BoardUnit, c: Vector2i, scale: float) -> Unit:
 	board.put_enemy_on_tile(u, c)
 	return u
 
-func _physics_process(delta):
-	if not fighting: return
-	combat_time += delta
+# Deterministic combat: one fixed-length tick per physics frame (60 per second by default),
+# whatever the frame rate. The fight depends only on the two boards, not on timing.
+func _physics_process(_delta):
+	if fighting:
+		combat_tick()
+
+func combat_tick():
+	combat_ticks += 1
+	combat_time = combat_ticks * COMBAT_TICK
+	for u in combatants:
+		if is_instance_valid(u) and not u.dead and u.coord.x >= 0:
+			u.combat_step(COMBAT_TICK)
 	var alive_p := 0
 	var alive_e := 0
 	var enemy_stars := 0
-	for n in board.get_node("Units").get_children():
-		var u := n as Unit
-		if u == null or u.data == null or u.dead or u.coord.x < 0 or u.is_queued_for_deletion():
+	for u in combatants:
+		if not is_instance_valid(u) or u.dead or u.coord.x < 0:
 			continue
-		u.combat_step(delta)
 		if u.team == 0:
 			alive_p += 1
 		else:
 			alive_e += 1
 			enemy_stars += u.star
-	if alive_p == 0 or alive_e == 0 or combat_time > 60.0:
+	if alive_p == 0 or alive_e == 0 or combat_ticks >= COMBAT_MAX_TICKS:
 		_end_combat(alive_e == 0 and alive_p > 0, enemy_stars)
+
+# Runs the current fight to the end immediately (tests now; a PvP server or replays later).
+func resolve_combat() -> bool:
+	while fighting:
+		combat_tick()
+	return GameState.me.last_combat_won
+
+# Fisher-Yates with the run's seeded RNG (Array.shuffle uses the global one).
+func _shuffle(arr: Array) -> void:
+	for i in range(arr.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = arr[i]
+		arr[i] = arr[j]
+		arr[j] = tmp
 
 func _end_combat(player_won: bool, enemy_stars: int):
 	if not fighting: return
 	fighting = false
-	last_combat_won = player_won
+	GameState.me.last_combat_won = player_won
 	for n in board.get_node("Units").get_children():
 		var u := n as Unit
 		if u and u.team == 1:
@@ -399,13 +441,13 @@ func _end_combat(player_won: bool, enemy_stars: int):
 		if is_instance_valid(u):
 			u.end_combat()
 			board.put_on_tile(u, snapshot[u])
-	GameState.record_result(player_won)
+	GameState.me.record_result(player_won)
 	if player_won:
-		GameState.gold += 1
+		GameState.me.gold += 1
 		if current_board != null:
-			GameState.heal(current_board.hp_reward)   # campaign HP pack for beating this wave
+			GameState.me.heal(current_board.hp_reward)   # campaign HP pack for beating this wave
 	else:
-		GameState.player_hp -= GameState.damage_for_loss(enemy_stars)
+		GameState.me.player_hp -= GameState.damage_for_loss(enemy_stars)
 	Events.combat_ended.emit(player_won)
 	_enter(Events.Phase.RESULT)
 
@@ -423,7 +465,7 @@ func _win_run():
 	fighting = false
 	var lvl := GameState.run_level
 	if lvl != null and lvl.id != &"":   # a level without an id can't be saved
-		SaveGame.record_level_complete(lvl.id, GameState.player_hp, lvl.unlocks)
+		SaveGame.record_level_complete(lvl.id, GameState.me.player_hp, lvl.unlocks)
 		var nxt: CampaignLevel = GameState.run_campaign.next_in_chapter(lvl) if GameState.run_campaign != null else null
 		if nxt != null:
 			# The chapter run continues: carry the board into the next level and save it.

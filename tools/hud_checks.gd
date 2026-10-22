@@ -42,7 +42,7 @@ func wait_phase(p: int):
 			return
 
 func offer_names() -> Array:
-	return gm.shop_offers.map(func(d): return d.display_name)
+	return GameState.me.shop_offers.map(func(d): return d.display_name)
 
 func _ready():
 	_run.call_deferred()
@@ -72,16 +72,16 @@ func _run():
 	chk("Lock button in the shop bar", shop.lock_button.text == "Lock")
 	var shop_w: float = shop.get_combined_minimum_size().x
 	chk("shop bar still fits a 1152 px window", shop_w <= 1120, "min width %d" % shop_w)
-	GameState.gold = 50
+	GameState.me.gold = 50
 	var before := offer_names()
 	shop.lock_button.button_pressed = true
-	chk("pressing Lock locks the shop", gm.shop_locked and shop.lock_button.text == "Locked")
+	chk("pressing Lock locks the shop", GameState.me.shop_locked and shop.lock_button.text == "Locked")
 	var bought_slot = slots.filter(func(s): return s.offer != null)[0]
 	var bought_name: String = bought_slot.offer.display_name
 	bought_slot._pressed()
 	var rolls := [0]
 	Events.shop_rolled.connect(func(_o): rolls[0] += 1)
-	GameState.level = 3   # room on the board isn't needed; keep the fight short
+	GameState.me.level = 3   # room on the board isn't needed; keep the fight short
 	await wait_phase(Events.Phase.COMBAT)
 	await wait_phase(Events.Phase.PREP)
 	var after := offer_names()
@@ -89,18 +89,18 @@ func _run():
 	expected.erase(bought_name)
 	chk("locked: next round keeps the same offers (minus the one bought)", rolls[0] == 0 and after == expected, "%s -> %s" % [before, after])
 	chk("locked: the bought slot stays empty", bought_slot.offer == null and bought_slot.disabled)
-	GameState.gold = 50
+	GameState.me.gold = 50
 	var reroll_btn: Button = shop.get_node("HBoxContainer/RerollButton")
 	chk("locked: the Reroll button is disabled", reroll_btn.disabled)
 	Events.reroll_pressed.emit()
-	chk("locked: a reroll does nothing (no roll, no gold spent, same offers)", rolls[0] == 0 and GameState.gold == 50 and offer_names() == expected and gm.shop_locked)
+	chk("locked: a reroll does nothing (no roll, no gold spent, same offers)", rolls[0] == 0 and GameState.me.gold == 50 and offer_names() == expected and GameState.me.shop_locked)
 	slots.filter(func(s): return s.offer != null)[0]._pressed()   # a second empty slot
 	var empties := slots.filter(func(s): return s.offer == null).size()
 	shop.lock_button.button_pressed = false
-	chk("pressing again unlocks and re-enables Reroll", not gm.shop_locked and shop.lock_button.text == "Lock" and not reroll_btn.disabled)
-	var gold_before_reroll := GameState.gold
+	chk("pressing again unlocks and re-enables Reroll", not GameState.me.shop_locked and shop.lock_button.text == "Lock" and not reroll_btn.disabled)
+	var gold_before_reroll := GameState.me.gold
 	Events.reroll_pressed.emit()
-	chk("unlock + reroll replaces the whole shop: all 5 slots filled and buyable", empties == 2 and rolls[0] == 1 and GameState.gold == gold_before_reroll - 2 and gm.shop_offers.size() == 5 and slots.all(func(s): return s.offer != null and not s.disabled), "%d empty before, offers %s" % [empties, offer_names()])
+	chk("unlock + reroll replaces the whole shop: all 5 slots filled and buyable", empties == 2 and rolls[0] == 1 and GameState.me.gold == gold_before_reroll - 2 and GameState.me.shop_offers.size() == 5 and slots.all(func(s): return s.offer != null and not s.disabled), "%d empty before, offers %s" % [empties, offer_names()])
 	await wait_phase(Events.Phase.COMBAT)
 	await wait_phase(Events.Phase.PREP)
 	chk("unlocked: the next round rolls a new shop", rolls[0] == 2)
@@ -121,7 +121,7 @@ func _run():
 	u.free()
 
 	print("--- damage meter")
-	GameState.gold = 50
+	GameState.me.gold = 50
 	for n in ["knight", "archer"]:
 		Events.unit_bought.emit(load("res://tres/%s.tres" % n))
 	var mine := board.all_player_units()
@@ -221,9 +221,9 @@ func _run():
 	syn.header.pressed.emit()
 	chk("clicking again unfolds it", syn.list.visible and Settings.show_synergies)
 	var ib = main.get_node("UI/ItemBar")
-	GameState.items.clear()
-	GameState.items.append(load("res://tres/items/longsword.tres"))
-	GameState.items.append(load("res://tres/items/iron_belt.tres"))
+	GameState.me.items.clear()
+	GameState.me.items.append(load("res://tres/items/longsword.tres"))
+	GameState.me.items.append(load("res://tres/items/iron_belt.tres"))
 	Events.items_changed.emit()
 	await get_tree().process_frame
 	chk("item bar starts open with its grid", ib.visible and ib.grid.visible and ib.header.text == "Items  [-]")

@@ -128,7 +128,7 @@ func _run():
 
 	print("--- campaign run: level 1")
 	await start(l1)
-	chk("level modifiers: start gold 4, level 1, hp 100", GameState.gold == 4 and GameState.level == 1 and GameState.player_hp == 100, "gold %d" % GameState.gold)
+	chk("level modifiers: start gold 4, level 1, hp 100", GameState.me.gold == 4 and GameState.me.level == 1 and GameState.me.player_hp == 100, "gold %d" % GameState.me.gold)
 	chk("campaign loss damage from the level (6 + stars)", GameState.damage_for_loss(4) == 7)
 	chk("campaign rounds = waves", GameState.total_rounds() == 5)
 	chk("item drop rounds from level", GameState.item_drop_rounds() == [2, 4])
@@ -140,7 +140,7 @@ func _run():
 	chk("run_campaign found from the default path", GameState.run_campaign != null and GameState.run_campaign.find_level(&"ch1_l1") != null)
 
 	# Boss wave with 9 open enemy tiles: authored coords, star, items, enemy synergies.
-	GameState.level = 3
+	GameState.me.level = 3
 	board.refresh_unlocks(3, false)
 	var spawned: Array = gm.spawn_board(l1.waves[4])
 	var guardian: Unit = spawned.filter(func(u): return u.data.display_name == "Guardian")[0]
@@ -153,7 +153,7 @@ func _run():
 	clear_enemies()
 
 	# Locked tiles: at level 1 only 2 enemy tiles are open.
-	GameState.level = 1
+	GameState.me.level = 1
 	board.refresh_unlocks(1, false)
 	spawned = gm.spawn_board(l1.waves[2])   # Patrol: 3 units, one wants (3,2) which is locked
 	chk("too many units: fills open tiles, skips the rest", spawned.size() == 2 and spawned.all(func(u): return board.is_unlocked(u.coord) and not board.is_player_side(u.coord)), str(spawned.map(func(u): return u.coord)))
@@ -174,22 +174,22 @@ func _run():
 	gm.fighting = true
 	gm._end_combat(true, 0)
 	es = main.get_node("UI/End Screen")
-	chk("winning the final wave completes the level and saves it", gm.game_over and SaveGame.is_level_complete(&"ch1_l1") and SaveGame.best_hp(&"ch1_l1") == GameState.player_hp)
+	chk("winning the final wave completes the level and saves it", gm.game_over and SaveGame.is_level_complete(&"ch1_l1") and SaveGame.best_hp(&"ch1_l1") == GameState.me.player_hp)
 	chk("end screen: LEVEL COMPLETE + Next level only", es.title.text == "LEVEL COMPLETE" and es.next_button.visible and not es.restart_button.visible and es._next() == l2, es.detail.text.replace("\n", " | "))
 
 	print("--- level 2 and 3 started directly (Debug Level)")
 	await start(l2)
-	chk("l2 direct: level 3, gold 10 + bonus 1 + interest 1 = 12, income +1", GameState.level == 3 and GameState.gold == 12 and GameState.base_income_for_round(2) == 3, "level %d gold %d base(2) %d" % [GameState.level, GameState.gold, GameState.base_income_for_round(2)])
-	chk("l2 direct: not a carried run, round-1 shop is 1-cost only", not GameState.run_carried and GameState.cheap_shop)
+	chk("l2 direct: level 3, gold 10 + bonus 1 + interest 1 = 12, income +1", GameState.me.level == 3 and GameState.me.gold == 12 and GameState.base_income_for_round(2) == 3, "level %d gold %d base(2) %d" % [GameState.me.level, GameState.me.gold, GameState.base_income_for_round(2)])
+	chk("l2 direct: not a carried run, round-1 shop is 1-cost only", not GameState.run_carried and GameState.me.cheap_shop)
 	await start(l3)
-	chk("l3 direct: level 5, gold 20 + interest 2 = 22, drops 2/4/6, loss damage 14", GameState.level == 5 and GameState.gold == 22 and GameState.item_drop_rounds() == [2, 4, 6] and GameState.damage_for_loss(0) == 14)
+	chk("l3 direct: level 5, gold 20 + interest 2 = 22, drops 2/4/6, loss damage 14", GameState.me.level == 5 and GameState.me.gold == 22 and GameState.item_drop_rounds() == [2, 4, 6] and GameState.damage_for_loss(0) == 14)
 	chk("l3 direct: board unlocked for level 5", Board.tiles_open_for_level(5) == board.player_order.filter(func(c): return board.is_unlocked(c)).size())
 
 	print("--- chapter run: carrying the board")
 	SaveGame.reset_progress()
 	await start(l1)
 	var knight_data: UnitData = load("res://tres/knight.tres")
-	GameState.gold = 50
+	GameState.me.gold = 50
 	for i in 3:
 		Events.unit_bought.emit(knight_data)
 	Events.unit_bought.emit(load("res://tres/cleric.tres"))
@@ -200,17 +200,17 @@ func _run():
 	board.detach(knight)
 	board.put_on_tile(knight, Vector2i(3, 4))
 	var cleric_slot := board.bench.find(cleric)
-	GameState.items.append(load("res://tres/items/quick_bow.tres"))
-	GameState.xp = 1
-	GameState.player_hp = 80
+	GameState.me.items.append(load("res://tres/items/quick_bow.tres"))
+	GameState.me.xp = 1
+	GameState.me.player_hp = 80
 	GameState.round_number = 5
 	gm.current_board = l1.waves[4]   # the boss wave: hp_reward 10
 	gm.fighting = true
 	gm._end_combat(true, 0)
 	var carry: Dictionary = GameState.run_carry
-	chk("boss HP pack: 80 + 10 = 90", GameState.player_hp == 90, "hp %d" % GameState.player_hp)
+	chk("boss HP pack: 80 + 10 = 90", GameState.me.player_hp == 90, "hp %d" % GameState.me.player_hp)
 	chk("carry targets level 2", str(carry.get("level", "")) == "ch1_l2")
-	chk("carry: HP, gold, level, XP", int(carry.hp) == 90 and int(carry.gold) == GameState.gold and int(carry.player_level) == GameState.level and int(carry.xp) == 1)
+	chk("carry: HP, gold, level, XP", int(carry.hp) == 90 and int(carry.gold) == GameState.me.gold and int(carry.player_level) == GameState.me.level and int(carry.xp) == 1)
 	chk("carry: 2-star Knight with 2 items on (3,4), Cleric on its bench slot, Quick Bow in the bar",
 		carry.units.size() == 2 and carry.items == ["quick_bow"]
 		and carry.units.any(func(e): return e.unit == "Knight" and e.star == 2 and e.coord == [3, 4] and e.items == ["iron_belt", "longsword"])
@@ -224,14 +224,14 @@ func _run():
 	knight = board.all_player_units().filter(func(u): return u.data.display_name == "Knight")[0]
 	cleric = board.all_player_units().filter(func(u): return u.data.display_name == "Cleric")[0]
 	chk("level 2 continues the run", GameState.run_carried and GameState.run_level == l2 and GameState.run_carry.is_empty())
-	chk("arrival heal: 90 + 10 = 100 (capped at 100)", GameState.player_hp == 100, "hp %d" % GameState.player_hp)
-	chk("gold carried (+ round 1 income: bonus 1 + interest)", GameState.gold == g0 + 1 + mini(g0 / 10, 5), "gold %d from %d" % [GameState.gold, g0])
-	chk("level and XP carried", GameState.level == int(carry.player_level) and GameState.xp == 1)
+	chk("arrival heal: 90 + 10 = 100 (capped at 100)", GameState.me.player_hp == 100, "hp %d" % GameState.me.player_hp)
+	chk("gold carried (+ round 1 income: bonus 1 + interest)", GameState.me.gold == g0 + 1 + mini(g0 / 10, 5), "gold %d from %d" % [GameState.me.gold, g0])
+	chk("level and XP carried", GameState.me.level == int(carry.player_level) and GameState.me.xp == 1)
 	chk("Knight restored: 2-star, 2 items, same tile", knight.star == 2 and knight.items.size() == 2 and knight.coord == Vector2i(3, 4) and is_equal_approx(knight.health, knight.max_hp()))
 	chk("Cleric restored on its bench slot", board.bench.find(cleric) == cleric_slot)
-	chk("item bar restored", GameState.items.size() == 1 and GameState.items[0].id == &"quick_bow")
-	chk("owned copies taken from the shared pool (3 Knights)", gm.shared_pool.count(knight_data) + gm.shop_offers.count(knight_data) == 27, "pool %d" % gm.shared_pool.count(knight_data))
-	chk("carried run: round-1 shop is not limited to 1-cost", not GameState.cheap_shop)
+	chk("item bar restored", GameState.me.items.size() == 1 and GameState.me.items[0].id == &"quick_bow")
+	chk("owned copies taken from the shared pool (3 Knights)", gm.shared_pool.count(knight_data) + GameState.me.shop_offers.count(knight_data) == 27, "pool %d" % gm.shared_pool.count(knight_data))
+	chk("carried run: round-1 shop is not limited to 1-cost", not GameState.me.cheap_shop)
 
 	GameState.round_number = 6
 	gm.fighting = true
@@ -250,7 +250,7 @@ func _run():
 	# Launching with Debug Level continues a saved run in the same chapter.
 	SaveGame.set_chapter_run({"level": "ch1_l3", "hp": 70, "max_hp": 100, "gold": 5, "player_level": 5, "xp": 0, "items": [], "units": [{"unit": "Archer", "star": 2, "items": [], "coord": [3, 4]}]})
 	await start(null, l1)
-	chk("Debug Level continues the saved run", GameState.run_level == l3 and GameState.run_carried and GameState.player_hp == 80 and board.all_player_units().size() == 1, "level %s hp %d" % [GameState.run_level.id if GameState.run_level else "none", GameState.player_hp])
+	chk("Debug Level continues the saved run", GameState.run_level == l3 and GameState.run_carried and GameState.me.player_hp == 80 and board.all_player_units().size() == 1, "level %s hp %d" % [GameState.run_level.id if GameState.run_level else "none", GameState.me.player_hp])
 	SaveGame.clear_chapter_run()
 	await start(null, l1)
 	chk("Debug Level without a saved run starts level 1 fresh", GameState.run_level == l1 and not GameState.run_carried)
@@ -263,7 +263,7 @@ func _run():
 	var offers := []
 	for i in 5:
 		gm.roll_shop()
-		offers.append_array(gm.shop_offers)
+		offers.append_array(GameState.me.shop_offers)
 	chk("allowed_units: shop only offers those units", not offers.is_empty() and offers.all(func(u): return u.display_name == "Knight"), "%d offers" % offers.size())
 
 	await start(CampaignLevel.new())   # an empty "New CampaignLevel" in Debug Level
@@ -272,7 +272,7 @@ func _run():
 	print("--- free play")
 	await start(null)
 	var free_text: String = main.get_node("UI/TopBar/StageLabel").text
-	chk("free play: RandomOpponents, 39 rounds, normal start", gm.opponents is RandomOpponents and GameState.total_rounds() == 39 and GameState.gold == 2 and free_text == "Stage 1-1", free_text)
+	chk("free play: RandomOpponents, 39 rounds, normal start", gm.opponents is RandomOpponents and GameState.total_rounds() == 39 and GameState.me.gold == 2 and free_text == "Stage 1-1", free_text)
 	var rb: EnemyBoard = gm.opponents.board_for_round(1)
 	chk("random board: no synergies, auto placement, scale 0.4", not rb.use_synergies and rb.units.all(func(b): return b.coord == Vector2i(-1, -1)) and is_equal_approx(rb.stat_scale, 0.4))
 	spawned = gm.spawn_board(rb)

@@ -92,7 +92,7 @@ class Driver extends Node:
 		press("Start The Borderlands")
 		await wait(0.5)
 		gm = scene().get_node("Game Manager")
-		chk("Start chapter begins level 1 fresh", GameState.run_level == l1 and not GameState.run_carried and gm.opponents is WaveOpponents and GameState.player_hp == 100)
+		chk("Start chapter begins level 1 fresh", GameState.run_level == l1 and not GameState.run_carried and gm.opponents is WaveOpponents and GameState.me.player_hp == 100)
 
 		# End screen has Main menu
 		var es = scene().get_node("UI/End Screen")
@@ -113,7 +113,7 @@ class Driver extends Node:
 		press("Continue")
 		await wait(0.5)
 		var units: Array = scene().get_node("Board").all_player_units()
-		chk("Continue loads level 2 with the saved board", GameState.run_level == l2 and GameState.run_carried and GameState.player_hp == 100 and units.size() == 2 and GameState.items.size() == 1, "hp %d units %d" % [GameState.player_hp, units.size()])
+		chk("Continue loads level 2 with the saved board", GameState.run_level == l2 and GameState.run_carried and GameState.me.player_hp == 100 and units.size() == 2 and GameState.me.items.size() == 1, "hp %d units %d" % [GameState.me.player_hp, units.size()])
 
 		# Starting a chapter over a saved run asks first
 		await to_menu()

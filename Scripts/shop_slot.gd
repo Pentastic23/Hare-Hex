@@ -39,7 +39,7 @@ func _update_text():
 func _pressed():
 	if offer == null:
 		return
-	if GameState.gold < offer.cost:
+	if GameState.me.gold < offer.cost:
 		_flash("Not enough\ngold")
 		return
 	var gm := get_tree().get_first_node_in_group("game_manager")

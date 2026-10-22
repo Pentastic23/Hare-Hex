@@ -11,7 +11,10 @@ var target: Unit
 var dead := false
 var cooldown := 0.0
 var moving := false
-var tween: Tween
+# Tile-to-tile movement is stepped by combat ticks (no tweens), so it never depends on frame timing.
+var move_from := Vector3.ZERO
+var move_to := Vector3.ZERO
+var move_progress := 0.0   # 0..1 along the current step
 var letter_label: Label3D
 var bar_bg: Sprite3D
 var bar_fill: Sprite3D
@@ -190,8 +193,6 @@ func begin_combat():
 	damage_taken = 0.0
 
 func end_combat():
-	if tween:
-		tween.kill()
 	moving = false
 	dead = false
 	visible = true
@@ -202,8 +203,18 @@ func end_combat():
 	mana = data.start_mana
 	_last_mana_ratio = -1.0
 
+# One combat tick. GameManager calls it with a fixed delta (COMBAT_TICK) in a fixed unit order,
+# so the same two boards always produce the same fight.
 func combat_step(delta: float):
-	if dead or moving or coord.x < 0:
+	if dead or coord.x < 0:
+		return
+	if moving:
+		move_progress += delta * data.move_speed
+		if move_progress >= 1.0:
+			position = move_to
+			moving = false
+		else:
+			position = move_from.lerp(move_to, move_progress)
 		return
 	cooldown = maxf(0.0, cooldown - delta)
 
@@ -232,10 +243,10 @@ func combat_step(delta: float):
 			return   # blocked; try again next tick
 		board.claim(self, next)
 		moving = true
-		_face_point(board.grid_to_world(next))
-		tween = create_tween()
-		tween.tween_property(self, "position", board.grid_to_world(next), 1.0 / data.move_speed)
-		tween.finished.connect(func(): moving = false)
+		move_from = position
+		move_to = board.grid_to_world(next)
+		move_progress = 0.0
+		_face_point(move_to)
 
 # Returns the HP actually removed (after damage reduction, without overkill), for the damage meter.
 func take_damage(amount: float) -> float:

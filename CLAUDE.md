@@ -32,8 +32,8 @@ res://
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
   tres/items/    ItemData .tres files (one per item)
   tres/campaign/ campaign.tres -> chapter_1.tres -> levels/ch1_l*.tres (waves embedded in each level)
-  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn)
-  docs/          design docs (items-plan.md, campaign-and-opponents.md, item-ideas.md)
+  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn, combat_checks.tscn)
+  docs/          design docs (items-plan.md, campaign-and-opponents.md, item-ideas.md, multiplayer-design.md)
   addons/        third-party plugins; don't edit
 ```
 
@@ -102,7 +102,8 @@ Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any 
 ## Autoloads
 
 - **Events** (`events.gd`): all global signals, plus `enum Phase { PREP, COMBAT, RESULT }`.
-- **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `items` (unequipped item inventory), `ITEM_DROP_ROUNDS` / `item_drop_rounds()`, `reset()`, and the run setup: `run_level` (CampaignLevel or null = free play), `run_campaign`, `start_hp` (also the HP-pack cap), `run_carry` (chapter run state for the next level), `run_carried`, `begin_run(level, campaign) -> carry` (reset + level modifiers, or the carried gold/level/XP/HP), `heal(n)`. `run_level` / `run_campaign` / `run_carry` survive `reset()`. `launched_from_menu`, `MENU_SCENE`, `go_to_menu()` (unpause, clear the run, reset, change to the menu).
+- **GameState** (`GameState.gd`): **run-wide** state only: `round_number`, stage math, shop odds table, `base_income_for_round`, `ITEM_DROP_ROUNDS` / `item_drop_rounds()`, `damage_for_loss`, `reset()` (round + every player), and the run setup: `run_level` (CampaignLevel or null = free play), `run_campaign`, `run_carry` (chapter run state for the next level), `run_carried`, `run_seed` / `next_seed` (set `next_seed` before a run to replay it exactly), `begin_run(level, campaign) -> carry`, `launched_from_menu`, `MENU_SCENE`, `go_to_menu()`. `run_level` / `run_campaign` / `run_carry` survive `reset()`.
+  - **Per-player state is in `PlayerState`** (`player_state.gd`): `GameState.me` is the local player, `GameState.players` everyone in the run (just `[me]` for now). Fields: `gold`, `level`, `xp`, `player_hp`, `start_hp` (HP-pack cap), `win_streak` / `loss_streak`, `items`, `cheap_shop`, `shop_offers`, `shop_locked`, `shop_has_rolled`, `last_combat_won`, `rng` (this player's shop and drops, seeded from the run seed and `id`). Methods: `xp_needed`, `add_xp`, `max_board_units`, `interest_gold`, `total_income_for_round`, `record_result`, `streak_bonus`, `heal`, `reset`. Only a player with `is_local` emits the HUD signals (gold_changed, hp_changed, xp_changed, streak_changed, items_changed). **Always write `GameState.me.gold` etc.; `GameState.gold` no longer exists.**
 
 Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`, `items_changed`, `item_drag_started(index)`, `item_drag_ended`, `shop_lock_changed(locked)`, `team_plan_changed`.
 
@@ -114,7 +115,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 |---|---|
 | `board.gd` (class Board) | Hex grid (7 cols x 8 rows; rows 0-3 enemy, 4-7 player), bench (9 slots), sell zone, tile unlocking by level, seam border, hex math + BFS pathfinding, merging, selling |
 | `tile.gd` (class Tile) | `coord`, `occupant`, `unlocked`, pop-in animation |
-| `unit.gd` (class Unit) | Stats, star level, combat step, health/mana bars, letter label, synergy bonus fields, items (`items`, `item_*` fields, `equip` / `set_items` / `take_items`, item icons above the health bar), placeholder ability casting |
+| `unit.gd` (class Unit) | Stats, star level, combat step (tick-stepped movement, `take_damage` returns HP removed), health/mana bars, letter label, synergy bonus fields, items (`items`, `item_*` fields, `equip` / `set_items` / `take_items`, item icons above the health bar), placeholder ability casting |
 | `item_data.gd` (class ItemData) | Resource: stable `id`, name, description, color, stat boosts (hp, dmg, attack_speed, mana, damage_reduction, lifesteal) |
 | `item_bar.gd` | Inventory panel: one button per item, starts item drags, drag ghost label |
 | `unit_data.gd` (class UnitData) | Resource: name, cost, stats, tags, mana, model, ability |
@@ -168,7 +169,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Units and merging:** 3 copies (same `display_name`, same star) merge into the next star, max 3. Star multipliers: HP/dmg x1.0 / x1.8 / x3.2, model scale 1.0 / 1.2 / 1.45. Merges run after buys (prep only), after drops (prep only), and at PREP start. Buying on a full bench is allowed in PREP if it completes a merge. Units bought during combat go to the bench only (full bench = refused) and are not merged until the next PREP start.
 
-**Combat:** Tile-to-tile movement on the hex grid (BFS, occupied tiles are walls, units claim their next tile before tweening). `attack_range` is in tiles, `move_speed` is tiles/sec. Units target the nearest enemy. Dead units are hidden, not freed, and restored after combat. Player board positions are snapshotted at combat start and restored after. 60 s timeout counts as a loss.
+**Combat (deterministic):** the same two boards always produce the same fight, at any frame rate. `GameManager.combat_tick()` runs once per physics frame with a fixed `COMBAT_TICK` (1/60 s); units act in a fixed order (`_combat_order`: each side by tile row then column, interleaved player/enemy, never node order); target ties go to the lower tile (`Board.tile_order`); movement is stepped per tick (`Unit.move_from` / `move_to` / `move_progress`), not tweened. `resolve_combat()` runs a fight to the end instantly. The run RNG is seeded (`GameManager.rng` for random enemies and placement, `PlayerState.rng` for shops and drops); never use `randf()` / `randi()` / `pick_random()` / `shuffle()` in game logic. Tile-to-tile movement on the hex grid (BFS, occupied tiles are walls, units claim their next tile before moving). `attack_range` is in tiles, `move_speed` is tiles/sec. Units target the nearest enemy. Dead units are hidden, not freed, and restored after combat. Player board positions are snapshotted at combat start and restored after. 60 s timeout counts as a loss.
 
 **Mana:** +10 per attack, +10% of damage taken (max 15 per hit). Resets to `start_mana` each fight. At full mana the unit casts its ability (placeholder: shows a "CAST" popup, does nothing) and mana resets to 0.
 
@@ -257,7 +258,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Exported scene references (`@export var tile_scene`) reset when a script is re-attached; prefer `preload`.
 - Units must be instances of `unit.tscn` under `Board/Units`; `unit.gd` finds the board via `get_parent().get_parent()` and needs `ModelHolder`.
 - Never place enemies with `put_on_tile` (it falls back to the bench); use `put_enemy_on_tile`.
-- Combat is not deterministic yet (tweens + frame delta + unseeded random). Required before networked PvP.
+- Combat is deterministic; keep it that way: no tweens or frame delta in combat logic, no unseeded random (see Combat rules). Run `tools/combat_checks` after touching combat.
 - `game_manager.gd` joins group `game_manager`; other scripts find it with `get_first_node_in_group` (its node name "Game Manager" has a space, so path lookups are fragile).
 - `GameManager.unit_pool` is the roster export (all unit types). The limited-copies pool is `GameManager.shared_pool` (UnitPool). Don't confuse them, and don't rename the export (main.tscn stores its value by name).
 - Testing without the editor: `Godot_v4.7.2-stable_win64.exe --headless --path . --quit-after 600` runs the main scene for ~10 s and prints script errors. Autoloads don't exist in `--script` mode, so test scripts that touch GameState/Events must run through the main scene. After adding a new `class_name` script, headless runs don't know the class until Godot rescans: open the editor, or run `--headless --path . --import` once.
@@ -265,6 +266,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Regression checks for opponents, campaign and saves: `... res://tools/campaign_checks.tscn --fixed-fps 60` (69 checks, ~20 s; must end with `RESULT: ALL PASS`; tests override Debug Level, so main.tscn's setting doesn't matter). Run it after changing game_manager.gd, GameState.gd, the campaign scripts or save_game.gd.
 - Menu checks: `... res://tools/menu_checks.tscn --fixed-fps 60` (20 checks through real scene changes: menu buttons, Free Play, Campaign panel and Start chapter, Continue, abandon-run confirmation, pause/resume, back to menu, settings saved, reset progress, menu choice beats Debug Level). Run it after changing the menus, end screen, GameState or SaveGame.
 - HUD checks: `... res://tools/hud_checks.tscn --fixed-fps 60` (41 checks: shop lock across rounds, reroll blocked while locked, unlock + reroll refills all five slots, damage numbers and meter, top-right bar toggles, layout (meter with 10 units clears the HP display in a 1152x648 window), team planner, shop highlights, Esc order, plan saved, synergy/item fold headers; uses its own settings and save files). Run it after changing the shop, damage/combat code, synergies or the planner. Wait for phases with `await Events.phase_changed`, not by polling: a fight with no player units ends within one physics frame.
+- Combat checks: `... res://tools/combat_checks.tscn --fixed-fps 60` (12 checks: the same fight resolved repeatedly, real time == `resolve_combat()`, node order irrelevant, target ties, seeded shops/enemies/drops, per-player state). `-- realtime` prints the fight's SIGNATURE line; compare it across `--fixed-fps 30` and `--fixed-fps 144` runs to prove frame-rate independence.
 - The main scene is menu.tscn. To jump straight into a run while testing, open main.tscn and press F6 (Run Current Scene); Debug Level applies there.
 - Never use a level's `id` for two levels, and never rename one: the save file keys progress by it.
 
@@ -275,8 +277,9 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, items, unit inspector, end screen, opponent providers, campaign chapter runs with carried boards, campaign saves, main menu with settings, pause menu.
 - Done and committed (8962b5b): opponent providers, campaign structure with chapter runs, save system (design decisions at the end of `docs/campaign-and-opponents.md`).
 - Done and committed (19088de): main menu with the working title AzSurvivors, settings, pause menu.
-- Last finished (2026-10-21, Opus, **not committed yet**): shop lock, damage meter, team planner (plus a fix: a bought shop slot now forgets its offer); then, from the user's screenshot feedback, a top-right button bar (Damage / Planner / Menu) with the meter as a toggled window, the HP display moved to the bottom right, and fold headers on the synergy list and item bar. Checked headless (39 HUD checks + 69 campaign checks + 20 menu checks + bot runs). Not yet looked at by hand.
-- Next: look at the menu and play a full chapter run by hand. Volume has no effect until there's sound.
+- Done and committed: shop lock (59e5cb6, d55302b), damage meter, team planner, HUD button bar, fold-out lists.
+- Last finished (2026-10-21, Opus, **not committed yet**): deterministic combat (roadmap 10), per-player state (roadmap 11, `PlayerState`), seeded run RNG, and `docs/multiplayer-design.md` (async PvP local-first plan + live lobby design). Checked headless: `tools/combat_checks` (12 checks; the same fight is byte-identical at 30 fps, 144 fps and resolved instantly) + campaign/HUD/menu suites + bot runs. Not yet played by hand.
+- Next: async PvP Part 1 (local-first ghost opponents), following the build order in `docs/multiplayer-design.md`. Volume has no effect until there's sound.
 - Ideas for later: `docs/item-ideas.md` (item mechanics brainstorm; resonance/item combinations first).
 
 ## Known issues
@@ -310,11 +313,11 @@ Model tags: **[Sonnet]** = do directly. **[Opus]** = recommend switching before 
 8. ~~Main menu with mode select~~: done (menu.tscn: Continue, Campaign, Free Play, Settings, Quit; pause menu; see UI behaviour).
 
 ### Phase 3: PvP
-9. Board snapshots **[Sonnet]** in the same format as waves (`EnemyBoard.to_dict()` / `from_dict()` exist); add a snapshot `OpponentProvider`; fight your own past boards offline.
-10. Deterministic combat **[Opus]** (seeded RNG, fixed timestep).
-11. Per-player state **[Opus]** (refactor global GameState).
-12. Async PvP **[Opus]**: fight other players' uploaded snapshots.
-13. Live 8-player lobbies with a dedicated server **[Opus]** (optional).
+9. Board snapshots **[Sonnet]** (part of async PvP Part 1) in the same format as waves (`EnemyBoard.to_dict()` / `from_dict()` exist); add a snapshot `OpponentProvider`; fight your own past boards offline.
+10. ~~Deterministic combat~~: done (fixed ticks, fixed order, tie-breaks, seeded RNG; `tools/combat_checks`).
+11. ~~Per-player state~~: done (`PlayerState`, `GameState.me` / `players`).
+12. **Async PvP** (next up) **[Opus plan done, Sonnet can build]**: local-first ghost opponents from saved snapshots, then an HTTP snapshot store. Build order in `docs/multiplayer-design.md` Part 1 (it includes item 9's snapshots).
+13. Live 8-player lobbies with a dedicated server **[Opus]** (optional): designed in `docs/multiplayer-design.md` Part 2, not built; needs the decisions listed there.
 
 ### Phase 4: Polish
 14. **[Sonnet]** Combat speed button, real models and animations, sound, VFX, menus and settings.

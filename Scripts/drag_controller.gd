@@ -93,7 +93,7 @@ func _drop():
 		board.put_on_bench(u, bench_i)
 	elif tile:
 		var other := tile.occupant
-		if other == null and ob != -1 and board.units_on_board() >= GameState.max_board_units():
+		if other == null and ob != -1 and board.units_on_board() >= GameState.me.max_board_units():
 			_place_at_origin(u, ob, oc)
 			Events.board_limit_hit.emit()
 		else:
@@ -114,8 +114,8 @@ func _place_at_origin(u: Unit, ob: int, oc: Vector2i):
 		board.put_on_tile(u, oc)
 
 func _on_item_drag_started(index: int):
-	if index >= 0 and index < GameState.items.size():
-		dragging_item = GameState.items[index]
+	if index >= 0 and index < GameState.me.items.size():
+		dragging_item = GameState.me.items[index]
 
 func _end_item_drag():
 	if dragging_item == null:
@@ -136,12 +136,12 @@ func _drop_item():
 	equip_item_on(hit.collider.get_parent() as Unit, item)
 
 func equip_item_on(u: Unit, item: ItemData) -> bool:
-	var index := GameState.items.find(item)
+	var index := GameState.me.items.find(item)
 	if index == -1 or u == null or u.team != 0:
 		return false
 	if not u.equip(item, not in_prep and u.coord.x >= 0):
 		return false
-	GameState.items.remove_at(index)
+	GameState.me.items.remove_at(index)
 	Events.items_changed.emit()
 	return true
 

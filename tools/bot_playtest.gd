@@ -42,7 +42,7 @@ func _run():
 	for path in paths:
 		if path == "free":
 			await _play(null, FREE_PLAY_ROUNDS)
-			print("Free play            reached round %d, HP %d, level %d, waves %s" % [GameState.round_number, GameState.player_hp, GameState.level, "".join(waves)])
+			print("Free play            reached round %d, HP %d, level %d, waves %s" % [GameState.round_number, GameState.me.player_hp, GameState.me.level, "".join(waves)])
 			continue
 		if path == "chapter":
 			await _chapter_runs()
@@ -53,9 +53,9 @@ func _run():
 		var patterns := []
 		for i in RUNS_PER_LEVEL:
 			await _play(level)
-			if gm.game_over and GameState.player_hp > 0 and gm.last_combat_won:
+			if gm.game_over and GameState.me.player_hp > 0 and GameState.me.last_combat_won:
 				wins += 1
-			hps.append(GameState.player_hp)
+			hps.append(GameState.me.player_hp)
 			patterns.append("".join(waves))
 		print("%-20s  %2d/%-2d     %-28s  %s" % [level.display_name, wins, RUNS_PER_LEVEL, str(hps), " ".join(patterns)])
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
@@ -74,8 +74,8 @@ func _chapter_runs():
 		var parts: PackedStringArray = []
 		while level != null:
 			await _play(level)
-			var won: bool = gm.game_over and GameState.player_hp > 0 and gm.last_combat_won
-			parts.append("%s %s %d HP (lvl %d, %d units) [%s]" % [level.id, "WIN" if won else "LOSS", GameState.player_hp, GameState.level, board.all_player_units().size(), "".join(waves)])
+			var won: bool = gm.game_over and GameState.me.player_hp > 0 and GameState.me.last_combat_won
+			parts.append("%s %s %d HP (lvl %d, %d units) [%s]" % [level.id, "WIN" if won else "LOSS", GameState.me.player_hp, GameState.me.level, board.all_player_units().size(), "".join(waves)])
 			if not won:
 				break
 			cleared[level.id] = int(cleared.get(level.id, 0)) + 1
@@ -118,17 +118,17 @@ func _bot_turn():
 	await get_tree().process_frame   # let income, drops and the shop roll happen first
 	if gm.game_over:
 		return
-	for d in gm.shop_offers.duplicate():
+	for d in GameState.me.shop_offers.duplicate():
 		var keep := 0 if GameState.round_number < 3 else 2
-		if GameState.gold >= d.cost + keep and (board.first_free_bench() != -1 or board.would_complete_merge(d)):
+		if GameState.me.gold >= d.cost + keep and (board.first_free_bench() != -1 or board.would_complete_merge(d)):
 			Events.unit_bought.emit(d)
-	if GameState.gold >= 10:
+	if GameState.me.gold >= 10:
 		Events.buy_xp_pressed.emit()
 	var strength := func(a, b): return a.data.cost * a.star > b.data.cost * b.star
 	var bench_units: Array = board.bench.filter(func(u): return u != null)
 	bench_units.sort_custom(strength)
 	for u in bench_units:
-		if board.units_on_board() >= GameState.max_board_units():
+		if board.units_on_board() >= GameState.me.max_board_units():
 			break
 		for c in board.player_order:
 			if board.is_unlocked(c) and board.tiles[c].occupant == null:
@@ -137,7 +137,7 @@ func _bot_turn():
 				break
 	var on_board: Array = board.all_player_units().filter(func(u): return u.coord.x >= 0)
 	on_board.sort_custom(strength)
-	while not GameState.items.is_empty():
+	while not GameState.me.items.is_empty():
 		var target: Unit = null
 		for u in on_board:
 			if u.can_equip():
@@ -145,4 +145,4 @@ func _bot_turn():
 				break
 		if target == null:
 			break
-		main.get_node("DragController").equip_item_on(target, GameState.items[0])
+		main.get_node("DragController").equip_item_on(target, GameState.me.items[0])

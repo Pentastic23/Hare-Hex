@@ -3,7 +3,7 @@ extends Label
 
 func _ready():
 	Events.streak_changed.connect(_update)
-	_update(GameState.win_streak, GameState.loss_streak)
+	_update(GameState.me.win_streak, GameState.me.loss_streak)
 
 func _update(wins: int, losses: int):
 	var s: int = maxi(wins, losses)

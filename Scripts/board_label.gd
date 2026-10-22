@@ -12,7 +12,7 @@ func _process(_delta):
 
 func _refresh():
 	if board == null: return
-	text = "Units: %d/%d" % [board.units_on_board(), GameState.max_board_units()]
+	text = "Units: %d/%d" % [board.units_on_board(), GameState.me.max_board_units()]
 	if not _flashing:
 		modulate = Color.WHITE
 

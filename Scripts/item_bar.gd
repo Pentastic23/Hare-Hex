@@ -42,9 +42,9 @@ func _process(_delta):
 	_ghost.position = get_viewport().get_mouse_position() + Vector2(16, 16)
 
 func _on_drag_started(index: int):
-	if index < 0 or index >= GameState.items.size():
+	if index < 0 or index >= GameState.me.items.size():
 		return
-	var item: ItemData = GameState.items[index]
+	var item: ItemData = GameState.me.items[index]
 	if _ghost == null:
 		_ghost = Label.new()
 		_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE   # must not block the drop target under the mouse
@@ -64,14 +64,14 @@ func _on_drag_ended():
 func _rebuild():
 	for c in grid.get_children():
 		c.queue_free()
-	for i in GameState.items.size():
-		grid.add_child(_make_button(GameState.items[i], i))
-	visible = not GameState.items.is_empty()   # hidden when the inventory is empty
+	for i in GameState.me.items.size():
+		grid.add_child(_make_button(GameState.me.items[i], i))
+	visible = not GameState.me.items.is_empty()   # hidden when the inventory is empty
 	_apply_expanded()
 
 func _apply_expanded():
 	grid.visible = expanded
-	header.text = "Items  [-]" if expanded else "Items (%d)  [+]" % GameState.items.size()
+	header.text = "Items  [-]" if expanded else "Items (%d)  [+]" % GameState.me.items.size()
 
 func _make_button(item: ItemData, index: int) -> Button:
 	var b := Button.new()
@@ -88,7 +88,7 @@ func _make_button(item: ItemData, index: int) -> Button:
 	b.add_theme_stylebox_override("normal", _style(item.color))
 	b.add_theme_stylebox_override("hover", _style(item.color.lightened(0.2)))
 	b.add_theme_stylebox_override("pressed", _style(item.color.darkened(0.2)))
-	b.button_down.connect(Events.item_drag_started.emit.bind(index))   # index into GameState.items
+	b.button_down.connect(Events.item_drag_started.emit.bind(index))   # index into GameState.me.items
 	return b
 
 func _style(c: Color) -> StyleBoxFlat:

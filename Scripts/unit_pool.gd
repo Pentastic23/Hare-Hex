@@ -33,7 +33,7 @@ func give_back(d: UnitData, copies := 1):
 		remaining[d] = mini(remaining[d] + copies, COPIES_PER_COST.get(d.cost, 0))
 
 # Random unit of this cost, weighted by copies left. Null if none are left.
-func pick(cost: int) -> UnitData:
+func pick(cost: int, rng: RandomNumberGenerator) -> UnitData:
 	var total := 0
 	for key in remaining:
 		var d: UnitData = key
@@ -41,7 +41,7 @@ func pick(cost: int) -> UnitData:
 			total += remaining[d]
 	if total <= 0:
 		return null
-	var r := randi() % total
+	var r := rng.randi_range(0, total - 1)   # seeded run RNG, so shops replay from a seed
 	for key in remaining:
 		var d: UnitData = key
 		if d.cost != cost:

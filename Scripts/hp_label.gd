@@ -19,11 +19,11 @@ func _ready():
 	add_theme_constant_override("outline_size", 8)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Events.hp_changed.connect(_update)
-	_update(GameState.player_hp)
+	_update(GameState.me.player_hp)
 
 func _update(hp: int):
 	text = "HP %d" % hp
-	var ratio := float(hp) / float(maxi(GameState.start_hp, 1))   # campaign levels can start below 100
+	var ratio := float(hp) / float(maxi(GameState.me.start_hp, 1))   # campaign levels can start below 100
 	if ratio <= 0.25:
 		modulate = Color(1.0, 0.35, 0.35)
 	elif ratio <= 0.5:

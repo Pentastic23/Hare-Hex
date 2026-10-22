@@ -18,8 +18,8 @@ signal streak_changed(wins: int, losses: int)
 signal hp_changed(hp: int)
 signal run_won
 signal run_lost
-signal items_changed                  # GameState.items changed (drop, equip, sell, merge)
-signal item_drag_started(index: int)  # index into GameState.items
+signal items_changed                  # GameState.me.items changed (drop, equip, sell, merge)
+signal item_drag_started(index: int)  # index into GameState.me.items
 signal item_drag_ended
 signal shop_lock_changed(locked: bool)
 signal team_plan_changed              # SaveGame team plan edited in the team planner

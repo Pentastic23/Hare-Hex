@@ -9,7 +9,7 @@ func _ready():
 
 	Events.xp_changed.connect(func(l, _x, _n): _update(l))
 	await get_tree().process_frame
-	_update(GameState.level)
+	_update(GameState.me.level)
 
 func _update(level: int):
 	var odds: Array = GameState.odds_for_level(level)

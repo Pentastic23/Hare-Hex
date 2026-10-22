@@ -68,7 +68,7 @@ func _show(won: bool):
 	next_button.visible = false
 	if lvl == null:
 		title.text = "VICTORY" if won else "DEFEAT"
-		detail.text = "Reached Stage %d-%d\nLevel %d" % [GameState.stage(), GameState.round_in_stage(), GameState.level]
+		detail.text = "Reached Stage %d-%d\nLevel %d" % [GameState.stage(), GameState.round_in_stage(), GameState.me.level]
 		restart_button.text = "Restart"
 	elif not won:
 		# Roguelite: a defeat ends the chapter run.
@@ -78,14 +78,14 @@ func _show(won: bool):
 	elif not GameState.run_carry.is_empty():
 		# Mid-chapter: the board carries on, so the only way forward is the next level.
 		title.text = "LEVEL COMPLETE"
-		detail.text = "%s   HP %d/%d\nYour board carries into %s" % [lvl.display_name, GameState.player_hp, GameState.start_hp, _next().display_name]
+		detail.text = "%s   HP %d/%d\nYour board carries into %s" % [lvl.display_name, GameState.me.player_hp, GameState.me.start_hp, _next().display_name]
 		next_button.text = "Next level"
 		next_button.visible = true
 		restart_button.visible = false
 	else:
 		title.text = "CHAPTER COMPLETE"
 		var ch := GameState.run_campaign.chapter_of(lvl) if GameState.run_campaign != null else null
-		detail.text = "%s cleared with %d HP" % [ch.display_name if ch != null else lvl.display_name, GameState.player_hp]
+		detail.text = "%s cleared with %d HP" % [ch.display_name if ch != null else lvl.display_name, GameState.me.player_hp]
 		next_button.text = "Next chapter"
 		next_button.visible = _next() != null
 		restart_button.text = "Play chapter again"
