@@ -90,10 +90,17 @@ func _run():
 	chk("locked: next round keeps the same offers (minus the one bought)", rolls[0] == 0 and after == expected, "%s -> %s" % [before, after])
 	chk("locked: the bought slot stays empty", bought_slot.offer == null and bought_slot.disabled)
 	GameState.gold = 50
+	var reroll_btn: Button = shop.get_node("HBoxContainer/RerollButton")
+	chk("locked: the Reroll button is disabled", reroll_btn.disabled)
 	Events.reroll_pressed.emit()
-	chk("locked: Reroll still rerolls and the lock stays on", rolls[0] == 1 and gm.shop_locked)
+	chk("locked: a reroll does nothing (no roll, no gold spent, same offers)", rolls[0] == 0 and GameState.gold == 50 and offer_names() == expected and gm.shop_locked)
+	slots.filter(func(s): return s.offer != null)[0]._pressed()   # a second empty slot
+	var empties := slots.filter(func(s): return s.offer == null).size()
 	shop.lock_button.button_pressed = false
-	chk("pressing again unlocks", not gm.shop_locked and shop.lock_button.text == "Lock")
+	chk("pressing again unlocks and re-enables Reroll", not gm.shop_locked and shop.lock_button.text == "Lock" and not reroll_btn.disabled)
+	var gold_before_reroll := GameState.gold
+	Events.reroll_pressed.emit()
+	chk("unlock + reroll replaces the whole shop: all 5 slots filled and buyable", empties == 2 and rolls[0] == 1 and GameState.gold == gold_before_reroll - 2 and gm.shop_offers.size() == 5 and slots.all(func(s): return s.offer != null and not s.disabled), "%d empty before, offers %s" % [empties, offer_names()])
 	await wait_phase(Events.Phase.COMBAT)
 	await wait_phase(Events.Phase.PREP)
 	chk("unlocked: the next round rolls a new shop", rolls[0] == 2)

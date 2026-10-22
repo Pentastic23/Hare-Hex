@@ -255,7 +255,7 @@ func _random_unit_of_cost(tier: int) -> UnitData:
 	return null
 
 func _on_reroll():
-	if phase != Events.Phase.PREP or GameState.gold < REROLL_COST: return
+	if shop_locked or phase != Events.Phase.PREP or GameState.gold < REROLL_COST: return   # unlock to reroll
 	GameState.gold -= REROLL_COST
 	GameState.cheap_shop = false
 	roll_shop()

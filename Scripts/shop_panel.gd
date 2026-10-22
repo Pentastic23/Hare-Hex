@@ -6,7 +6,7 @@ var lock_button: Button
 
 func _ready():
 	# The Lock button sits right after Reroll. (The team planner opens from the top-right bar.)
-	lock_button = _small_button("Lock", "Keep these offers for the next round. Rerolling still works.")
+	lock_button = _small_button("Lock", "Keep these offers for the next round. While locked you can't reroll.")
 	lock_button.toggle_mode = true
 	lock_button.toggled.connect(func(on):
 		var gm := get_tree().get_first_node_in_group("game_manager")
@@ -30,6 +30,10 @@ func _on_lock_changed(on: bool):
 	lock_button.set_pressed_no_signal(on)
 	lock_button.text = "Locked" if on else "Lock"
 	lock_button.modulate = Color(1.0, 0.85, 0.3) if on else Color.WHITE
+	# A locked shop can't be rerolled; unlocking and rerolling replaces all five offers.
+	var reroll: Button = $HBoxContainer/RerollButton
+	reroll.disabled = on
+	reroll.tooltip_text = "Unlock the shop to reroll." if on else ""
 
 func _small_button(label: String, tip: String) -> Button:
 	var b := Button.new()
