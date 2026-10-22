@@ -70,6 +70,11 @@ func _show(won: bool):
 		title.text = "VICTORY" if won else "DEFEAT"
 		detail.text = "Reached Stage %d-%d\nLevel %d" % [GameState.stage(), GameState.round_in_stage(), GameState.me.level]
 		restart_button.text = "Restart"
+	elif _is_tutorial():
+		# The tutorial stands alone: no chapter run, no next level. Main menu leads on to the campaign.
+		title.text = "TUTORIAL COMPLETE" if won else "DEFEAT"
+		detail.text = "You know the basics.\nTry the Campaign from the main menu." if won else "Every unit fell. Try again: place more units and merge them into stars."
+		restart_button.text = "Replay tutorial" if won else "Try again"
 	elif not won:
 		# Roguelite: a defeat ends the chapter run.
 		title.text = "DEFEAT"
@@ -105,8 +110,11 @@ func _next_level():
 	GameState.reset()
 	get_tree().reload_current_scene()
 
+func _is_tutorial() -> bool:
+	return GameState.run_level != null and GameState.run_level.id == &"tutorial"
+
 func _restart():
-	if GameState.run_level != null:
+	if GameState.run_level != null and not _is_tutorial():
 		# Campaign: back to the first level of the chapter with an empty board.
 		if GameState.run_campaign != null:
 			GameState.run_level = GameState.run_campaign.first_of_chapter(GameState.run_level)

@@ -1,0 +1,114 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_rsvqh"]
+[ext_resource type="Resource" path="res://tres/knight.tres" id="2_opea7"]
+[ext_resource type="Resource" path="res://tres/cleric.tres" id="3_1fxho"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="4_ocbf7"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="5_nfygj"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="6_tm08j"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="7_ixgw5"]
+[ext_resource type="Resource" path="res://tres/archer.tres" id="8_40l1i"]
+[ext_resource type="Resource" path="res://tres/guardian.tres" id="9_oomrh"]
+
+[sub_resource type="Resource" id="Resource_1slky"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("2_opea7")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_xaicv"]
+script = ExtResource("5_nfygj")
+display_name = "Training Dummy"
+units = Array[ExtResource("6_tm08j")]([SubResource("Resource_1slky")])
+stat_scale = 0.3
+
+[sub_resource type="Resource" id="Resource_r3854"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("2_opea7")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_ax8mb"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("8_40l1i")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_frrsq"]
+script = ExtResource("5_nfygj")
+display_name = "Sparring Pair"
+units = Array[ExtResource("6_tm08j")]([SubResource("Resource_r3854"), SubResource("Resource_ax8mb")])
+stat_scale = 0.35
+
+[sub_resource type="Resource" id="Resource_dvu5g"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("2_opea7")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_py1pv"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("3_1fxho")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_43mau"]
+script = ExtResource("5_nfygj")
+display_name = "Squad Drill"
+units = Array[ExtResource("6_tm08j")]([SubResource("Resource_dvu5g"), SubResource("Resource_py1pv")])
+stat_scale = 0.4
+
+[sub_resource type="Resource" id="Resource_xe6fi"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("8_40l1i")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_ywthc"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("8_40l1i")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_j62yn"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("2_opea7")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_8hu04"]
+script = ExtResource("5_nfygj")
+display_name = "Ranged Practice"
+units = Array[ExtResource("6_tm08j")]([SubResource("Resource_xe6fi"), SubResource("Resource_ywthc"), SubResource("Resource_j62yn")])
+stat_scale = 0.45
+
+[sub_resource type="Resource" id="Resource_moyye"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("9_oomrh")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_cv71u"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("2_opea7")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_otohx"]
+script = ExtResource("6_tm08j")
+unit = ExtResource("8_40l1i")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_lydt5"]
+script = ExtResource("5_nfygj")
+display_name = "Drill Sergeant"
+units = Array[ExtResource("6_tm08j")]([SubResource("Resource_moyye"), SubResource("Resource_cv71u"), SubResource("Resource_otohx")])
+stat_scale = 0.5
+
+[resource]
+script = ExtResource("4_ocbf7")
+id = &"tutorial"
+display_name = "Tutorial"
+description = "Learn the basics: buying, placing, fighting, merging, synergies, items and levelling up."
+waves = Array[ExtResource("5_nfygj")]([SubResource("Resource_xaicv"), SubResource("Resource_frrsq"), SubResource("Resource_43mau"), SubResource("Resource_8hu04"), SubResource("Resource_lydt5")])
+start_gold = 10
+start_level = 1
+player_hp = 100
+start_heal = 0
+income_bonus = 0
+enemy_stat_mult = 1.0
+loss_damage = 2
+prep_time = 600
+item_drop_rounds = Array[int]([3])
+allowed_units = Array[ExtResource("1_rsvqh")]([ExtResource("2_opea7"), ExtResource("3_1fxho")])
+unlocks = Array[StringName]([])

@@ -55,9 +55,36 @@ class Driver extends Node:
 
 		await to_menu()
 		var texts := labels(scene())
-		chk("menu shows the title AzSurvivors", texts.has("AzSurvivors"))
+		chk("menu shows the title AZTactics", texts.has("AZTactics"))
 		chk("menu buttons: Campaign, Free Play, Settings, Quit", find_button(scene(), "Campaign") != null and find_button(scene(), "Free Play") != null and find_button(scene(), "Settings") != null and find_button(scene(), "Quit") != null)
 		chk("no saved run: Continue hidden", find_button(scene(), "Continue") == null)
+		chk("sections: SINGLE PLAYER and PVP", texts.has("SINGLE PLAYER") and texts.has("PVP"))
+		chk("new player: Tutorial says start here", find_button(scene(), "Tutorial") != null and find_button(scene(), "Tutorial").text.contains("start here"))
+		var menu_h: float = scene().main_box.get_combined_minimum_size().y
+		chk("menu fits a 648 px tall window", menu_h <= 620, "height %d" % menu_h)
+
+		# PvP modes are placeholders with an info panel
+		press("Async PvP")
+		await get_tree().process_frame
+		var info = scene().info_panel
+		chk("Async PvP opens its coming-soon panel", info.get_parent().visible and info.get_child(0).get_node("Title").text == "Async PvP" and find_button(scene(), "Free Play") == null)
+		await esc()
+		press("Live PvP")
+		await get_tree().process_frame
+		chk("Live PvP opens its own panel", info.get_parent().visible and info.get_child(0).get_node("Title").text == "Live PvP")
+		press("Back")
+		await get_tree().process_frame
+		chk("Back returns to the menu", find_button(scene(), "Free Play") != null)
+
+		# Tutorial starts the tutorial level
+		press("Tutorial")
+		await wait(0.5)
+		chk("Tutorial starts the tutorial with its step panel", scene().name == "Main" and GameState.run_level != null and GameState.run_level.id == &"tutorial" and scene().get_node("UI/TutorialPanel").visible)
+		SaveGame.record_level_complete(&"tutorial", 100)
+		await to_menu()
+		chk("after finishing it, Tutorial says done", find_button(scene(), "Tutorial").text.contains("done"))
+		SaveGame.reset_progress()
+		await to_menu()
 
 		press("Free Play")
 		await wait(0.5)

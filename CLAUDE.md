@@ -1,6 +1,6 @@
 # Auto Battler: Project Notes
 
-A 3D TFT-style auto battler built in **Godot 4.7** with GDScript. Working title **AzSurvivors** (shown on the main menu and set as the window title at runtime; the project's `config/name` stays "Azerothtactics" because Godot derives the save folder `app_userdata/Azerothtactics` from it). Single player: free play and a campaign; a PvP mode is planned.
+A 3D TFT-style auto battler built in **Godot 4.7** with GDScript. Working title **AZTactics** (shown on the main menu and set as the window title at runtime; the project's `config/name` stays "Azerothtactics" because Godot derives the save folder `app_userdata/Azerothtactics` from it). Single player: free play and a campaign; a PvP mode is planned.
 
 > These notes describe the intended design as built step by step. If the code and these notes disagree, the code wins. Update this file when systems change.
 
@@ -32,7 +32,7 @@ res://
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
   tres/items/    ItemData .tres files (one per item)
   tres/campaign/ campaign.tres -> chapter_1.tres -> levels/ch1_l*.tres (waves embedded in each level)
-  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn, combat_checks.tscn)
+  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn, combat_checks.tscn, tutorial_checks.tscn)
   docs/          design docs (items-plan.md, campaign-and-opponents.md, item-ideas.md, multiplayer-design.md)
   addons/        third-party plugins; don't edit
 ```
@@ -60,7 +60,7 @@ Main (Node3D)
 
 The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 10 unit .tres files (this is the **roster**, not the shared pool), `item_roster` = the 6 item .tres files, `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05` (free-play random enemies). `debug_level` (CampaignLevel) is empty: it only matters when main.tscn is run directly (F6 in the editor) to jump straight into a campaign level for testing; runs started from the main menu ignore it (`GameState.launched_from_menu`). Always load a level **file** into it; a "New CampaignLevel" has no waves, so the game warns and plays free play instead. `continue_saved_run` (default on): with Debug Level set, running main.tscn directly continues the saved chapter run if it's in the same chapter.
 
-**menu.tscn** (the project's main scene, `run/main_scene`): a full-screen Control with `main_menu.gd`, which builds everything in code: title "AzSurvivors", Continue (only with a saved chapter run), Campaign panel (chapters, levels with status: Completed/best HP, Not completed, Locked; Start chapter), Free Play, Settings panel (Fullscreen, VSync, Volume, Reset campaign progress), Quit. Starting a run sets `GameState.run_level` / `run_campaign` / `run_carry` / `launched_from_menu`, calls `reset()` and changes to main.tscn.
+**menu.tscn** (the project's main scene, `run/main_scene`): a full-screen Control with `main_menu.gd`, which builds everything in code: title "AZTactics", Continue (only with a saved chapter run), then **SINGLE PLAYER**: Tutorial ("(start here)" for new players, "(done)" once completed), Campaign panel (chapters, levels with status: Completed/best HP, Not completed, Locked; Start chapter), Free Play; then **PVP** (tinted blue): Async PvP and Live PvP, both "coming soon" placeholders that open an info panel; then Settings / Quit on one row. The menu must fit a 648 px tall window (`menu_checks` measures it). Starting a run sets `GameState.run_level` / `run_campaign` / `run_carry` / `launched_from_menu`, calls `reset()` and changes to main.tscn.
 
 **ui.tscn** (root `UI`, CanvasLayer):
 
@@ -88,6 +88,7 @@ UI
  │   └─ Grid (GridContainer, 2 columns): item buttons built in code
  ├─ TopRightBar (HBoxContainer, top right)   hud_buttons.gd: Damage / Planner / Menu buttons (built in code)
  ├─ DamageMeter (PanelContainer, top right under the bar, mouse ignore)   damage_meter.gd (rows built in code; group "damage_meter")
+ ├─ TutorialPanel (PanelContainer, right side, below the meter)   tutorial.gd (only visible in the tutorial level; built in code)
  ├─ TeamPlanner (PanelContainer, centered, hidden)   team_planner.gd (built in code; group "team_planner")
  └─ PauseMenu (Control, full screen, last child so it draws on top)   pause_menu.gd
 ```
@@ -124,12 +125,13 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | `hud_buttons.gd` | Top-right bar: Damage (toggles the meter), Planner (toggles the team planner), Menu (pause menu); toggles stay in sync with P / Esc / Close |
 | `damage_meter.gd` | Damage dealt/taken per unit in the current or last fight (from `GameManager.snapshot` and `Unit.damage_dealt` / `damage_taken`) |
 | `team_planner.gd` | Team planner panel: toggle planned units (saved as names in `SaveGame.team_plan`), planned synergies, owned counts |
-| `game_manager.gd` | Run setup (`_begin_run`: free play or campaign level, shop roster, opponent provider), phase loop, shop rolling (from `shared_pool`), buying, enemy spawning (`spawn_board`), combat loop, end of combat (HP packs), run end (records campaign completion; `make_carry` / `_restore_carry` move the board between chapter levels) |
+| `game_manager.gd` | Run setup (`_begin_run`: free play or campaign level, shop roster, opponent provider), phase loop (`end_prep_early()`; `_prep_id` makes stale prep timers do nothing), shop rolling (from `shared_pool`), buying, enemy spawning (`spawn_board`), combat loop, end of combat (HP packs), run end (records campaign completion; `make_carry` / `_restore_carry` move the board between chapter levels) |
 | `enemy_board.gd` (class EnemyBoard), `board_unit.gd` (class BoardUnit) | The enemy-side format: units with star, coord, items; `stat_scale`, `use_synergies`; `to_dict()` / `from_dict()` for saves and snapshots |
 | `opponent_provider.gd` (class OpponentProvider) | `board_for_round(round) -> EnemyBoard`; implemented by `random_opponents.gd` (free play) and `wave_opponents.gd` (campaign) |
 | `campaign.gd`, `campaign_chapter.gd`, `campaign_level.gd` | Campaign data: chapters, levels (waves + modifiers + rewards), unlock order, `validate()` |
 | `save_game.gd` (class SaveGame) | Static save system: campaign progress, unlocks and the chapter run in `user://save.json` |
-| `main_menu.gd` | Main menu (menu.tscn): Continue, Campaign panel, Free Play, Settings panel, Quit; starts runs |
+| `main_menu.gd` | Main menu (menu.tscn): Continue; Single player (Tutorial, Campaign panel, Free Play); PvP placeholders (Async, Live) with an info panel; Settings panel, Quit; starts runs |
+| `tutorial.gd` | Tutorial step panel: 12 steps (welcome, buy, place, start fight, watch, merge, synergies, items, sell, lock the shop, level up, win). Most advance when their condition is met; welcome and "Watch the fight" wait for Next (Watch's Next is greyed out until the fight is over, and Start fight is hidden while a step waits for Next); Start fight button (`GameManager.end_prep_early()`) |
 | `pause_menu.gd` | Esc during a run (node `PauseMenu` in ui.tscn, last child): pauses the tree; Resume / Main menu / Quit game |
 | `settings.gd` (class Settings) | Static player options in `user://settings.cfg`: fullscreen, VSync, master volume, HUD windows (show_damage_meter, show_synergies, show_items); `apply()` |
 | `drag_controller.gd` | Left-drag units, swaps, snapping (board tiles only on the player half, rows 4-7; a drop on an enemy-side tile returns the unit to where it came from), sell zone, F-to-sell, drag cancel on phase change; dropping dragged items on units (`equip_item_on`) |
@@ -235,7 +237,8 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 ## UI behaviour
 
-- The game opens on the main menu (see menu.tscn above). Esc closes its Campaign/Settings panels. Starting a chapter while a chapter run is saved asks before abandoning it.
+- The game opens on the main menu (see menu.tscn above). Esc closes its Campaign/Settings/info panels.
+- **Tutorial** (`tres/campaign/tutorial.tres`, id `tutorial`, not part of any chapter): 5 easy waves, Knights and Clerics only, 10 start gold, 2 HP per lost wave, a 600 s safety prep timer. The TutorialPanel walks through the basics (including selling units and locking the shop; the lock step needs lock then unlock so the shop is never left locked) and its **Start fight** button ends prep early. "Watch the fight" waits for Next so a quick win doesn't skip it. A Longsword is handed out at the items step if the player has no item. The end screen shows TUTORIAL COMPLETE (Replay tutorial / Main menu) or DEFEAT (Try again). Completion is saved like a level. Levels outside a chapter (`GameManager._in_chapter`) never create, change or clear the saved chapter run. Starting a chapter while a chapter run is saved asks before abandoning it.
 - During a run, Esc opens the pause menu (the whole tree pauses, including the prep timer, which is created with `process_always = false`); Esc again resumes. Not available once the run has ended. Leaving a campaign level for the menu keeps the chapter run as saved at the start of that level.
 - The end screen always has a Main menu button (below Next level / Restart).
 
@@ -264,9 +267,11 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Testing without the editor: `Godot_v4.7.2-stable_win64.exe --headless --path . --quit-after 600` runs the main scene for ~10 s and prints script errors. Autoloads don't exist in `--script` mode, so test scripts that touch GameState/Events must run through the main scene. After adding a new `class_name` script, headless runs don't know the class until Godot rescans: open the editor, or run `--headless --path . --import` once.
 - Balance check for the campaign: `Godot_v4.7.2-stable_win64.exe --headless --path . res://tools/bot_playtest.tscn --fixed-fps 60 -- chapter` (12 bot chapter runs with carried boards, about a minute). Without arguments it plays each level fresh; add level paths after `--` for single levels, or `-- free` for a 15-round free-play smoke test.
 - Regression checks for opponents, campaign and saves: `... res://tools/campaign_checks.tscn --fixed-fps 60` (69 checks, ~20 s; must end with `RESULT: ALL PASS`; tests override Debug Level, so main.tscn's setting doesn't matter). Run it after changing game_manager.gd, GameState.gd, the campaign scripts or save_game.gd.
-- Menu checks: `... res://tools/menu_checks.tscn --fixed-fps 60` (20 checks through real scene changes: menu buttons, Free Play, Campaign panel and Start chapter, Continue, abandon-run confirmation, pause/resume, back to menu, settings saved, reset progress, menu choice beats Debug Level). Run it after changing the menus, end screen, GameState or SaveGame.
+- Menu checks: `... res://tools/menu_checks.tscn --fixed-fps 60` (28 checks through real scene changes: menu buttons and sections, the 648 px fit, PvP info panels, Tutorial start and done label, Free Play, Campaign panel and Start chapter, Continue, abandon-run confirmation, pause/resume, back to menu, settings saved, reset progress, menu choice beats Debug Level). Run it after changing the menus, end screen, GameState or SaveGame.
 - HUD checks: `... res://tools/hud_checks.tscn --fixed-fps 60` (41 checks: shop lock across rounds, reroll blocked while locked, unlock + reroll refills all five slots, damage numbers and meter, top-right bar toggles, layout (meter with 10 units clears the HP display in a 1152x648 window), team planner, shop highlights, Esc order, plan saved, synergy/item fold headers; uses its own settings and save files). Run it after changing the shop, damage/combat code, synergies or the planner. Wait for phases with `await Events.phase_changed`, not by polling: a fight with no player units ends within one physics frame.
 - Combat checks: `... res://tools/combat_checks.tscn --fixed-fps 60` (12 checks: the same fight resolved repeatedly, real time == `resolve_combat()`, node order irrelevant, target ties, seeded shops/enemies/drops, per-player state). `-- realtime` prints the fight's SIGNATURE line; compare it across `--fixed-fps 30` and `--fixed-fps 144` runs to prove frame-rate independence.
+- Tutorial checks: `... res://tools/tutorial_checks.tscn --fixed-fps 60` (27 checks: every tutorial step with game actions, Watch waiting for Next, sell and lock steps, Start fight, end screen, saved chapter run untouched by winning or losing the tutorial). Run after changing the tutorial, end screen, GameManager phase flow or the chapter-run code.
+- When a test awaits a game signal (e.g. `combat_ended`), read what it needs right away and `await get_tree().process_frame` before freeing the scene: freeing it inside the signal crashes Godot.
 - The main scene is menu.tscn. To jump straight into a run while testing, open main.tscn and press F6 (Run Current Scene); Debug Level applies there.
 - Never use a level's `id` for two levels, and never rename one: the save file keys progress by it.
 
@@ -276,9 +281,10 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 - Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, items, unit inspector, end screen, opponent providers, campaign chapter runs with carried boards, campaign saves, main menu with settings, pause menu.
 - Done and committed (8962b5b): opponent providers, campaign structure with chapter runs, save system (design decisions at the end of `docs/campaign-and-opponents.md`).
-- Done and committed (19088de): main menu with the working title AzSurvivors, settings, pause menu.
+- Done and committed (19088de): main menu with the working title AZTactics, settings, pause menu.
 - Done and committed: shop lock (59e5cb6, d55302b), damage meter, team planner, HUD button bar, fold-out lists.
-- Last finished (2026-10-21, Opus, **not committed yet**): deterministic combat (roadmap 10), per-player state (roadmap 11, `PlayerState`), seeded run RNG, and `docs/multiplayer-design.md` (async PvP local-first plan + live lobby design). Checked headless: `tools/combat_checks` (12 checks; the same fight is byte-identical at 30 fps, 144 fps and resolved instantly) + campaign/HUD/menu suites + bot runs. Not yet played by hand.
+- Done and committed (cdd6999): deterministic combat (roadmap 10), per-player state (roadmap 11), seeded run RNG, `docs/multiplayer-design.md`.
+- Last finished (2026-10-21, Opus, **not committed yet**): main menu split into Single player (Tutorial, Campaign, Free Play) and PvP (Async/Live placeholders with info panels); a guided tutorial level with a step panel and Start fight; `GameManager.end_prep_early()`; fix so levels outside a chapter can't touch the saved chapter run; `tools/tutorial_checks` (27) and more `menu_checks` (28). A flaky crash in `combat_checks` (test freed the scene mid-signal) fixed. Not yet played by hand.
 - Next: async PvP Part 1 (local-first ghost opponents), following the build order in `docs/multiplayer-design.md`. Volume has no effect until there's sound.
 - Ideas for later: `docs/item-ideas.md` (item mechanics brainstorm; resonance/item combinations first).
 

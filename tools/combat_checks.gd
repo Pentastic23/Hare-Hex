@@ -105,7 +105,9 @@ func _run():
 	setup_fight()
 	gm.start_combat()
 	await Events.combat_ended
-	chk("physics-driven fight == resolve_combat()", signature() == sigs[0], signature().left(120))
+	var live_sig := signature()   # now: enemy units are freed at the end of this frame
+	await get_tree().process_frame   # let GameManager finish _end_combat before the next check frees the scene
+	chk("physics-driven fight == resolve_combat()", live_sig == sigs[0], live_sig.left(120))
 
 	print("--- node order doesn't matter")
 	await load_main(12345)

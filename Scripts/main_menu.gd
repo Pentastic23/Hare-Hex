@@ -1,20 +1,28 @@
 # main_menu.gd
 extends Control
 
-# The first screen: title, Continue (saved chapter run), Campaign (chapters and levels),
-# Free Play, Settings, Quit. Built in code; menu.tscn is just this script on a full-screen Control.
+# The first screen: title, Continue (saved chapter run), then two sections:
+#   SINGLE PLAYER: Tutorial, Campaign (chapters and levels), Free Play
+#   PVP: Async PvP and Live PvP (coming soon: each opens an info panel)
+# and Settings / Quit. Built in code; menu.tscn is just this script on a full-screen Control.
 
-const TITLE := "AzSurvivors"
+const TITLE := "AZTactics"
 const MAIN_SCENE := "res://scenes/main.tscn"
 const CAMPAIGN_PATH := "res://tres/campaign/campaign.tres"
+const TUTORIAL_PATH := "res://tres/campaign/tutorial.tres"
 const GOLD := Color(1.0, 0.85, 0.3)
 const GREY := Color(0.65, 0.65, 0.7)
+const PVP_TINT := Color(0.7, 0.85, 1.0)
+const ASYNC_PVP_TEXT := "Fight ghost copies of other players' boards, recorded at the same round of their run. Your board is saved every round too, so others fight yours. No waiting for opponents: play whenever you like.\n\nComing soon."
+const LIVE_PVP_TEXT := "Real-time matches with up to 8 players on a server: one shared unit pool, a fight against another player every round, last one standing wins.\n\nComing later. Async PvP comes first."
 
 var campaign: Campaign
 var main_box: VBoxContainer
 var continue_button: Button
+var tutorial_button: Button
 var campaign_panel: PanelContainer
 var settings_panel: PanelContainer
+var info_panel: PanelContainer   # "coming soon" description for the PvP modes
 var confirm: ConfirmationDialog
 var _confirm_action: Callable
 var panel_style: StyleBox = preload("res://tres/panel_style.tres")
@@ -32,22 +40,39 @@ func _ready():
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	main_box = _centered_box(self, 14)
-	var title := _label(TITLE, 84, GOLD)
+	main_box = _centered_box(self, 8)
+	var title := _label(TITLE, 72, GOLD)
 	title.add_theme_color_override("font_outline_color", Color.BLACK)
 	title.add_theme_constant_override("outline_size", 12)
 	main_box.add_child(title)
-	main_box.add_child(_label("A hex auto battler", 22, GREY))
-	main_box.add_child(_spacer(24))
+	main_box.add_child(_label("A hex auto battler", 20, GREY))
+	main_box.add_child(_spacer(10))
 	continue_button = _button(main_box, "Continue", _on_continue)
+
+	main_box.add_child(_section("SINGLE PLAYER"))
+	tutorial_button = _button(main_box, "Tutorial", _start_tutorial)
+	tutorial_button.tooltip_text = "A short guided level that teaches buying, placing, merging, synergies, items and levelling up."
 	_button(main_box, "Campaign", func(): _show_panel(campaign_panel))
-	_button(main_box, "Free Play", func(): _start(null, {}))
-	_button(main_box, "Settings", func(): _show_panel(settings_panel))
+	_button(main_box, "Free Play", func(): _start(null, {})).tooltip_text = "39 rounds against random enemies. No campaign rules."
+
+	main_box.add_child(_section("PVP"))
+	var async_btn := _button(main_box, "Async PvP   (coming soon)", func(): _show_info("Async PvP", ASYNC_PVP_TEXT))
+	var live_btn := _button(main_box, "Live PvP   (coming soon)", func(): _show_info("Live PvP", LIVE_PVP_TEXT))
+	for b in [async_btn, live_btn]:
+		b.modulate = PVP_TINT
+
+	main_box.add_child(_spacer(6))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	main_box.add_child(row)
+	_button(row, "Settings", func(): _show_panel(settings_panel)).custom_minimum_size = Vector2(156, 44)
 	if OS.get_name() != "Web":
-		_button(main_box, "Quit", func(): get_tree().quit())
+		_button(row, "Quit", func(): get_tree().quit()).custom_minimum_size = Vector2(156, 44)
 
 	campaign_panel = _build_campaign_panel()
 	settings_panel = _build_settings_panel()
+	info_panel = _build_info_panel()
 	confirm = ConfirmationDialog.new()
 	confirm.confirmed.connect(func(): _confirm_action.call())
 	add_child(confirm)
@@ -68,6 +93,10 @@ func _start(level: CampaignLevel, carry: Dictionary):
 	GameState.launched_from_menu = true   # so Game Manager's Debug Level doesn't override this choice
 	GameState.reset()
 	get_tree().change_scene_to_file(MAIN_SCENE)
+
+func _start_tutorial():
+	if ResourceLoader.exists(TUTORIAL_PATH):
+		_start(load(TUTORIAL_PATH), {})   # the tutorial isn't in a chapter, so it never touches a saved run
 
 func _saved_level() -> CampaignLevel:
 	var saved := SaveGame.chapter_run()
@@ -95,19 +124,47 @@ func _start_chapter(chapter: CampaignChapter):
 
 func _show_panel(panel: Control):
 	main_box.get_parent().visible = panel == null
-	campaign_panel.get_parent().visible = panel == campaign_panel
-	settings_panel.get_parent().visible = panel == settings_panel
+	for p in [campaign_panel, settings_panel, info_panel]:
+		p.get_parent().visible = panel == p
 	_refresh()
 
 func _panel_open() -> bool:
-	return campaign_panel.get_parent().visible or settings_panel.get_parent().visible
+	return [campaign_panel, settings_panel, info_panel].any(func(p): return p.get_parent().visible)
 
 func _refresh():
 	var saved := _saved_level()
 	continue_button.visible = saved != null
 	if saved != null:
 		continue_button.text = "Continue: %s (%d HP)" % [saved.display_name, int(SaveGame.chapter_run().get("hp", 0))]
+	if SaveGame.is_level_complete(&"tutorial"):
+		tutorial_button.text = "Tutorial   (done)"
+	elif SaveGame.data().completed_levels.is_empty():
+		tutorial_button.text = "Tutorial   (start here)"
+	else:
+		tutorial_button.text = "Tutorial"
 	_fill_campaign_list()
+
+func _build_info_panel() -> PanelContainer:
+	var panel := _panel()
+	var box := panel.get_child(0) as VBoxContainer
+	var t := _label("", 36, PVP_TINT)
+	t.name = "Title"
+	box.add_child(t)
+	var badge := _label("Coming soon", 16, GOLD)
+	box.add_child(badge)
+	var body := _label("", 17, Color.WHITE)
+	body.name = "Body"
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size = Vector2(520, 0)
+	box.add_child(body)
+	_button(box, "Back", func(): _show_panel(null))
+	return panel
+
+func _show_info(title: String, text: String):
+	var box := info_panel.get_child(0)
+	box.get_node("Title").text = title
+	box.get_node("Body").text = text
+	_show_panel(info_panel)
 
 func _build_campaign_panel() -> PanelContainer:
 	var panel := _panel()
@@ -248,12 +305,18 @@ func _label(text: String, size: int, color: Color) -> Label:
 func _button(parent: Control, text: String, action: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(320, 52)
+	b.custom_minimum_size = Vector2(320, 44)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	b.add_theme_font_size_override("font_size", 22)
+	b.add_theme_font_size_override("font_size", 20)
 	b.pressed.connect(action)
 	parent.add_child(b)
 	return b
+
+func _section(text: String) -> Label:
+	var l := _label(text, 14, GREY)
+	l.custom_minimum_size = Vector2(0, 22)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	return l
 
 func _spacer(height: int) -> Control:
 	var c := Control.new()

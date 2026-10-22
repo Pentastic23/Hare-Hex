@@ -29,6 +29,7 @@ const COMBAT_TICK := 1.0 / 60.0   # seconds of fight per tick
 const COMBAT_MAX_TICKS := 3600    # 60 s; reaching it counts as a loss
 var combatants: Array[Unit] = []  # fixed acting order for the current fight (_combat_order)
 var combat_ticks := 0
+var _prep_id := 0   # bumps every PREP; a prep timer only acts if its PREP is still current
 var rng := RandomNumberGenerator.new()   # run RNG (seeded): random enemies and placement. Shop and drops use GameState.me.rng.
 var shared_pool: UnitPool
 
@@ -66,8 +67,10 @@ func _enter(p: int):
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
 			if not GameState.me.shop_locked or not GameState.me.shop_has_rolled:
 				roll_shop()
+			_prep_id += 1
+			var my_prep := _prep_id
 			await get_tree().create_timer(prep_time, false).timeout   # false: the prep timer stops while paused
-			if game_over: return
+			if game_over or my_prep != _prep_id: return   # this prep already ended early
 			_enter(Events.Phase.COMBAT)
 		Events.Phase.COMBAT:
 			start_combat()
@@ -451,10 +454,21 @@ func _end_combat(player_won: bool, enemy_stars: int):
 	Events.combat_ended.emit(player_won)
 	_enter(Events.Phase.RESULT)
 
+# Ends PREP now instead of waiting for the timer (the tutorial's Start fight button).
+func end_prep_early():
+	if game_over or phase != Events.Phase.PREP:
+		return
+	_prep_id += 1   # the pending prep timer sees a different id and does nothing
+	_enter(Events.Phase.COMBAT)
+
+# True when the level is part of a campaign chapter (the tutorial isn't), so chapter runs apply.
+func _in_chapter(lvl: CampaignLevel) -> bool:
+	return lvl != null and GameState.run_campaign != null and GameState.run_campaign.chapter_of(lvl) != null
+
 func _lose_run():
 	game_over = true
 	fighting = false
-	if GameState.run_level != null:
+	if _in_chapter(GameState.run_level):
 		# Roguelite: losing ends the chapter run; the chapter restarts from its first level.
 		GameState.run_carry = {}
 		SaveGame.clear_chapter_run()
@@ -466,7 +480,8 @@ func _win_run():
 	var lvl := GameState.run_level
 	if lvl != null and lvl.id != &"":   # a level without an id can't be saved
 		SaveGame.record_level_complete(lvl.id, GameState.me.player_hp, lvl.unlocks)
-		var nxt: CampaignLevel = GameState.run_campaign.next_in_chapter(lvl) if GameState.run_campaign != null else null
+	if _in_chapter(lvl):   # levels outside a chapter (the tutorial) never touch the saved chapter run
+		var nxt: CampaignLevel = GameState.run_campaign.next_in_chapter(lvl)
 		if nxt != null:
 			# The chapter run continues: carry the board into the next level and save it.
 			GameState.run_carry = make_carry(nxt)
