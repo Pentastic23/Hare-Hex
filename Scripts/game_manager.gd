@@ -318,6 +318,8 @@ func start_combat():
 				board.detach(bu)
 				board.put_on_bench(bu, slot)
 				over -= 1
+	# Free board slots are filled from the bench (leftmost first), before the snapshot, so they stay on the board.
+	board.auto_fill(GameState.me.max_board_units())
 	snapshot.clear()
 	var units_node := board.get_node("Units")
 	for n in units_node.get_children():

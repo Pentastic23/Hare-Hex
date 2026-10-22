@@ -186,6 +186,43 @@ func _run():
 	chk("streaks and income are per player", other.streak_bonus() == 2 and GameState.me.streak_bonus() == 0)
 	GameState.players.erase(other)
 
+	print("--- empty board slots are filled from the bench when a fight starts")
+	await load_main(21)
+	GameState.me.level = 4
+	board.refresh_unlocks(4, false)
+	var mk := func(n: String) -> Unit:
+		var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
+		board.get_node("Units").add_child(u)
+		u.setup(U(n), 0)
+		return u
+	var kn: Unit = mk.call("knight")
+	board.put_on_tile(kn, board.player_order[0])
+	var gu: Unit = mk.call("guardian")
+	var ar: Unit = mk.call("archer")
+	var dr: Unit = mk.call("dragon")
+	var be: Unit = mk.call("berserker")
+	board.put_on_bench(gu, 1)
+	board.put_on_bench(ar, 3)
+	board.put_on_bench(dr, 5)
+	board.put_on_bench(be, 7)
+	var open_rows: Array = []
+	for key in board.tiles:
+		var c: Vector2i = key
+		if board.is_player_side(c) and board.is_unlocked(c) and board.tiles[c].occupant == null:
+			open_rows.append(c.y)
+	gm.start_combat()
+	chk("the board fills up to the cap (4), leftmost bench units first", board.units_on_board() == 4 and gu.coord.x >= 0 and ar.coord.x >= 0 and dr.coord.x >= 0 and be.coord.x < 0 and board.bench[7] == be, "%s %s %s %s" % [gu.coord, ar.coord, dr.coord, be.coord])
+	chk("melee goes to the front row, ranged to the back", gu.coord.y == open_rows.min() and ar.coord.y == open_rows.max() and ar.coord.y > gu.coord.y, "open rows %s, guardian %s, archer %s" % [open_rows, gu.coord, ar.coord])
+	var ar_tile := ar.coord
+	gm.resolve_combat()
+	await get_tree().process_frame
+	chk("auto-placed units stay on the board after the fight", ar.coord == ar_tile and gu.coord.x >= 0 and board.units_on_board() == 4)
+	GameState.round_number = 2
+	gm.start_combat()
+	chk("a full board takes nobody from the bench", be.coord.x < 0 and board.units_on_board() == 4)
+	gm.resolve_combat()
+	await get_tree().process_frame
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
 	print("RESULT: ", "ALL PASS" if fails == 0 else "%d FAILED" % fails)
 	get_tree().quit()

@@ -324,6 +324,50 @@ func put_on_bench(u: Unit, i: int):
 	u.position = bench_to_world(i)
 
 
+# Fills free board slots from the bench when a fight starts: the leftmost bench unit goes first, while
+# the board is under `cap` and has an open tile. Each unit takes a spot that suits it: melee (range 1)
+# the frontmost open row, range 2 the second row, ranged (3+) the backmost; within a row, the tile
+# nearest the centre column (ties to the left). Returns the units it placed.
+func auto_fill(cap: int) -> Array[Unit]:
+	var placed: Array[Unit] = []
+	while units_on_board() < cap:
+		var u: Unit = null
+		for b in bench:
+			if b != null and b.team == 0:
+				u = b
+				break
+		if u == null:
+			break
+		var c := open_tile_for(u.data)
+		if c.x < 0:
+			break
+		detach(u)
+		put_on_tile(u, c)
+		placed.append(u)
+	return placed
+
+# The open player tile that suits a unit's range (see auto_fill), or (-1, -1) if the board is full.
+func open_tile_for(d: UnitData) -> Vector2i:
+	var front := ROWS / 2   # row 4, next to the enemy half
+	var rows: Array = range(front, ROWS)   # front to back
+	var reach := roundi(d.attack_range) if d != null else 1
+	if reach >= 3:
+		rows.reverse()
+	elif reach == 2:
+		rows = [front + 1, front] + range(front + 2, ROWS)
+	var mid := (COLS - 1) / 2
+	for r in rows:
+		var best := Vector2i(-1, -1)
+		for x in COLS:
+			var c := Vector2i(x, r)
+			if not is_unlocked(c) or tiles[c].occupant != null:
+				continue
+			if best.x < 0 or absi(x - mid) < absi(best.x - mid):
+				best = c
+		if best.x >= 0:
+			return best
+	return Vector2i(-1, -1)
+
 func units_on_board() -> int:
 	var n := 0
 	for t in tiles.values():
