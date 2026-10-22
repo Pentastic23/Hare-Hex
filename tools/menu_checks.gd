@@ -111,7 +111,13 @@ class Driver extends Node:
 		await get_tree().process_frame
 		texts = labels(scene())
 		var rows := Array(texts).filter(func(t): return t.begins_with("  "))
-		chk("campaign panel lists 3 levels: first open, others locked", rows.size() == 3 and rows[0].ends_with("Not completed") and rows[1].ends_with("Locked") and rows[2].ends_with("Locked"), " | ".join(rows))
+		chk("campaign panel lists all 9 levels: first open, the rest locked", rows.size() == 9 and rows[0].ends_with("Not completed") and rows.slice(1).all(func(r): return r.ends_with("Locked")), " | ".join(rows).left(200))
+		var heads := Array(texts).filter(func(t): return t in ["The Borderlands", "The Ashen Frontier", "The Shattered Sky"])
+		chk("three chapter headings in order", heads == ["The Borderlands", "The Ashen Frontier", "The Shattered Sky"], str(heads))
+		var panel_h: float = scene().campaign_panel.get_child(0).get_combined_minimum_size().y
+		chk("campaign panel scrolls and still fits a 648 px window", scene().campaign_panel.get_child(0).find_child("Scroll", true, false) != null and panel_h <= 620, "height %d" % panel_h)
+		var starts := scene().find_children("*", "Button", true, false).filter(func(b): return b.text.begins_with("Start "))
+		chk("Start buttons: chapter 1 open, chapters 2 and 3 locked", starts.size() == 3 and not starts[0].disabled and starts[1].disabled and starts[2].disabled)
 		await esc()
 		chk("Esc closes the campaign panel", find_button(scene(), "Free Play") != null)
 		press("Campaign")
@@ -135,7 +141,7 @@ class Driver extends Node:
 		await get_tree().process_frame
 		await get_tree().process_frame
 		rows = Array(labels(scene())).filter(func(t): return t.begins_with("  "))
-		chk("level 1 shows completed with best HP; level 2 unlocked", rows[0].ends_with("Completed, best 90 HP") and rows[1].ends_with("Not completed") and rows[2].ends_with("Locked"), " | ".join(rows))
+		chk("level 1 shows completed with best HP; level 2 unlocked", rows[0].ends_with("Completed, best 90 HP") and rows[1].ends_with("Not completed") and rows[2].ends_with("Locked"), " | ".join(rows).left(200))
 		await esc()
 		press("Continue")
 		await wait(0.5)

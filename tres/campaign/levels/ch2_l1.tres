@@ -1,0 +1,183 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_ihc8h"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="2_hlwtk"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="3_uh2vp"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="4_6g70y"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="5_ealgt"]
+[ext_resource type="Resource" path="res://tres/knight.tres" id="6_l2td0"]
+[ext_resource type="Resource" path="res://tres/archer.tres" id="7_lmofr"]
+[ext_resource type="Resource" path="res://tres/cleric.tres" id="8_nhup5"]
+[ext_resource type="Resource" path="res://tres/thief.tres" id="9_v6wn2"]
+[ext_resource type="Resource" path="res://tres/guardian.tres" id="10_gnqjf"]
+[ext_resource type="Resource" path="res://tres/mage.tres" id="11_6hynw"]
+[ext_resource type="Resource" path="res://tres/berserker.tres" id="12_se6wq"]
+[ext_resource type="Resource" path="res://tres/items/iron_belt.tres" id="13_1uovh"]
+
+[sub_resource type="Resource" id="Resource_os0rc"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("6_l2td0")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_sher0"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("7_lmofr")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_ga28x"]
+script = ExtResource("3_uh2vp")
+display_name = "Scouts"
+units = Array[ExtResource("4_6g70y")]([SubResource("Resource_os0rc"), SubResource("Resource_sher0")])
+stat_scale = 0.6
+
+[sub_resource type="Resource" id="Resource_xafn4"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("6_l2td0")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_sj0kl"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("6_l2td0")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_74vkm"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("8_nhup5")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_d20bx"]
+script = ExtResource("3_uh2vp")
+display_name = "Pickets"
+units = Array[ExtResource("4_6g70y")]([SubResource("Resource_xafn4"), SubResource("Resource_sj0kl"), SubResource("Resource_74vkm")])
+stat_scale = 0.65
+
+[sub_resource type="Resource" id="Resource_f8sc8"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("9_v6wn2")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_g1x0s"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("6_l2td0")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_qe8fc"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("7_lmofr")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_bs152"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("7_lmofr")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_p34ll"]
+script = ExtResource("3_uh2vp")
+display_name = "Smoke Signal"
+units = Array[ExtResource("4_6g70y")]([SubResource("Resource_f8sc8"), SubResource("Resource_g1x0s"), SubResource("Resource_qe8fc"), SubResource("Resource_bs152")])
+stat_scale = 0.7
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_wsorr"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("10_gnqjf")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_ayupv"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("6_l2td0")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_au3ld"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("11_6hynw")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_d7m0h"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("8_nhup5")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_twd06"]
+script = ExtResource("3_uh2vp")
+display_name = "Ash Walkers"
+units = Array[ExtResource("4_6g70y")]([SubResource("Resource_wsorr"), SubResource("Resource_ayupv"), SubResource("Resource_au3ld"), SubResource("Resource_d7m0h")])
+stat_scale = 0.75
+
+[sub_resource type="Resource" id="Resource_v1q7c"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("12_se6wq")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_ii0hd"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("9_v6wn2")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_1po88"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("7_lmofr")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_inqbg"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("7_lmofr")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_2ghqx"]
+script = ExtResource("3_uh2vp")
+display_name = "Raiding Party"
+units = Array[ExtResource("4_6g70y")]([SubResource("Resource_v1q7c"), SubResource("Resource_ii0hd"), SubResource("Resource_1po88"), SubResource("Resource_inqbg")])
+stat_scale = 0.8
+
+[sub_resource type="Resource" id="Resource_fc64b"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("10_gnqjf")
+star = 2
+coord = Vector2i(3, 3)
+items = Array[ExtResource("5_ealgt")]([ExtResource("13_1uovh")])
+
+[sub_resource type="Resource" id="Resource_vu68k"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("12_se6wq")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_3c13d"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("11_6hynw")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_bu6n8"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("7_lmofr")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_6ioj3"]
+script = ExtResource("4_6g70y")
+unit = ExtResource("8_nhup5")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_eqd4x"]
+script = ExtResource("3_uh2vp")
+display_name = "Cinder Captain"
+units = Array[ExtResource("4_6g70y")]([SubResource("Resource_fc64b"), SubResource("Resource_vu68k"), SubResource("Resource_3c13d"), SubResource("Resource_bu6n8"), SubResource("Resource_6ioj3")])
+stat_scale = 0.7
+hp_reward = 10
+
+[resource]
+script = ExtResource("2_hlwtk")
+id = &"ch2_l1"
+display_name = "Smoke on the Horizon"
+description = "Raiders burn the border villages. Start fresh and hold the line."
+waves = Array[ExtResource("3_uh2vp")]([SubResource("Resource_ga28x"), SubResource("Resource_d20bx"), SubResource("Resource_p34ll"), SubResource("Resource_twd06"), SubResource("Resource_2ghqx"), SubResource("Resource_eqd4x")])
+start_gold = 10
+start_level = 2
+player_hp = 100
+start_heal = 0
+income_bonus = 0
+enemy_stat_mult = 1.3
+loss_damage = 7
+prep_time = 0
+item_drop_rounds = Array[int]([2, 4, 6])
+allowed_units = Array[ExtResource("1_ihc8h")]([])
+unlocks = Array[StringName]([])

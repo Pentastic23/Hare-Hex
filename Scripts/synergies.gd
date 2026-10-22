@@ -75,6 +75,22 @@ static func apply(units: Array):
 			if def["scope"] == "team" or u.data.tags.has(StringName(tag)):
 				_add(u, def["stat"], v)
 
+# The bonuses apply() would give `unit` if `units` (its team on the board) fought now, without
+# changing any unit. Keys: hp, dmg, as, mana, dr, lifesteal. All zero for a unit that isn't in `units`.
+static func preview(unit: Unit, units: Array) -> Dictionary:
+	var out := {"hp": 0.0, "dmg": 0.0, "as": 0.0, "mana": 0.0, "dr": 0.0, "lifesteal": 0.0}
+	if unit == null or unit.data == null or not units.has(unit):
+		return out
+	var counts := count(units)
+	for tag in counts:
+		var t := active_tier(tag, int(counts[tag]))
+		if t < 0:
+			continue
+		var def: Dictionary = DEFS[tag]
+		if def["scope"] == "team" or unit.data.tags.has(StringName(tag)):
+			out[def["stat"]] += float(def["values"][t])
+	return out
+
 static func _add(u: Unit, stat: String, v: float):
 	match stat:
 		"hp": u.bonus_hp += v

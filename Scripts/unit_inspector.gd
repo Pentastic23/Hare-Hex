@@ -78,20 +78,36 @@ func _fill():
 		item_names.append(item.display_name)
 	items_label.text = "Items: " + (", ".join(item_names) if not item_names.is_empty() else "none")
 
-	# Base stats at the current star, plus items (synergy bonuses are not shown).
+	# Stats at the current star with items and synergy bonuses folded in (synergies aren't called out).
+	var b := _synergy_bonuses(u)
+	var hp_mult: float = mult * (1.0 + b.hp)
+	var dmg_mult: float = mult * (1.0 + b.dmg)
 	var lines: PackedStringArray = [
-		"Health: %d%s" % [roundi((d.max_health + u.item_hp) * mult), _items_note(u.item_hp, "+%d" % roundi(u.item_hp * mult))],
-		"Damage: %d%s" % [roundi((d.attack_damage + u.item_dmg) * mult), _items_note(u.item_dmg, "+%d" % roundi(u.item_dmg * mult))],
-		"Attack speed: %.2f%s" % [d.attacks_per_second * (1.0 + u.item_as), _items_note(u.item_as, "+%d%%" % roundi(u.item_as * 100.0))],
+		"Health: %d%s" % [roundi((d.max_health + u.item_hp) * hp_mult), _items_note(u.item_hp, "+%d" % roundi(u.item_hp * hp_mult))],
+		"Damage: %d%s" % [roundi((d.attack_damage + u.item_dmg) * dmg_mult), _items_note(u.item_dmg, "+%d" % roundi(u.item_dmg * dmg_mult))],
+		"Attack speed: %.2f%s" % [d.attacks_per_second * (1.0 + u.item_as + b["as"]), _items_note(u.item_as, "+%d%%" % roundi(u.item_as * 100.0))],
 		"Range: %d" % roundi(d.attack_range),
-		"Mana: %d  (start %d)%s" % [roundi(d.max_mana), roundi(minf(d.start_mana + u.item_mana, d.max_mana)), _items_note(u.item_mana, "+%d" % roundi(u.item_mana))],
+		"Mana: %d  (start %d)%s" % [roundi(d.max_mana), roundi(minf(d.start_mana + b.mana + u.item_mana, d.max_mana)), _items_note(u.item_mana, "+%d" % roundi(u.item_mana))],
 	]
-	if u.item_dr > 0.0:
-		lines.append("Damage reduction: %d%%  (items)" % roundi(u.item_dr * 100.0))
-	if u.item_lifesteal > 0.0:
-		lines.append("Lifesteal: %d%%  (items)" % roundi(u.item_lifesteal * 100.0))
+	var reduction := minf(b.dr + u.item_dr, 0.6)   # same 60% cap as take_damage()
+	if reduction > 0.0:
+		lines.append("Damage reduction: %d%%" % roundi(reduction * 100.0))
+	var steal: float = b.lifesteal + u.item_lifesteal
+	if steal > 0.0:
+		lines.append("Lifesteal: %d%%" % roundi(steal * 100.0))
 	lines.append("Cost: %d g" % d.cost)
 	stats_label.text = "\n".join(lines)
 
 func _items_note(value: float, text: String) -> String:
 	return "" if is_zero_approx(value) else "  (%s items)" % text
+
+# Synergy bonuses for a unit: the real ones during a fight, otherwise what its team on the board
+# would get if the fight started now (benched units get none).
+func _synergy_bonuses(u: Unit) -> Dictionary:
+	var gm = get_tree().get_first_node_in_group("game_manager")
+	if gm != null and gm.fighting:
+		return {"hp": u.bonus_hp, "dmg": u.bonus_dmg, "as": u.bonus_as, "mana": u.bonus_mana, "dr": u.dmg_reduction, "lifesteal": u.lifesteal}
+	if u.team != 0 or u.coord.x < 0 or board == null:
+		return Synergies.preview(null, [])
+	var team: Array = board.all_player_units().filter(func(x): return x.coord.x >= 0)
+	return Synergies.preview(u, team)

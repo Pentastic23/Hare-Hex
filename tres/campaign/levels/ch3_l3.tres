@@ -1,0 +1,452 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_ik0bm"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="2_nw7mt"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="3_tpdne"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="4_0l8e0"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="5_w5kc4"]
+[ext_resource type="Resource" path="res://tres/guardian.tres" id="6_hkf7r"]
+[ext_resource type="Resource" path="res://tres/hunter.tres" id="7_1lovh"]
+[ext_resource type="Resource" path="res://tres/mage.tres" id="8_6kbgu"]
+[ext_resource type="Resource" path="res://tres/berserker.tres" id="9_36e1p"]
+[ext_resource type="Resource" path="res://tres/cleric.tres" id="10_kgnoc"]
+[ext_resource type="Resource" path="res://tres/knight.tres" id="11_3qb7c"]
+[ext_resource type="Resource" path="res://tres/assassin.tres" id="12_naxep"]
+[ext_resource type="Resource" path="res://tres/thief.tres" id="13_mvvc8"]
+[ext_resource type="Resource" path="res://tres/dragon.tres" id="14_vqf67"]
+[ext_resource type="Resource" path="res://tres/items/iron_belt.tres" id="15_ksd4w"]
+[ext_resource type="Resource" path="res://tres/items/chain_vest.tres" id="16_cu410"]
+[ext_resource type="Resource" path="res://tres/items/mana_charm.tres" id="17_ibbmu"]
+[ext_resource type="Resource" path="res://tres/items/longsword.tres" id="18_gp5rh"]
+
+[sub_resource type="Resource" id="Resource_eua6q"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_v6eg1"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_qvnte"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_ucxpn"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_1xdvf"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("9_36e1p")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_3mepo"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("10_kgnoc")
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_bnuik"]
+script = ExtResource("3_tpdne")
+display_name = "Cloud Guard"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_eua6q"), SubResource("Resource_v6eg1"), SubResource("Resource_qvnte"), SubResource("Resource_ucxpn"), SubResource("Resource_1xdvf"), SubResource("Resource_3mepo")])
+stat_scale = 0.85
+
+[sub_resource type="Resource" id="Resource_8wy3l"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_g06ey"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_7meq1"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_n2t5j"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_nxl2a"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_nkpa4"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("11_3qb7c")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_xofyr"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+coord = Vector2i(3, 1)
+
+[sub_resource type="Resource" id="Resource_l1tv7"]
+script = ExtResource("3_tpdne")
+display_name = "Thunder Hunters"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_8wy3l"), SubResource("Resource_g06ey"), SubResource("Resource_7meq1"), SubResource("Resource_n2t5j"), SubResource("Resource_nxl2a"), SubResource("Resource_nkpa4"), SubResource("Resource_xofyr")])
+stat_scale = 0.9
+
+[sub_resource type="Resource" id="Resource_0hndq"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_vnqid"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+star = 2
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_4tfyb"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_nwe2j"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_feooh"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("10_kgnoc")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_vm6v4"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_0a1kl"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("12_naxep")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_d0ssb"]
+script = ExtResource("3_tpdne")
+display_name = "Voidcallers"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_0hndq"), SubResource("Resource_vnqid"), SubResource("Resource_4tfyb"), SubResource("Resource_nwe2j"), SubResource("Resource_feooh"), SubResource("Resource_vm6v4"), SubResource("Resource_0a1kl")])
+stat_scale = 0.95
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_vyqxq"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("12_naxep")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_1tqmv"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("12_naxep")
+star = 2
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_h0hg5"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("13_mvvc8")
+star = 2
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_esitu"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("13_mvvc8")
+coord = Vector2i(5, 3)
+
+[sub_resource type="Resource" id="Resource_5xsjm"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_m3n1v"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_8prp4"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+coord = Vector2i(3, 1)
+
+[sub_resource type="Resource" id="Resource_t3uao"]
+script = ExtResource("3_tpdne")
+display_name = "Razor Wing"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_vyqxq"), SubResource("Resource_1tqmv"), SubResource("Resource_h0hg5"), SubResource("Resource_esitu"), SubResource("Resource_5xsjm"), SubResource("Resource_m3n1v"), SubResource("Resource_8prp4")])
+
+[sub_resource type="Resource" id="Resource_1ta57"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_fd6b2"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_bm61u"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_gdqiw"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("9_36e1p")
+star = 2
+coord = Vector2i(5, 3)
+
+[sub_resource type="Resource" id="Resource_3x40h"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_p1suo"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_aenap"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("10_kgnoc")
+coord = Vector2i(3, 1)
+
+[sub_resource type="Resource" id="Resource_ey0sr"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_f2bl6"]
+script = ExtResource("3_tpdne")
+display_name = "Titan Guard"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_1ta57"), SubResource("Resource_fd6b2"), SubResource("Resource_bm61u"), SubResource("Resource_gdqiw"), SubResource("Resource_3x40h"), SubResource("Resource_p1suo"), SubResource("Resource_aenap"), SubResource("Resource_ey0sr")])
+stat_scale = 1.05
+
+[sub_resource type="Resource" id="Resource_attjp"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("14_vqf67")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_6uuth"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_5ojw6"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("9_36e1p")
+star = 2
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_lprpp"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+star = 2
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_qpxgf"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_l1kfn"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("12_naxep")
+coord = Vector2i(5, 3)
+
+[sub_resource type="Resource" id="Resource_eplyw"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("10_kgnoc")
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_pcgy3"]
+script = ExtResource("3_tpdne")
+display_name = "Tyrant's Herald"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_attjp"), SubResource("Resource_6uuth"), SubResource("Resource_5ojw6"), SubResource("Resource_lprpp"), SubResource("Resource_qpxgf"), SubResource("Resource_l1kfn"), SubResource("Resource_eplyw")])
+stat_scale = 1.1
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_4ehj3"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("9_36e1p")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_kb787"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("9_36e1p")
+star = 2
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_erosp"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_88obr"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_tjt2r"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_cnjto"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+star = 2
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_bq4hn"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("10_kgnoc")
+coord = Vector2i(3, 1)
+
+[sub_resource type="Resource" id="Resource_uncpu"]
+script = ExtResource("3_tpdne")
+display_name = "Storm Legion"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_4ehj3"), SubResource("Resource_kb787"), SubResource("Resource_erosp"), SubResource("Resource_88obr"), SubResource("Resource_tjt2r"), SubResource("Resource_cnjto"), SubResource("Resource_bq4hn")])
+stat_scale = 1.15
+
+[sub_resource type="Resource" id="Resource_o38np"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("14_vqf67")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_2fwkd"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("14_vqf67")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_3eeys"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_6hqtt"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_irjex"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+star = 2
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_5o068"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_dlrc6"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("9_36e1p")
+coord = Vector2i(5, 3)
+
+[sub_resource type="Resource" id="Resource_ypg3q"]
+script = ExtResource("3_tpdne")
+display_name = "Dragonkin"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_o38np"), SubResource("Resource_2fwkd"), SubResource("Resource_3eeys"), SubResource("Resource_6hqtt"), SubResource("Resource_irjex"), SubResource("Resource_5o068"), SubResource("Resource_dlrc6")])
+stat_scale = 1.2
+
+[sub_resource type="Resource" id="Resource_0dv1k"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("14_vqf67")
+star = 3
+coord = Vector2i(3, 2)
+items = Array[ExtResource("5_w5kc4")]([ExtResource("15_ksd4w"), ExtResource("16_cu410"), ExtResource("17_ibbmu")])
+
+[sub_resource type="Resource" id="Resource_r14jo"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("6_hkf7r")
+star = 2
+coord = Vector2i(3, 3)
+items = Array[ExtResource("5_w5kc4")]([ExtResource("16_cu410")])
+
+[sub_resource type="Resource" id="Resource_bdded"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("9_36e1p")
+star = 2
+coord = Vector2i(4, 3)
+items = Array[ExtResource("5_w5kc4")]([ExtResource("18_gp5rh")])
+
+[sub_resource type="Resource" id="Resource_8xdpy"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("8_6kbgu")
+star = 2
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_6sdxh"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_8f56t"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("7_1lovh")
+star = 2
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_2umff"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("12_naxep")
+star = 2
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_to2b3"]
+script = ExtResource("4_0l8e0")
+unit = ExtResource("10_kgnoc")
+star = 2
+coord = Vector2i(5, 3)
+
+[sub_resource type="Resource" id="Resource_v07dq"]
+script = ExtResource("3_tpdne")
+display_name = "The Sky Tyrant"
+units = Array[ExtResource("4_0l8e0")]([SubResource("Resource_0dv1k"), SubResource("Resource_r14jo"), SubResource("Resource_bdded"), SubResource("Resource_8xdpy"), SubResource("Resource_6sdxh"), SubResource("Resource_8f56t"), SubResource("Resource_2umff"), SubResource("Resource_to2b3")])
+stat_scale = 0.45
+hp_reward = 10
+
+[resource]
+script = ExtResource("2_nw7mt")
+id = &"ch3_l3"
+display_name = "The Sky Tyrant"
+description = "The storm-lord of the shattered sky. End this."
+waves = Array[ExtResource("3_tpdne")]([SubResource("Resource_bnuik"), SubResource("Resource_l1tv7"), SubResource("Resource_d0ssb"), SubResource("Resource_t3uao"), SubResource("Resource_f2bl6"), SubResource("Resource_pcgy3"), SubResource("Resource_uncpu"), SubResource("Resource_ypg3q"), SubResource("Resource_v07dq")])
+start_gold = 30
+start_level = 6
+player_hp = 100
+start_heal = 10
+income_bonus = 2
+enemy_stat_mult = 1.35
+loss_damage = 16
+prep_time = 0
+item_drop_rounds = Array[int]([2, 4, 6, 8])
+allowed_units = Array[ExtResource("1_ik0bm")]([])
+unlocks = Array[StringName]([&"chapter_3_complete"])

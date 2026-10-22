@@ -125,9 +125,31 @@ A **chapter is one continuous run**, roguelite style:
 | Shadows in the Wood (`ch1_l2`) | 6 | arrive +10 HP, +1 gold/round, x1.8, loss 10, items 2 and 4; wave 3 +5, boss +10 | 2-star Assassin with Longsword + Blood Fang | about 80% |
 | The Dragon's Roost (`ch1_l3`) | 7 | arrive +10 HP, x2.2, loss 14, items 2, 4, 6; wave 4 +5, boss +10; unlocks `chapter_1_complete` | 2-star Dragon with Iron Belt + Chain Vest | about 55% |
 
-Regular waves get stronger through each level (`stat_scale` ramps, for example 0.6 to 1.0 in level 2) so a run loses some HP before the boss; bosses are stronger through their stars and items. The bot completes the whole chapter in about 40% of runs (`tools/bot_playtest -- chapter`, 12 runs). The bot is simple, so a human should do better.
+Regular waves get stronger through each level (`stat_scale` ramps, for example 0.6 to 1.0 in level 2) so a run loses some HP before the boss; bosses are stronger through their stars and items. The bot is simple, so a human should do better.
 
-Levels 2 and 3 are tuned for **arriving with a carried board**. Started directly from Debug Level they use `start_level` 3 / 5 and `start_gold` 10 / 20, which is still harder than arriving with a board.
+Levels 2 and 3 of each chapter are tuned for **arriving with a carried board**. Started directly from Debug Level they use `start_level` and `start_gold` (see each file), which is still harder than arriving with a board.
+
+### Sample content: chapter 2 "The Ashen Frontier"
+
+A new chapter starts fresh (new run, empty board, 100 HP), so its first level sets its own starting gold and level.
+
+| Level | Waves | Settings | Boss | Bot clears (of runs that reach it) |
+|---|---|---|---|---|
+| Smoke on the Horizon (`ch2_l1`) | 6 | fresh start: 10 gold, level 2, 100 HP; enemies x1.3, loss 7; items rounds 2, 4, 6; wave 3 +5 HP, boss +10 | 2-star Guardian with Iron Belt | about 80% |
+| The Burning Road (`ch2_l2`) | 7 | arrive +10 HP, +1 gold/round, x1.8, loss 10; items 2, 4, 6; wave 3 +5, boss +10 | 2-star Berserker with Longsword + Quick Bow | about 70% |
+| Throne of Cinders (`ch2_l3`) | 8 | arrive +10 HP, +1 gold/round, x1.4, loss 14; items 2, 4, 6, 8; waves 3 and 6 +5, boss +10; unlocks `chapter_2_complete` | 2-star Dragon with Iron Belt + Chain Vest | about 50% |
+
+### Sample content: chapter 3 "The Shattered Sky"
+
+| Level | Waves | Settings | Boss | Bot clears (of runs that reach it) |
+|---|---|---|---|---|
+| Fallen Stars (`ch3_l1`) | 7 | fresh start: 14 gold, level 3, 100 HP; x0.88, loss 8; items 2, 4, 6; wave 3 +5, boss +10 | 2-star Berserker (Quick Bow + Longsword) with a 2-star Guardian (Chain Vest) | about 80% |
+| The Sundered Bridge (`ch3_l2`) | 8 | arrive +10 HP, +1 gold/round, x0.88, loss 12; items 2, 4, 6, 8; waves 3 and 6 +5, boss +10 | 2-star Dragon (Iron Belt + Mana Charm) with 2-star escorts | about 70% |
+| The Sky Tyrant (`ch3_l3`) | 9 | arrive +10 HP, +2 gold/round, x1.35, loss 16; items 2, 4, 6, 8; waves 3 and 6 +5, boss +10; unlocks `chapter_3_complete` | 3-star Dragon (Iron Belt + Chain Vest + Mana Charm) with 2-star escorts | about 45% |
+
+`enemy_stat_mult` isn't comparable between chapters: later chapters use bigger waves with more 2-star units, so their multipliers are lower than they look. Judge difficulty by the bot's clear rates (`tools/bot_playtest -- chapter`, 12 runs per chapter): the bot completes about 60% of chapter 1 runs, 45% of chapter 2 and 35% of chapter 3 (results swing by a few runs, since the shop is random). Each level was tuned by sweeping `enemy_stat_mult` until the clear rates stepped down like this. The `.tres` files are the source of truth for the waves (edit them in the Inspector; the compact generator used to write them isn't kept).
+
+**Unlocks across chapters:** completing a chapter's last level unlocks the next chapter's first level, and the end screen offers **Next chapter**, which starts that chapter fresh. The campaign menu panel scrolls, so any number of chapters fits.
 
 ### Authoring a level in the editor
 
@@ -166,8 +188,8 @@ Static class (no autoload, so `project.godot` stays untouched). Loads on first u
 
 ## Dev tools and tests
 
-- **Bot playtest:** `Godot_v4.7.2-stable_win64.exe --headless --path . res://tools/bot_playtest.tscn --fixed-fps 60 -- chapter` plays chapter 1 twelve times as real chapter runs and prints how far each got (the main balance check, about a minute). Without arguments it plays each level 10 times from a fresh start; add level paths after `--` for single levels, or `free` for a 15-round free-play smoke test. It uses a throwaway save file.
-- **Regression checks:** `... res://tools/campaign_checks.tscn --fixed-fps 60` runs 69 checks in about 20 seconds: board round-trip to JSON, wave provider, enemy placement (authored, locked-tile fallback, overflow), enemy stars/items/synergies, level settings, loss damage, allowed units, top bar text, final-wave rule, end screen buttons, chapter runs (what's carried, restoring it from the save file, HP packs, shop pool, defeat and chapter completion, continuing with Debug Level), save/reload/corrupt/migrate, unlock order, validation, and free play still running a full round. The "Parse JSON failed", ".corrupt", "Patrol ... skipped" and "has no waves" messages in its output are expected (it tests those cases).
+- **Bot playtest:** `Godot_v4.7.2-stable_win64.exe --headless --path . res://tools/bot_playtest.tscn --fixed-fps 60 -- chapter` plays every chapter in turn, twelve times each as real chapter runs, and prints how far each got (the main balance check, about a minute per chapter); `-- chapter2` plays just chapter 2. Without arguments it plays each level 10 times from a fresh start; add level paths after `--` for single levels, or `free` for a 15-round free-play smoke test. It uses a throwaway save file.
+- **Regression checks:** `... res://tools/campaign_checks.tscn --fixed-fps 60` runs 80 checks in about 25 seconds: board round-trip to JSON, the three-chapter campaign (order, unlocks across chapters, fresh chapter starts, Next chapter), wave provider, enemy placement (authored, locked-tile fallback, overflow), enemy stars/items/synergies, level settings, loss damage, allowed units, top bar text, final-wave rule, end screen buttons, chapter runs (what's carried, restoring it from the save file, HP packs, shop pool, defeat and chapter completion, continuing with Debug Level), save/reload/corrupt/migrate, unlock order, validation, and free play still running a full round. The "Parse JSON failed", ".corrupt", "Patrol ... skipped" and "has no waves" messages in its output are expected (it tests those cases).
 - **Class cache:** new `class_name` scripts aren't known to headless runs until Godot rescans. Opening the editor does it; headless, run `--headless --path . --import` once.
 
 ## Decisions (confirmed 2026-10-21)

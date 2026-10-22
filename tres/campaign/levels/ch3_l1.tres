@@ -1,0 +1,263 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_jhu2w"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="2_upkhn"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="3_es7hj"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="4_q5v3m"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="5_gynlt"]
+[ext_resource type="Resource" path="res://tres/mage.tres" id="6_5ming"]
+[ext_resource type="Resource" path="res://tres/knight.tres" id="7_1cyjl"]
+[ext_resource type="Resource" path="res://tres/archer.tres" id="8_csi3g"]
+[ext_resource type="Resource" path="res://tres/hunter.tres" id="9_i3qcp"]
+[ext_resource type="Resource" path="res://tres/thief.tres" id="10_1dpsb"]
+[ext_resource type="Resource" path="res://tres/guardian.tres" id="11_535fa"]
+[ext_resource type="Resource" path="res://tres/cleric.tres" id="12_54b60"]
+[ext_resource type="Resource" path="res://tres/assassin.tres" id="13_dxnas"]
+[ext_resource type="Resource" path="res://tres/berserker.tres" id="14_5hvfv"]
+[ext_resource type="Resource" path="res://tres/items/quick_bow.tres" id="15_hhfb3"]
+[ext_resource type="Resource" path="res://tres/items/longsword.tres" id="16_wi8uc"]
+[ext_resource type="Resource" path="res://tres/items/chain_vest.tres" id="17_dm77f"]
+
+[sub_resource type="Resource" id="Resource_jdbdu"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_hp7n0"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("7_1cyjl")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_ui3ap"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("7_1cyjl")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_0r1yn"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("8_csi3g")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_w8j8v"]
+script = ExtResource("3_es7hj")
+display_name = "Meteor Shards"
+units = Array[ExtResource("4_q5v3m")]([SubResource("Resource_jdbdu"), SubResource("Resource_hp7n0"), SubResource("Resource_ui3ap"), SubResource("Resource_0r1yn")])
+stat_scale = 0.7
+
+[sub_resource type="Resource" id="Resource_7on4f"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("9_i3qcp")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_31tyk"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("9_i3qcp")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_shwse"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("10_1dpsb")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_ow102"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("11_535fa")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_70r0f"]
+script = ExtResource("3_es7hj")
+display_name = "Skyborn Scouts"
+units = Array[ExtResource("4_q5v3m")]([SubResource("Resource_7on4f"), SubResource("Resource_31tyk"), SubResource("Resource_shwse"), SubResource("Resource_ow102")])
+stat_scale = 0.75
+
+[sub_resource type="Resource" id="Resource_kq7kp"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_bg3mt"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_xigqo"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("12_54b60")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_q71hi"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("12_54b60")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_civow"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("13_dxnas")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_eg0gl"]
+script = ExtResource("3_es7hj")
+display_name = "Star Cultists"
+units = Array[ExtResource("4_q5v3m")]([SubResource("Resource_kq7kp"), SubResource("Resource_bg3mt"), SubResource("Resource_xigqo"), SubResource("Resource_q71hi"), SubResource("Resource_civow")])
+stat_scale = 0.8
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_n5hnj"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("13_dxnas")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_uwqdr"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("13_dxnas")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_srau6"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("9_i3qcp")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_68wwb"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("9_i3qcp")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_iulm6"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("10_1dpsb")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_qm8u6"]
+script = ExtResource("3_es7hj")
+display_name = "Comet Riders"
+units = Array[ExtResource("4_q5v3m")]([SubResource("Resource_n5hnj"), SubResource("Resource_uwqdr"), SubResource("Resource_srau6"), SubResource("Resource_68wwb"), SubResource("Resource_iulm6")])
+stat_scale = 0.85
+
+[sub_resource type="Resource" id="Resource_csqw5"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("11_535fa")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_ejoky"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("11_535fa")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_2lfx7"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_ddnc4"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_lg0c7"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("14_5hvfv")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_6lgo2"]
+script = ExtResource("3_es7hj")
+display_name = "Falling Wardens"
+units = Array[ExtResource("4_q5v3m")]([SubResource("Resource_csqw5"), SubResource("Resource_ejoky"), SubResource("Resource_2lfx7"), SubResource("Resource_ddnc4"), SubResource("Resource_lg0c7")])
+stat_scale = 0.9
+
+[sub_resource type="Resource" id="Resource_ai6a4"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_k1hcb"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_g1dkv"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_jbt8c"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("9_i3qcp")
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_akju5"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("11_535fa")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_iw3ol"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("12_54b60")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_eydca"]
+script = ExtResource("3_es7hj")
+display_name = "Nova Cell"
+units = Array[ExtResource("4_q5v3m")]([SubResource("Resource_ai6a4"), SubResource("Resource_k1hcb"), SubResource("Resource_g1dkv"), SubResource("Resource_jbt8c"), SubResource("Resource_akju5"), SubResource("Resource_iw3ol")])
+stat_scale = 0.95
+
+[sub_resource type="Resource" id="Resource_icw1d"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("14_5hvfv")
+star = 2
+coord = Vector2i(3, 3)
+items = Array[ExtResource("5_gynlt")]([ExtResource("15_hhfb3"), ExtResource("16_wi8uc")])
+
+[sub_resource type="Resource" id="Resource_1kaq8"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("11_535fa")
+star = 2
+coord = Vector2i(4, 3)
+items = Array[ExtResource("5_gynlt")]([ExtResource("17_dm77f")])
+
+[sub_resource type="Resource" id="Resource_b1y8t"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("6_5ming")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_avxq2"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("9_i3qcp")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_y3q0s"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("9_i3qcp")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_ousuc"]
+script = ExtResource("4_q5v3m")
+unit = ExtResource("13_dxnas")
+coord = Vector2i(5, 3)
+
+[sub_resource type="Resource" id="Resource_fowdi"]
+script = ExtResource("3_es7hj")
+display_name = "Star Warden"
+units = Array[ExtResource("4_q5v3m")]([SubResource("Resource_icw1d"), SubResource("Resource_1kaq8"), SubResource("Resource_b1y8t"), SubResource("Resource_avxq2"), SubResource("Resource_y3q0s"), SubResource("Resource_ousuc")])
+stat_scale = 0.75
+hp_reward = 10
+
+[resource]
+script = ExtResource("2_upkhn")
+id = &"ch3_l1"
+display_name = "Fallen Stars"
+description = "Meteors have split the sky. Whatever fell with them is hunting."
+waves = Array[ExtResource("3_es7hj")]([SubResource("Resource_w8j8v"), SubResource("Resource_70r0f"), SubResource("Resource_eg0gl"), SubResource("Resource_qm8u6"), SubResource("Resource_6lgo2"), SubResource("Resource_eydca"), SubResource("Resource_fowdi")])
+start_gold = 14
+start_level = 3
+player_hp = 100
+start_heal = 0
+income_bonus = 0
+enemy_stat_mult = 0.88
+loss_damage = 8
+prep_time = 0
+item_drop_rounds = Array[int]([2, 4, 6])
+allowed_units = Array[ExtResource("1_jhu2w")]([])
+unlocks = Array[StringName]([])

@@ -171,17 +171,24 @@ func _build_campaign_panel() -> PanelContainer:
 	var box := panel.get_child(0) as VBoxContainer
 	box.add_child(_label("Campaign", 40, GOLD))
 	box.add_child(_label("Each chapter is one run: your board, items, gold and HP carry from level to level.\nLosing a level ends the run.", 16, GREY))
+	# Scrolls, so any number of chapters fits a 648 px window.
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.custom_minimum_size = Vector2(560, 300)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.name = "List"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 10)
-	box.add_child(list)
+	scroll.add_child(list)
 	_button(box, "Back", func(): _show_panel(null))
 	return panel
 
 func _fill_campaign_list():
 	if campaign_panel == null:
 		return
-	var list := campaign_panel.get_child(0).get_node("List")
+	var list := campaign_panel.get_child(0).find_child("List", true, false)
 	for c in list.get_children():
 		c.queue_free()
 	if campaign == null or campaign.chapters.is_empty():

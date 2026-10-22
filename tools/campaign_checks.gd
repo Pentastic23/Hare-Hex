@@ -55,10 +55,16 @@ func _run():
 	var l3 := L("ch1_l3")
 
 	print("--- data")
-	chk("campaign has 1 chapter, 3 levels, linked files", camp.chapters.size() == 1 and camp.all_levels().size() == 3 and camp.all_levels()[0] == l1)
-	chk("find_level by id", camp.find_level(&"ch1_l2") == l2 and camp.find_level(&"nope") == null)
-	chk("next_level chain", camp.next_level(l1) == l2 and camp.next_level(l2) == l3 and camp.next_level(l3) == null)
-	chk("wave counts 5/6/7", l1.waves.size() == 5 and l2.waves.size() == 6 and l3.waves.size() == 7)
+	var c2: Array = [L("ch2_l1"), L("ch2_l2"), L("ch2_l3")]
+	var c3: Array = [L("ch3_l1"), L("ch3_l2"), L("ch3_l3")]
+	chk("campaign has 3 chapters, 9 levels, linked files", camp.chapters.size() == 3 and camp.all_levels().size() == 9 and camp.all_levels()[0] == l1)
+	chk("chapters 2 and 3 hold their levels in order", camp.chapters[1].levels.map(func(x): return x.id) == [&"ch2_l1", &"ch2_l2", &"ch2_l3"] and camp.chapters[2].levels.map(func(x): return x.id) == [&"ch3_l1", &"ch3_l2", &"ch3_l3"])
+	chk("find_level by id", camp.find_level(&"ch1_l2") == l2 and camp.find_level(&"ch3_l3") == c3[2] and camp.find_level(&"nope") == null)
+	chk("next_level chain crosses chapters", camp.next_level(l1) == l2 and camp.next_level(l2) == l3 and camp.next_level(l3) == c2[0] and camp.next_level(c2[2]) == c3[0] and camp.next_level(c3[2]) == null)
+	chk("next_in_chapter stops at a chapter's end", camp.next_in_chapter(l3) == null and camp.next_in_chapter(c2[0]) == c2[1] and camp.next_in_chapter(c3[2]) == null)
+	chk("wave counts 5/6/7, 6/7/8, 7/8/9", l1.waves.size() == 5 and l2.waves.size() == 6 and l3.waves.size() == 7 and c2.map(func(x): return x.waves.size()) == [6, 7, 8] and c3.map(func(x): return x.waves.size()) == [7, 8, 9])
+	chk("every chapter's final wave is a boss with an HP pack", [l3, c2[2], c3[2]].all(func(x): return x.waves.back().hp_reward == 10))
+	chk("each chapter's last level unlocks its completion flag", c2[2].unlocks == [&"chapter_2_complete"] and c3[2].unlocks == [&"chapter_3_complete"] and l3.unlocks == [&"chapter_1_complete"])
 
 	var boss: EnemyBoard = l1.waves[4]
 	var d := boss.to_dict()
@@ -112,6 +118,14 @@ func _run():
 	SaveGame.record_level_complete(l1.id, 80)
 	SaveGame.record_level_complete(l1.id, 70)
 	chk("completing l1 unlocks l2 only", camp.is_unlocked(l2) and not camp.is_unlocked(l3))
+	SaveGame.record_level_complete(&"ch1_l2", 80)
+	chk("chapter 2 stays locked until chapter 1's last level is complete", camp.is_unlocked(l3) and not camp.is_unlocked(c2[0]))
+	SaveGame.record_level_complete(&"ch1_l3", 80)
+	chk("completing ch1_l3 unlocks chapter 2's first level, but not its second", camp.is_unlocked(c2[0]) and not camp.is_unlocked(c2[1]) and not camp.is_unlocked(c3[0]))
+	SaveGame.record_level_complete(&"ch2_l1", 80)
+	SaveGame.record_level_complete(&"ch2_l2", 80)
+	SaveGame.record_level_complete(&"ch2_l3", 80)
+	chk("and chapter 3 follows chapter 2", camp.is_unlocked(c3[0]) and not camp.is_unlocked(c3[1]))
 	SaveGame._loaded = false   # force a reload from disk
 	chk("progress survives reload from disk", SaveGame.is_level_complete(&"ch1_l1") and SaveGame.best_hp(&"ch1_l1") == 80 and int(SaveGame.data().completed_levels["ch1_l1"].times) == 3)
 	var f := FileAccess.open(SaveGame.path, FileAccess.WRITE)
@@ -245,7 +259,22 @@ func _run():
 	gm.fighting = true
 	gm._end_combat(true, 0)
 	es = main.get_node("UI/End Screen")
-	chk("last level: CHAPTER COMPLETE, no next chapter yet, Play chapter again", es.title.text == "CHAPTER COMPLETE" and not es.next_button.visible and es.restart_button.text == "Play chapter again" and SaveGame.chapter_run().is_empty(), es.detail.text)
+	chk("chapter 1's last level: CHAPTER COMPLETE with Next chapter (chapter 2's first level) and Play chapter again", es.title.text == "CHAPTER COMPLETE" and es.next_button.visible and es.next_button.text == "Next chapter" and es._next() == c2[0] and es.restart_button.text == "Play chapter again" and SaveGame.chapter_run().is_empty(), es.detail.text)
+
+	await start(c3[2])
+	GameState.round_number = 9
+	gm.fighting = true
+	gm._end_combat(true, 0)
+	es = main.get_node("UI/End Screen")
+	chk("the last chapter's last level: CHAPTER COMPLETE and no Next chapter", es.title.text == "CHAPTER COMPLETE" and not es.next_button.visible and es.restart_button.text == "Play chapter again" and SaveGame.chapter_run().is_empty())
+
+	# A new chapter starts fresh: its first level's own gold, level and 100 HP, no carried board.
+	await start(c2[0])
+	chk("chapter 2 starts fresh: 10 gold (+1 interest), level 2, 100 HP, empty board", not GameState.run_carried and GameState.me.gold == 11 and GameState.me.level == 2 and GameState.me.player_hp == 100 and board.all_player_units().is_empty() and GameState.total_rounds() == 6)
+	chk("chapter 2 level 1 top bar", main.get_node("UI/TopBar/StageLabel").text.begins_with("Smoke on the Horizon   Wave 1/6: Scouts"), main.get_node("UI/TopBar/StageLabel").text)
+	var scouts: Array = gm.spawn_board(c2[0].waves[0])
+	chk("chapter 2 enemies spawn from the new waves", scouts.size() == 2 and scouts.all(func(u): return u.team == 1))
+	clear_enemies()
 
 	# Launching with Debug Level continues a saved run in the same chapter.
 	SaveGame.set_chapter_run({"level": "ch1_l3", "hp": 70, "max_hp": 100, "gold": 5, "player_level": 5, "xp": 0, "items": [], "units": [{"unit": "Archer", "star": 2, "items": [], "coord": [3, 4]}]})

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CampaignChapter" format=3]
+
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="1_82y4k"]
+[ext_resource type="Resource" path="res://tres/campaign/levels/ch3_l1.tres" id="2_kg04v"]
+[ext_resource type="Resource" path="res://tres/campaign/levels/ch3_l2.tres" id="3_s60ep"]
+[ext_resource type="Resource" path="res://tres/campaign/levels/ch3_l3.tres" id="4_1muur"]
+[ext_resource type="Script" path="res://Scripts/campaign_chapter.gd" id="5_i4772"]
+
+[resource]
+script = ExtResource("5_i4772")
+id = &"ch3"
+display_name = "The Shattered Sky"
+description = "The sky has split. Cross the broken bridge and end the Sky Tyrant."
+levels = Array[ExtResource("1_82y4k")]([ExtResource("2_kg04v"), ExtResource("3_s60ep"), ExtResource("4_1muur")])

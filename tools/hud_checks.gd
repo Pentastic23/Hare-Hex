@@ -232,6 +232,61 @@ func _run():
 	ib.header.pressed.emit()
 	chk("clicking again unfolds it", ib.grid.visible and Settings.show_items)
 
+	print("--- timer label and inspector (fresh scene, 3 s prep)")
+	main.free()
+	GameState.run_level = null
+	main = load("res://scenes/main.tscn").instantiate()
+	main.get_node("Game Manager").debug_level = null
+	main.get_node("Game Manager").prep_time = 3
+	add_child(main)
+	gm = main.get_node("Game Manager")
+	board = main.get_node("Board")
+	await get_tree().create_timer(0.5).timeout
+	var timer_label: Label = main.get_node("UI/TopBar/Timer")
+	chk("prep shows a countdown", timer_label.text.begins_with("Prep 0:"), timer_label.text)
+	var left0: float = gm.prep_left
+	get_tree().paused = true
+	await get_tree().create_timer(0.5, true, false, true).timeout
+	chk("pausing stops the prep countdown", is_equal_approx(gm.prep_left, left0), "%s -> %s" % [left0, gm.prep_left])
+	get_tree().paused = false
+
+	# Inspector: synergy bonuses are folded into the stats, with no extra wording.
+	GameState.me.gold = 50
+	GameState.me.level = 3
+	Events.unit_bought.emit(load("res://tres/knight.tres"))
+	Events.unit_bought.emit(load("res://tres/cleric.tres"))
+	var k: Unit = board.all_player_units().filter(func(x): return x.data.display_name == "Knight")[0]
+	var cl: Unit = board.all_player_units().filter(func(x): return x.data.display_name == "Cleric")[0]
+	var insp2 = main.get_node("UI/UnitInspector")
+	insp2.shown = k
+	insp2._fill()
+	chk("benched Knight: base stats, no synergy", insp2.stats_label.text.begins_with("Health: 650\nDamage: 50"), insp2.stats_label.text.replace("\n", " | "))
+	board.detach(k); board.put_on_tile(k, board.player_order[0])
+	insp2._fill()
+	chk("alone on the board: still base stats", insp2.stats_label.text.begins_with("Health: 650"))
+	board.detach(cl); board.put_on_tile(cl, board.player_order[1])
+	insp2._fill()
+	chk("Knight + Cleric (Order 2): Knight health is 650 x 1.2 = 780", insp2.stats_label.text.begins_with("Health: 780\nDamage: 50"), insp2.stats_label.text.replace("\n", " | "))
+	chk("the synergy isn't called out in the text", not insp2.stats_label.text.to_lower().contains("synerg") and not insp2.stats_label.text.contains("(+"))
+	var gold_item := load("res://tres/items/iron_belt.tres")
+	k.equip(gold_item)
+	insp2._fill()
+	chk("an item stacks with it: (650 + 150) x 1.2 = 960, item note kept", insp2.stats_label.text.begins_with("Health: 960  (+180 items)"), insp2.stats_label.text.split("\n")[0])
+	var timed := [false]
+	Events.phase_changed.connect(func(p):
+		if p == Events.Phase.COMBAT:
+			timed[0] = true, CONNECT_ONE_SHOT)
+	var waited := 0
+	while not timed[0] and waited < 600:
+		await get_tree().process_frame
+		waited += 1
+	chk("the prep timer runs out by itself and the fight starts", timed[0])
+	await get_tree().process_frame
+	chk("fight: the label counts down the fight (Combat m:ss)", timer_label.text.begins_with("Combat ") or gm.phase != Events.Phase.COMBAT, timer_label.text)
+	if gm.fighting:
+		insp2._fill()
+		chk("during the fight the inspector shows the same real bonuses", insp2.stats_label.text.begins_with("Health: 960"), insp2.stats_label.text.split("\n")[0])
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
 	print("RESULT: ", "ALL PASS" if fails == 0 else "%d FAILED" % fails)

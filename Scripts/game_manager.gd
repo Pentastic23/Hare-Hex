@@ -29,7 +29,7 @@ const COMBAT_TICK := 1.0 / 60.0   # seconds of fight per tick
 const COMBAT_MAX_TICKS := 3600    # 60 s; reaching it counts as a loss
 var combatants: Array[Unit] = []  # fixed acting order for the current fight (_combat_order)
 var combat_ticks := 0
-var _prep_id := 0   # bumps every PREP; a prep timer only acts if its PREP is still current
+var prep_left := 0.0   # seconds of PREP left; 0 when not in PREP
 var rng := RandomNumberGenerator.new()   # run RNG (seeded): random enemies and placement. Shop and drops use GameState.me.rng.
 var shared_pool: UnitPool
 
@@ -67,11 +67,7 @@ func _enter(p: int):
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
 			if not GameState.me.shop_locked or not GameState.me.shop_has_rolled:
 				roll_shop()
-			_prep_id += 1
-			var my_prep := _prep_id
-			await get_tree().create_timer(prep_time, false).timeout   # false: the prep timer stops while paused
-			if game_over or my_prep != _prep_id: return   # this prep already ended early
-			_enter(Events.Phase.COMBAT)
+			prep_left = float(prep_time)   # counted down in _process, so the timer label can show it and pausing stops it
 		Events.Phase.COMBAT:
 			start_combat()
 		Events.Phase.RESULT:
@@ -454,11 +450,21 @@ func _end_combat(player_won: bool, enemy_stars: int):
 	Events.combat_ended.emit(player_won)
 	_enter(Events.Phase.RESULT)
 
+# The PREP countdown. Fights have their own fixed ticks (_physics_process); this only runs the
+# preparation timer, and stops while the tree is paused.
+func _process(delta):
+	if phase != Events.Phase.PREP or game_over or prep_left <= 0.0:
+		return
+	prep_left -= delta
+	if prep_left <= 0.0:
+		prep_left = 0.0
+		_enter(Events.Phase.COMBAT)
+
 # Ends PREP now instead of waiting for the timer (the tutorial's Start fight button).
 func end_prep_early():
 	if game_over or phase != Events.Phase.PREP:
 		return
-	_prep_id += 1   # the pending prep timer sees a different id and does nothing
+	prep_left = 0.0
 	_enter(Events.Phase.COMBAT)
 
 # True when the level is part of a campaign chapter (the tutorial isn't), so chapter runs apply.

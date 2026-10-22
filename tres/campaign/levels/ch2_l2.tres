@@ -1,0 +1,244 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_pesy4"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="2_0het3"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="3_q1h8s"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="4_fwfmd"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="5_q2rin"]
+[ext_resource type="Resource" path="res://tres/guardian.tres" id="6_2odqh"]
+[ext_resource type="Resource" path="res://tres/knight.tres" id="7_ibgnw"]
+[ext_resource type="Resource" path="res://tres/archer.tres" id="8_btyyt"]
+[ext_resource type="Resource" path="res://tres/hunter.tres" id="9_xr37w"]
+[ext_resource type="Resource" path="res://tres/mage.tres" id="10_exkac"]
+[ext_resource type="Resource" path="res://tres/cleric.tres" id="11_wg76b"]
+[ext_resource type="Resource" path="res://tres/thief.tres" id="12_da5a7"]
+[ext_resource type="Resource" path="res://tres/assassin.tres" id="13_xmpyy"]
+[ext_resource type="Resource" path="res://tres/berserker.tres" id="14_jibt4"]
+[ext_resource type="Resource" path="res://tres/items/longsword.tres" id="15_6ynl8"]
+[ext_resource type="Resource" path="res://tres/items/quick_bow.tres" id="16_0aukq"]
+
+[sub_resource type="Resource" id="Resource_d48gg"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("6_2odqh")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_7tbx2"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("7_ibgnw")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_e8i34"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("8_btyyt")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_nrq1c"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("9_xr37w")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_qciwq"]
+script = ExtResource("3_q1h8s")
+display_name = "Road Wardens"
+units = Array[ExtResource("4_fwfmd")]([SubResource("Resource_d48gg"), SubResource("Resource_7tbx2"), SubResource("Resource_e8i34"), SubResource("Resource_nrq1c")])
+stat_scale = 0.7
+
+[sub_resource type="Resource" id="Resource_ysgua"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_ji367"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_eljuh"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("11_wg76b")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_3m05e"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("12_da5a7")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_qnwh2"]
+script = ExtResource("3_q1h8s")
+display_name = "Flame Cultists"
+units = Array[ExtResource("4_fwfmd")]([SubResource("Resource_ysgua"), SubResource("Resource_ji367"), SubResource("Resource_eljuh"), SubResource("Resource_3m05e")])
+stat_scale = 0.75
+
+[sub_resource type="Resource" id="Resource_jfroy"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("13_xmpyy")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_533j2"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("12_da5a7")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_wr0vp"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("12_da5a7")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_qyy4r"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("9_xr37w")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_yxjgm"]
+script = ExtResource("3_q1h8s")
+display_name = "Ember Hounds"
+units = Array[ExtResource("4_fwfmd")]([SubResource("Resource_jfroy"), SubResource("Resource_533j2"), SubResource("Resource_wr0vp"), SubResource("Resource_qyy4r")])
+stat_scale = 0.8
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_3limq"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("6_2odqh")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_twb35"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("6_2odqh")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_3iawd"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("7_ibgnw")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_shmv5"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_gj3gl"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("11_wg76b")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_4r554"]
+script = ExtResource("3_q1h8s")
+display_name = "Shield Brothers"
+units = Array[ExtResource("4_fwfmd")]([SubResource("Resource_3limq"), SubResource("Resource_twb35"), SubResource("Resource_3iawd"), SubResource("Resource_shmv5"), SubResource("Resource_gj3gl")])
+stat_scale = 0.8
+
+[sub_resource type="Resource" id="Resource_74tjh"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("14_jibt4")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_bxqpq"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("14_jibt4")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_ybykg"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("9_xr37w")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_ik3s0"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("9_xr37w")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_qj330"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_7egc3"]
+script = ExtResource("3_q1h8s")
+display_name = "Firebrand Squad"
+units = Array[ExtResource("4_fwfmd")]([SubResource("Resource_74tjh"), SubResource("Resource_bxqpq"), SubResource("Resource_ybykg"), SubResource("Resource_ik3s0"), SubResource("Resource_qj330")])
+stat_scale = 0.85
+
+[sub_resource type="Resource" id="Resource_6nqkd"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+star = 2
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_678hy"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_627er"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_07dlr"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("11_wg76b")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_4b85t"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("6_2odqh")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_mqqdg"]
+script = ExtResource("3_q1h8s")
+display_name = "Warlock Circle"
+units = Array[ExtResource("4_fwfmd")]([SubResource("Resource_6nqkd"), SubResource("Resource_678hy"), SubResource("Resource_627er"), SubResource("Resource_07dlr"), SubResource("Resource_4b85t")])
+stat_scale = 0.9
+
+[sub_resource type="Resource" id="Resource_w6l8i"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("14_jibt4")
+star = 2
+coord = Vector2i(3, 3)
+items = Array[ExtResource("5_q2rin")]([ExtResource("15_6ynl8"), ExtResource("16_0aukq")])
+
+[sub_resource type="Resource" id="Resource_kkhds"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("6_2odqh")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_6xlbh"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("9_xr37w")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_h2p5w"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("10_exkac")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_iffwg"]
+script = ExtResource("4_fwfmd")
+unit = ExtResource("13_xmpyy")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_dh50j"]
+script = ExtResource("3_q1h8s")
+display_name = "Pyre Knight"
+units = Array[ExtResource("4_fwfmd")]([SubResource("Resource_w6l8i"), SubResource("Resource_kkhds"), SubResource("Resource_6xlbh"), SubResource("Resource_h2p5w"), SubResource("Resource_iffwg")])
+stat_scale = 0.75
+hp_reward = 10
+
+[resource]
+script = ExtResource("2_0het3")
+id = &"ch2_l2"
+display_name = "The Burning Road"
+description = "Fire and fanatics line the old trade road."
+waves = Array[ExtResource("3_q1h8s")]([SubResource("Resource_qciwq"), SubResource("Resource_qnwh2"), SubResource("Resource_yxjgm"), SubResource("Resource_4r554"), SubResource("Resource_7egc3"), SubResource("Resource_mqqdg"), SubResource("Resource_dh50j")])
+start_gold = 15
+start_level = 4
+player_hp = 100
+start_heal = 10
+income_bonus = 1
+enemy_stat_mult = 1.8
+loss_damage = 10
+prep_time = 0
+item_drop_rounds = Array[int]([2, 4, 6])
+allowed_units = Array[ExtResource("1_pesy4")]([])
+unlocks = Array[StringName]([])

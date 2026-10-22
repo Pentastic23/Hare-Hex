@@ -7,8 +7,9 @@ extends Node
 #   Godot_v4.7.2-stable_win64.exe --headless --path . res://tools/bot_playtest.tscn --fixed-fps 60
 # Only some levels: add their paths after "--", e.g. ... --fixed-fps 60 -- res://tres/campaign/levels/ch1_l3.tres
 # Free play: "-- free" plays FREE_PLAY_ROUNDS rounds of free play (a smoke test for the random enemies).
-# Whole chapter: "-- chapter" plays chapter 1 CHAPTER_RUNS times as real chapter runs (board, gold,
-# level, items and HP carry from level to level; a defeat ends the run). This is the main balance check.
+# Whole chapter: "-- chapter2" plays chapter 2 CHAPTER_RUNS times as real chapter runs (board, gold,
+# level, items and HP carry from level to level; a defeat ends the run). "-- chapter" plays every
+# chapter in turn. This is the main balance check.
 # Single levels (the default) start fresh with each level's own start settings.
 # The bot buys whatever it can afford, fills the board strongest-first, equips items on its
 # strongest units and buys XP when it has 10+ gold. It never positions units cleverly, so a
@@ -44,8 +45,13 @@ func _run():
 			await _play(null, FREE_PLAY_ROUNDS)
 			print("Free play            reached round %d, HP %d, level %d, waves %s" % [GameState.round_number, GameState.me.player_hp, GameState.me.level, "".join(waves)])
 			continue
-		if path == "chapter":
-			await _chapter_runs()
+		if path.begins_with("chapter"):
+			var camp: Campaign = load("res://tres/campaign/campaign.tres")
+			if path == "chapter":
+				for ci in camp.chapters.size():
+					await _chapter_runs(camp, ci)
+			else:
+				await _chapter_runs(camp, int(path.substr(7)) - 1)
 			continue
 		var level: CampaignLevel = load(path)
 		var wins := 0
@@ -63,9 +69,10 @@ func _run():
 	SaveGame._loaded = false
 	get_tree().quit()
 
-func _chapter_runs():
-	var camp: Campaign = load("res://tres/campaign/campaign.tres")
-	var first: CampaignLevel = camp.chapters[0].levels[0]
+func _chapter_runs(camp: Campaign, chapter_index: int):
+	var chapter: CampaignChapter = camp.chapters[chapter_index]
+	print("--- chapter %d: %s" % [chapter_index + 1, chapter.display_name])
+	var first: CampaignLevel = chapter.levels[0]
 	var cleared := {}
 	var completed := 0
 	for i in CHAPTER_RUNS:
@@ -85,9 +92,9 @@ func _chapter_runs():
 			level = camp.find_level(StringName(str(GameState.run_carry.level)))
 		print("run %2d: %s" % [i + 1, "  ->  ".join(parts)])
 	var summary: PackedStringArray = []
-	for lvl in camp.chapters[0].levels:
+	for lvl in chapter.levels:
 		summary.append("%s cleared %d/%d" % [lvl.id, int(cleared.get(lvl.id, 0)), CHAPTER_RUNS])
-	print("CHAPTER: completed %d/%d runs | %s" % [completed, CHAPTER_RUNS, ", ".join(summary)])
+	print("CHAPTER %d: completed %d/%d runs | %s" % [chapter_index + 1, completed, CHAPTER_RUNS, ", ".join(summary)])
 
 func _play(level: CampaignLevel, max_rounds := 999):
 	if main != null:

@@ -1,10 +1,12 @@
 [gd_resource type="Resource" script_class="Campaign" format=3]
 
-[ext_resource type="Script" path="res://Scripts/campaign_chapter.gd" id="1_10w1v"]
-[ext_resource type="Resource" path="res://tres/campaign/chapter_1.tres" id="2_21qvp"]
-[ext_resource type="Script" path="res://Scripts/campaign.gd" id="3_ltq73"]
+[ext_resource type="Script" path="res://Scripts/campaign_chapter.gd" id="1_ltq73"]
+[ext_resource type="Resource" path="res://tres/campaign/chapter_1.tres" id="2_602hr"]
+[ext_resource type="Resource" path="res://tres/campaign/chapter_2.tres" id="3_nouwb"]
+[ext_resource type="Resource" path="res://tres/campaign/chapter_3.tres" id="4_n6k71"]
+[ext_resource type="Script" path="res://Scripts/campaign.gd" id="5_cjxdb"]
 
 [resource]
-script = ExtResource("3_ltq73")
+script = ExtResource("5_cjxdb")
 display_name = "Campaign"
-chapters = Array[ExtResource("1_10w1v")]([ExtResource("2_21qvp")])
+chapters = Array[ExtResource("1_ltq73")]([ExtResource("2_602hr"), ExtResource("3_nouwb"), ExtResource("4_n6k71")])
