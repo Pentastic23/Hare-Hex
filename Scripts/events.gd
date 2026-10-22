@@ -21,3 +21,5 @@ signal run_lost
 signal items_changed                  # GameState.items changed (drop, equip, sell, merge)
 signal item_drag_started(index: int)  # index into GameState.items
 signal item_drag_ended
+signal shop_lock_changed(locked: bool)
+signal team_plan_changed              # SaveGame team plan edited in the team planner

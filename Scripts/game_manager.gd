@@ -26,6 +26,8 @@ var roster: Array[UnitData] = []   # units the shop can offer: unit_pool, or the
 var opponents: OpponentProvider
 var current_board: EnemyBoard      # the enemy board of the current/last fight (for its hp_reward)
 var last_combat_won := false
+var shop_locked := false       # locked: the shop keeps its offers into the next round
+var shop_has_rolled := false
 var shared_pool: UnitPool
 var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool until the next roll
 
@@ -61,7 +63,8 @@ func _enter(p: int):
 			board.merge_all()
 			GameState.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
-			roll_shop()
+			if not shop_locked or not shop_has_rolled:
+				roll_shop()
 			await get_tree().create_timer(prep_time, false).timeout   # false: the prep timer stops while paused
 			if game_over: return
 			_enter(Events.Phase.COMBAT)
@@ -198,8 +201,13 @@ func _restore_carry(carry: Dictionary) -> void:
 		else:
 			board.put_on_tile(u, tile)   # falls back to the bench if the tile is taken
 
+func set_shop_locked(on: bool):
+	shop_locked = on
+	Events.shop_lock_changed.emit(on)
+
 func roll_shop():
 	if roster.is_empty(): return
+	shop_has_rolled = true
 	_return_offers()
 	var offers: Array = []
 	for i in 5:

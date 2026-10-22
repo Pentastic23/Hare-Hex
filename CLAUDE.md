@@ -32,7 +32,7 @@ res://
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
   tres/items/    ItemData .tres files (one per item)
   tres/campaign/ campaign.tres -> chapter_1.tres -> levels/ch1_l*.tres (waves embedded in each level)
-  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn)
+  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn)
   docs/          design docs (items-plan.md, campaign-and-opponents.md, item-ideas.md)
   addons/        third-party plugins; don't edit
 ```
@@ -77,15 +77,19 @@ UI
  ├─ BottomInfo (VBoxContainer)    bottom_info.gd
  │   ├─ OddsLabel                 odds_label.gd
  │   └─ InfoRow (HBox): BoardLabel (board_label.gd, unit cap), StreakLabel (streak_label.gd)
- ├─ HpLabel                       hp_label.gd (right side)
+ ├─ HpLabel                       hp_label.gd (bottom right, just above the shop bar; offsets set in code)
  ├─ "End Screen" (ColorRect)      end_screen.gd
  │   └─ CenterContainer/Backing/Margin/VBoxContainer: TitleLabel, DetailLabel, RestartButton (a "Next level" button is added in code, campaign only)
  ├─ SynergyBox (PanelContainer, panel_style.tres)
- │   └─ SynergyPanel (VBoxContainer)   synergy_panel.gd
+ │   └─ SynergyPanel (VBoxContainer)   synergy_panel.gd (fold header button + list, built in code)
  ├─ UnitInspector (PanelContainer, panel_style.tres)   unit_inspector.gd
  │   └─ VBoxContainer: NameLabel, TagsLabel, ItemsLabel, StatsLabel
- └─ ItemBar (PanelContainer, panel_style.tres, left of screen below center)   item_bar.gd
-     └─ Grid (GridContainer, 2 columns): item buttons built in code
+ ├─ ItemBar (PanelContainer, panel_style.tres, left of screen below center)   item_bar.gd
+ │   └─ Grid (GridContainer, 2 columns): item buttons built in code
+ ├─ TopRightBar (HBoxContainer, top right)   hud_buttons.gd: Damage / Planner / Menu buttons (built in code)
+ ├─ DamageMeter (PanelContainer, top right under the bar, mouse ignore)   damage_meter.gd (rows built in code; group "damage_meter")
+ ├─ TeamPlanner (PanelContainer, centered, hidden)   team_planner.gd (built in code; group "team_planner")
+ └─ PauseMenu (Control, full screen, last child so it draws on top)   pause_menu.gd
 ```
 
 Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any `get_node` path must use the exact name.
@@ -100,7 +104,7 @@ Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any 
 - **Events** (`events.gd`): all global signals, plus `enum Phase { PREP, COMBAT, RESULT }`.
 - **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `items` (unequipped item inventory), `ITEM_DROP_ROUNDS` / `item_drop_rounds()`, `reset()`, and the run setup: `run_level` (CampaignLevel or null = free play), `run_campaign`, `start_hp` (also the HP-pack cap), `run_carry` (chapter run state for the next level), `run_carried`, `begin_run(level, campaign) -> carry` (reset + level modifiers, or the carried gold/level/XP/HP), `heal(n)`. `run_level` / `run_campaign` / `run_carry` survive `reset()`. `launched_from_menu`, `MENU_SCENE`, `go_to_menu()` (unpause, clear the run, reset, change to the menu).
 
-Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`, `items_changed`, `item_drag_started(index)`, `item_drag_ended`.
+Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`, `items_changed`, `item_drag_started(index)`, `item_drag_ended`, `shop_lock_changed(locked)`, `team_plan_changed`.
 
 ---
 
@@ -115,7 +119,10 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | `item_bar.gd` | Inventory panel: one button per item, starts item drags, drag ghost label |
 | `unit_data.gd` (class UnitData) | Resource: name, cost, stats, tags, mana, model, ability |
 | `ability.gd` (class Ability) | Resource base class; `cast(caster, target)` does nothing yet (placeholder) |
-| `synergies.gd` (class Synergies) | Static synergy table + count / tier / apply |
+| `synergies.gd` (class Synergies) | Static synergy table + count (units) / count_data (UnitData, for the planner) / active_tier / next_threshold / apply |
+| `hud_buttons.gd` | Top-right bar: Damage (toggles the meter), Planner (toggles the team planner), Menu (pause menu); toggles stay in sync with P / Esc / Close |
+| `damage_meter.gd` | Damage dealt/taken per unit in the current or last fight (from `GameManager.snapshot` and `Unit.damage_dealt` / `damage_taken`) |
+| `team_planner.gd` | Team planner panel: toggle planned units (saved as names in `SaveGame.team_plan`), planned synergies, owned counts |
 | `game_manager.gd` | Run setup (`_begin_run`: free play or campaign level, shop roster, opponent provider), phase loop, shop rolling (from `shared_pool`), buying, enemy spawning (`spawn_board`), combat loop, end of combat (HP packs), run end (records campaign completion; `make_carry` / `_restore_carry` move the board between chapter levels) |
 | `enemy_board.gd` (class EnemyBoard), `board_unit.gd` (class BoardUnit) | The enemy-side format: units with star, coord, items; `stat_scale`, `use_synergies`; `to_dict()` / `from_dict()` for saves and snapshots |
 | `opponent_provider.gd` (class OpponentProvider) | `board_for_round(round) -> EnemyBoard`; implemented by `random_opponents.gd` (free play) and `wave_opponents.gd` (campaign) |
@@ -123,11 +130,11 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | `save_game.gd` (class SaveGame) | Static save system: campaign progress, unlocks and the chapter run in `user://save.json` |
 | `main_menu.gd` | Main menu (menu.tscn): Continue, Campaign panel, Free Play, Settings panel, Quit; starts runs |
 | `pause_menu.gd` | Esc during a run (node `PauseMenu` in ui.tscn, last child): pauses the tree; Resume / Main menu / Quit game |
-| `settings.gd` (class Settings) | Static player options in `user://settings.cfg`: fullscreen, VSync, master volume; `apply()` |
+| `settings.gd` (class Settings) | Static player options in `user://settings.cfg`: fullscreen, VSync, master volume, HUD windows (show_damage_meter, show_synergies, show_items); `apply()` |
 | `drag_controller.gd` | Left-drag units, swaps, snapping (board tiles only on the player half, rows 4-7; a drop on an enemy-side tile returns the unit to where it came from), sell zone, F-to-sell, drag cancel on phase change; dropping dragged items on units (`equip_item_on`) |
 | `unit_pool.gd` (class UnitPool) | Shared unit pool: copies left per UnitData, weighted `pick(cost)`, `take` / `take_copies` / `give_back`, `copies_in(star)` |
 | `shop_slot.gd` (class ShopSlot) | Shop button; checks gold and bench space (in PREP, completing a merge also counts); `clear_offer()` for empty slots |
-| `shop_panel.gd` | Wires shop buttons, fills slots from `shop_rolled` |
+| `shop_panel.gd` | Wires shop buttons, fills slots from `shop_rolled`; adds the Lock button next to Reroll |
 | UI labels | `gold_label.gd`, `label.gd` (XP/level), `stage_label.gd`, `hp_label.gd`, `odds_label.gd`, `streak_label.gd`, `board_label.gd`, `bottom_info.gd`, `synergy_panel.gd`, `unit_inspector.gd`, `end_screen.gd` |
 
 ---
@@ -177,7 +184,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 - End screen: LEVEL COMPLETE with only Next level; CHAPTER COMPLETE with Next chapter (if any) / Play chapter again; DEFEAT with Restart chapter. Levels unlock in order (the first is always open). The top bar shows "Level name   Wave x/y: wave name" (hover for the enemies).
 - `CampaignLevel.validate()` / `Campaign.validate()` report authoring mistakes and run at level start. Sample chapter 1 (3 levels, 100 HP, later levels much stronger to match carried boards) is tuned with `tools/bot_playtest -- chapter`: the bot clears level 1 ~90%, level 2 ~80% and level 3 ~55% of the time it reaches them, and finishes the chapter in ~40% of runs. Details: `docs/campaign-and-opponents.md`.
 
-**Saves:** `SaveGame` (static, no autoload) keeps campaign progress (`completed_levels`: best HP, times, first completion), `unlocks` and the `chapter_run` in progress in `user://save.json` (version 2; version 1 files load fine). Writes go through a temp file; an unreadable save is copied to `.corrupt` and progress starts empty. Progress inside a level isn't saved.
+**Saves:** `SaveGame` (static, no autoload) keeps campaign progress (`completed_levels`: best HP, times, first completion), `unlocks`, the `chapter_run` in progress and the `team_plan` in `user://save.json` (version 2; version 1 files load fine). Writes go through a temp file; an unreadable save is copied to `.corrupt` and progress starts empty. Progress inside a level isn't saved.
 
 **Player HP:** Starts at 100. Loss damage = `round(5 * stage + 0.25 * sum of surviving enemy star levels)`; in a campaign level with `loss_damage` set, that replaces `5 * stage` (rounds restart every level, so the stage stays low). HP 0 = defeat screen; finishing the last round = victory screen (campaign: only if the last wave was won). HP label colours are relative to `GameState.start_hp`. Restart calls `GameState.reset()` then reloads the scene (campaign: from the chapter's first level).
 
@@ -231,10 +238,14 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - During a run, Esc opens the pause menu (the whole tree pauses, including the prep timer, which is created with `process_always = false`); Esc again resumes. Not available once the run has ended. Leaving a campaign level for the menu keeps the chapter run as saved at the start of that level.
 - The end screen always has a Main menu button (below Next level / Restart).
 
+- **Shop lock:** the Lock button (next to Reroll) keeps the current offers into the next round instead of rolling a new shop (`GameManager.shop_locked`); bought slots stay empty, Reroll still works while locked, and it stays locked until clicked again. A new run starts unlocked.
+- **Top-right button bar:** Damage, Planner and Menu. Damage and Planner light up gold while their window is open.
+- **Damage meter** (window under the top-right bar, toggled by the Damage button; open/closed is remembered in `Settings.show_damage_meter`, default open): one bar per unit that fought, sorted, live during combat and kept as "last fight" until the next fight ("No fights yet" before the first). Click its header to switch between damage dealt and damage taken. Values are HP actually removed (after damage reduction, no overkill): `Unit.take_damage()` returns it.
+- **Team planner:** the top-right Planner button or **P** opens it; Esc or P closes it (Esc closes the planner before the pause menu opens). Click units to add/remove them from the plan; it shows planned synergies (count/next threshold) and how many of each you own. Planned units in the shop get a "* " and a gold border. The plan is saved (`SaveGame.team_plan`) and isn't cleared by Reset campaign progress.
 - Shop stays visible during combat. Shop slots and Buy XP work during combat (bought units go to the bench only); reroll is blocked outside PREP. The shop is not dimmed yet.
 - Right-click any unit (ally or enemy) to open the Unit Inspector (base stats at current star plus items, tags, item list; synergy bonuses are not shown). Right-clicking empty space closes it; it also closes if the unit dies or is removed.
-- Item bar (left side, below center): one coloured button per owned item, hover for a tooltip, hidden when empty. Press and hold an item, drag it onto a unit and release to equip; a label with the item name follows the mouse. Units (board and bench) show a row of small coloured squares above their health bar, one per item in the item's colour (`Unit._update_item_icons`; the row is top_level so it stays level when the unit turns).
-- Synergy box (top left) lists every tag on the board as `Tag  count/next threshold` (e.g. Order 2/3, or 3/3 once all tiers are reached): active in gold, inactive in grey. Tooltips show the effect and all tiers. Hidden when the board is empty.
+- Item bar (left side, below center): a fold header ("Items [-]" / "Items (n) [+]", remembered in `Settings.show_items`) over one coloured button per owned item, hover for a tooltip, hidden when empty. Press and hold an item, drag it onto a unit and release to equip; a label with the item name follows the mouse. Units (board and bench) show a row of small coloured squares above their health bar, one per item in the item's colour (`Unit._update_item_icons`; the row is top_level so it stays level when the unit turns).
+- Synergy box (top left) has a fold header ("Synergies [-]" / "Synergies (n active) [+]", remembered in `Settings.show_synergies`) and lists every tag on the board as `Tag  count/next threshold` (e.g. Order 2/3, or 3/3 once all tiers are reached): active in gold, inactive in grey. Tooltips show the effect and all tiers. Hidden when the board is empty.
 - Odds, streak and unit cap sit above the shop bar.
 
 ---
@@ -253,6 +264,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Balance check for the campaign: `Godot_v4.7.2-stable_win64.exe --headless --path . res://tools/bot_playtest.tscn --fixed-fps 60 -- chapter` (12 bot chapter runs with carried boards, about a minute). Without arguments it plays each level fresh; add level paths after `--` for single levels, or `-- free` for a 15-round free-play smoke test.
 - Regression checks for opponents, campaign and saves: `... res://tools/campaign_checks.tscn --fixed-fps 60` (69 checks, ~20 s; must end with `RESULT: ALL PASS`; tests override Debug Level, so main.tscn's setting doesn't matter). Run it after changing game_manager.gd, GameState.gd, the campaign scripts or save_game.gd.
 - Menu checks: `... res://tools/menu_checks.tscn --fixed-fps 60` (20 checks through real scene changes: menu buttons, Free Play, Campaign panel and Start chapter, Continue, abandon-run confirmation, pause/resume, back to menu, settings saved, reset progress, menu choice beats Debug Level). Run it after changing the menus, end screen, GameState or SaveGame.
+- HUD checks: `... res://tools/hud_checks.tscn --fixed-fps 60` (39 checks: shop lock across rounds and with reroll, damage numbers and meter, top-right bar toggles, layout (meter with 10 units clears the HP display in a 1152x648 window), team planner, shop highlights, Esc order, plan saved, synergy/item fold headers; uses its own settings and save files). Run it after changing the shop, damage/combat code, synergies or the planner. Wait for phases with `await Events.phase_changed`, not by polling: a fight with no player units ends within one physics frame.
 - The main scene is menu.tscn. To jump straight into a run while testing, open main.tscn and press F6 (Run Current Scene); Debug Level applies there.
 - Never use a level's `id` for two levels, and never rename one: the save file keys progress by it.
 
@@ -262,7 +274,8 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 - Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, items, unit inspector, end screen, opponent providers, campaign chapter runs with carried boards, campaign saves, main menu with settings, pause menu.
 - Done and committed (8962b5b): opponent providers, campaign structure with chapter runs, save system (design decisions at the end of `docs/campaign-and-opponents.md`).
-- Last finished (2026-10-21, Opus, **not committed yet**): main menu (roadmap 8) with the working title AzSurvivors, Continue, Campaign panel, Free Play, Settings (fullscreen, VSync, volume, reset progress), Quit; Esc pause menu; Main menu button on the end screen; menu is the main scene. Checked headless (20 menu checks + 69 campaign checks + free-play smoke test). Not yet looked at by hand.
+- Done and committed (19088de): main menu with the working title AzSurvivors, settings, pause menu.
+- Last finished (2026-10-21, Opus, **not committed yet**): shop lock, damage meter, team planner (plus a fix: a bought shop slot now forgets its offer); then, from the user's screenshot feedback, a top-right button bar (Damage / Planner / Menu) with the meter as a toggled window, the HP display moved to the bottom right, and fold headers on the synergy list and item bar. Checked headless (39 HUD checks + 69 campaign checks + 20 menu checks + bot runs). Not yet looked at by hand.
 - Next: look at the menu and play a full chapter run by hand. Volume has no effect until there's sound.
 - Ideas for later: `docs/item-ideas.md` (item mechanics brainstorm; resonance/item combinations first).
 

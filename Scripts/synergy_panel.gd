@@ -1,13 +1,48 @@
 # synergy_panel.gd
 extends VBoxContainer
 
+# Synergy list (top left). A header button folds the list open or closed; the state is remembered
+# in Settings.show_synergies. The whole box is hidden while the board is empty.
+
+const GOLD := Color(1.0, 0.85, 0.3)
+
 var board: Board
+var header: Button
+var list: VBoxContainer
+var expanded := true
 var _timer := 0.0
 var _last_sig := ""
+var _active := 0
+var _total := 0
 
 func _ready():
 	board = get_tree().get_first_node_in_group("board") as Board
+	Settings.ensure_loaded()
+	expanded = Settings.show_synergies
+	header = Button.new()
+	header.flat = true
+	header.focus_mode = Control.FOCUS_NONE
+	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", GOLD)
+	header.add_theme_color_override("font_hover_color", Color.WHITE)
+	header.tooltip_text = "Show or hide the synergy list."
+	header.pressed.connect(func():
+		expanded = not expanded
+		Settings.show_synergies = expanded
+		Settings.save_settings()
+		_apply_expanded())
+	add_child(header)
+	list = VBoxContainer.new()
+	list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.add_theme_constant_override("separation", 6)
+	add_child(list)
 	get_parent().visible = false
+	_apply_expanded()
+
+func _apply_expanded():
+	list.visible = expanded
+	header.text = "Synergies  [-]" if expanded else "Synergies (%d active)  [+]" % _active
 
 func _process(delta):
 	_timer -= delta
@@ -30,7 +65,7 @@ func _refresh():
 		return
 	_last_sig = sig
 
-	for c in get_children():
+	for c in list.get_children():
 		c.queue_free()
 
 	var tags: Array = counts.keys().filter(func(t): return Synergies.DEFS.has(t))
@@ -43,23 +78,20 @@ func _refresh():
 			return ta >= 0
 		return counts[a] > counts[b])
 
+	_active = 0
+	_total = tags.size()
 	for tag in tags:
 		var n: int = counts[tag]
 		var t := Synergies.active_tier(tag, n)
-		var thresholds: Array = Synergies.DEFS[tag]["thresholds"]
+		if t >= 0:
+			_active += 1
 		var parts: PackedStringArray = []
-		for th in thresholds:
+		for th in Synergies.DEFS[tag]["thresholds"]:
 			parts.append(str(th))
-		# Progress toward the next tier; once every tier is reached it shows the last one (e.g. 3/3).
-		var target: int = int(thresholds.back())
-		for th in thresholds:
-			if n < int(th):
-				target = int(th)
-				break
-
 		var l := Label.new()
-		l.text = "%s  %d/%d" % [tag, n, target]
+		l.text = "%s  %d/%d" % [tag, n, Synergies.next_threshold(tag, n)]
 		l.tooltip_text = "%s\nTiers: %s units" % [Synergies.DEFS[tag]["desc"], " / ".join(parts)]
 		l.mouse_filter = Control.MOUSE_FILTER_STOP
-		l.modulate = Color(1.0, 0.85, 0.3) if t >= 0 else Color(0.65, 0.65, 0.65)
-		add_child(l)
+		l.modulate = GOLD if t >= 0 else Color(0.65, 0.65, 0.65)
+		list.add_child(l)
+	_apply_expanded()

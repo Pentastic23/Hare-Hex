@@ -26,6 +26,8 @@ var bonus_as := 0.0
 var bonus_mana := 0.0
 var dmg_reduction := 0.0
 var lifesteal := 0.0
+var damage_dealt := 0.0   # this fight, HP actually removed from enemies (damage meter)
+var damage_taken := 0.0   # this fight, HP lost
 
 # Items live apart from the synergy bonuses above: clear_bonuses() runs every combat and must not wipe them.
 const MAX_ITEMS := 3
@@ -184,6 +186,8 @@ func begin_combat():
 	_last_ratio = -1.0
 	mana = minf(data.start_mana + bonus_mana + item_mana, data.max_mana)
 	_last_mana_ratio = -1.0
+	damage_dealt = 0.0
+	damage_taken = 0.0
 
 func end_combat():
 	if tween:
@@ -217,7 +221,7 @@ func combat_step(delta: float):
 		if cooldown <= 0.0:
 			cooldown = attack_interval()
 			var dmg := damage()
-			target.take_damage(dmg)
+			damage_dealt += target.take_damage(dmg)
 			gain_mana(MANA_PER_ATTACK)
 			var steal := lifesteal + item_lifesteal
 			if steal > 0.0:
@@ -233,16 +237,20 @@ func combat_step(delta: float):
 		tween.tween_property(self, "position", board.grid_to_world(next), 1.0 / data.move_speed)
 		tween.finished.connect(func(): moving = false)
 
-func take_damage(amount: float):
+# Returns the HP actually removed (after damage reduction, without overkill), for the damage meter.
+func take_damage(amount: float) -> float:
 	if dead:
-		return
+		return 0.0
 	amount *= 1.0 - minf(dmg_reduction + item_dr, 0.6)
+	var removed := minf(amount, maxf(health, 0.0))
+	damage_taken += removed
 	health -= amount
 	gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
 	if health <= 0.0:
 		dead = true
 		visible = false
 		board.vacate(self)
+	return removed
 
 func _face(u: Unit):
 	_face_point(u.global_position)

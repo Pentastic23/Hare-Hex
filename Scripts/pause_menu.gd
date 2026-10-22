@@ -7,6 +7,7 @@ extends Control
 var panel_style: StyleBox = preload("res://tres/panel_style.tres")
 
 func _ready():
+	add_to_group("pause_menu")   # the top-right Menu button opens it
 	process_mode = Node.PROCESS_MODE_ALWAYS   # keeps working while the tree is paused
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -41,8 +42,11 @@ func _ready():
 func _input(event):
 	if not event.is_action_pressed("ui_cancel"):
 		return
+	var planner := get_tree().get_first_node_in_group("team_planner")
 	if visible:
 		close()
+	elif planner != null and planner.visible:
+		planner.close()   # Esc closes the team planner before it opens the pause menu
 	elif _can_pause():
 		open()
 	else:

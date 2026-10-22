@@ -6,8 +6,32 @@ const SLOT := Vector2(52, 52)
 @onready var grid: GridContainer = $Grid
 
 var _ghost: Label   # follows the mouse while an item is being dragged
+var header: Button  # folds the item grid open or closed (Settings.show_items)
+var expanded := true
 
 func _ready():
+	# Header above the grid: move the grid into a VBox under a fold button.
+	Settings.ensure_loaded()
+	expanded = Settings.show_items
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	add_child(box)
+	header = Button.new()
+	header.flat = true
+	header.focus_mode = Control.FOCUS_NONE
+	header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	header.add_theme_color_override("font_hover_color", Color.WHITE)
+	header.tooltip_text = "Show or hide your items."
+	header.pressed.connect(func():
+		expanded = not expanded
+		Settings.show_items = expanded
+		Settings.save_settings()
+		_apply_expanded())
+	box.add_child(header)
+	remove_child(grid)
+	box.add_child(grid)
 	Events.items_changed.connect(_rebuild)
 	Events.item_drag_started.connect(_on_drag_started)
 	Events.item_drag_ended.connect(_on_drag_ended)
@@ -43,6 +67,11 @@ func _rebuild():
 	for i in GameState.items.size():
 		grid.add_child(_make_button(GameState.items[i], i))
 	visible = not GameState.items.is_empty()   # hidden when the inventory is empty
+	_apply_expanded()
+
+func _apply_expanded():
+	grid.visible = expanded
+	header.text = "Items  [-]" if expanded else "Items (%d)  [+]" % GameState.items.size()
 
 func _make_button(item: ItemData, index: int) -> Button:
 	var b := Button.new()

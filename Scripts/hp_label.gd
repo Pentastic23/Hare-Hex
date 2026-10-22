@@ -2,10 +2,16 @@
 extends Label
 
 func _ready():
-	set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	# Bottom right, just above the shop bar, so the windows under the top-right buttons never cover it.
+	# All four offsets are set, so the box is exactly 120x48 whatever the scene had before.
+	set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	offset_right = -24
+	grow_vertical = Control.GROW_DIRECTION_BEGIN
 	custom_minimum_size = Vector2(120, 48)
+	offset_right = -24
+	offset_left = -24 - 120
+	offset_bottom = -96
+	offset_top = -96 - 48
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_theme_font_size_override("font_size", 36)

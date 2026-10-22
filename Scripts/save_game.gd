@@ -9,8 +9,9 @@ class_name SaveGame extends RefCounted
 #   { "version": 2,
 #     "completed_levels": { "<level id>": { "best_hp": int, "times": int, "first_completed": unix } },
 #     "unlocks": [ "<id>", ... ],
-#     "chapter_run": {} or the carried state at the start of the next level (see GameManager.make_carry) }
-# Version 1 files (no chapter_run) load fine.
+#     "chapter_run": {} or the carried state at the start of the next level (see GameManager.make_carry),
+#     "team_plan": [ "<unit display name>", ... ] }
+# Version 1 files (no chapter_run) and files without team_plan load fine.
 
 const VERSION := 2
 const DEFAULT_PATH := "user://save.json"
@@ -25,7 +26,7 @@ static func data() -> Dictionary:
 	return _data
 
 static func _defaults() -> Dictionary:
-	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}}
+	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}, "team_plan": []}
 
 static func load_game() -> void:
 	_data = _defaults()
@@ -68,6 +69,11 @@ static func _migrate(d: Dictionary) -> Dictionary:
 	var run = d.get("chapter_run", {})
 	if run is Dictionary and run.has("level") and run.has("units"):
 		out.chapter_run = run
+	var plan = d.get("team_plan", [])
+	if plan is Array:
+		for n in plan:
+			if not out.team_plan.has(str(n)):
+				out.team_plan.append(str(n))
 	return out
 
 # Writes to a temp file first, then swaps it in, so a crash mid-write can't destroy the save.
@@ -113,6 +119,14 @@ static func add_unlock(id: StringName, write := true) -> void:
 		if write:
 			save_game()
 
+# Team planner: display names of the units the player is aiming for.
+static func team_plan() -> Array:
+	return data().team_plan
+
+static func set_team_plan(names: Array) -> void:
+	data().team_plan = names.duplicate()
+	save_game()
+
 # The chapter run in progress: what the player carries into level `level`. Empty = none.
 static func chapter_run() -> Dictionary:
 	return data().chapter_run
@@ -128,6 +142,8 @@ static func clear_chapter_run() -> void:
 
 # Wipes progress (for a future "reset progress" button, and tests).
 static func reset_progress() -> void:
+	var plan: Array = data().team_plan   # the team plan is a preference, not progress: keep it
 	_data = _defaults()
+	_data.team_plan = plan
 	_loaded = true
 	save_game()

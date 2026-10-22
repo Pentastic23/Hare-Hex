@@ -16,19 +16,34 @@ const DEFS := {
 }
 
 static func count(units: Array) -> Dictionary:
-	var seen := {}
-	var counts := {}
+	var datas := []
 	for x in units:
 		var u := x as Unit
-		if u == null or u.data == null:
+		if u != null and u.data != null:
+			datas.append(u.data)
+	return count_data(datas)
+
+# Same counting for UnitData (the team planner counts a planned team, not units on the board).
+static func count_data(datas: Array) -> Dictionary:
+	var seen := {}
+	var counts := {}
+	for x in datas:
+		var d := x as UnitData
+		if d == null or seen.has(d.display_name):
 			continue
-		if seen.has(u.data.display_name):
-			continue
-		seen[u.data.display_name] = true
-		for tag in u.data.tags:
+		seen[d.display_name] = true
+		for tag in d.tags:
 			var key := String(tag)
 			counts[key] = int(counts.get(key, 0)) + 1
 	return counts
+
+# The next threshold not yet reached, or the last one once all are reached (e.g. Order 3 -> 3).
+static func next_threshold(tag: String, n: int) -> int:
+	var thresholds: Array = DEFS[tag]["thresholds"]
+	for th in thresholds:
+		if n < int(th):
+			return int(th)
+	return int(thresholds.back())
 
 static func active_tier(tag: String, n: int) -> int:
 	if not DEFS.has(tag):
