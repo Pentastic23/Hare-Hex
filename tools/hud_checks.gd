@@ -153,14 +153,16 @@ func _run():
 	print("--- top-right bar and layout")
 	var bar = main.get_node("UI/TopRightBar")
 	var planner = main.get_node("UI/TeamPlanner")
-	var hp_label: Control = main.get_node("UI/HpLabel")
+	var standings: Control = main.get_node("UI/Standings")
 	chk("bar has Damage, Planner and Menu", bar.damage_button.text == "Damage" and bar.planner_button.text == "Planner" and bar.menu_button.text == "Menu")
 	chk("button bar sits above the meter", bar.get_global_rect().end.y <= meter.get_global_rect().position.y, "%s / %s" % [bar.get_global_rect(), meter.get_global_rect()])
-	# Worst case in a 1152x648 window: 10 units in the meter vs the HP display above the shop.
-	var meter_bottom: float = meter.get_global_rect().end.y + (10 - meter.rows.get_child_count()) * (meter.ROW_H + 3)
-	var hp_top: float = 648.0 - 96.0 - hp_label.size.y
-	chk("meter with 10 units still ends above the HP display", meter_bottom < hp_top, "meter bottom %d, HP top %d" % [meter_bottom, hp_top])
-	chk("HP display is at the bottom right", hp_label.anchor_top == 1.0 and hp_label.anchor_left == 1.0)
+	# HUD spec: standings 210 px wide at the right edge, top at y = 129; the meter overlays them while open.
+	var srect: Rect2 = standings.get_global_rect()
+	chk("HP standings sit at the right edge under the button bar", is_equal_approx(srect.position.y, 129.0) and is_equal_approx(srect.size.x, 210.0) and is_equal_approx(srect.end.x, 1150.0) and srect.position.y >= bar.get_global_rect().end.y, str(srect))
+	chk("the damage meter draws over the standings (it comes later in the tree)", meter.get_index() > standings.get_index())
+	chk("standings show your HP", standings.you_row() != null and standings.you_row().hp_lbl.text == str(GameState.me.player_hp) and standings.opponent_row() != null)
+	var insp_layout = main.get_node("UI/UnitInspector")
+	chk("the unit inspector sits bottom right, clear of the standings", insp_layout.anchor_top == 1.0 and insp_layout.anchor_left == 1.0 and insp_layout.offset_bottom == -96)
 	bar.damage_button.button_pressed = false
 	Settings._loaded = false
 	Settings.load_settings()
@@ -242,8 +244,45 @@ func _run():
 	gm = main.get_node("Game Manager")
 	board = main.get_node("Board")
 	await get_tree().create_timer(0.5).timeout
-	var timer_label: Label = main.get_node("UI/TopBar/Timer")
-	chk("prep shows a countdown", timer_label.text.begins_with("Prep 0:"), timer_label.text)
+	var timer = main.get_node("UI/TopBar").timer
+	chk("prep shows a countdown", timer.visible and timer.phase_label.text == "PREP" and timer.time_label.text.begins_with("0:"), "%s %s" % [timer.phase_label.text, timer.time_label.text])
+	var top = main.get_node("UI/TopBar")
+	chk("the top bar is flush with the top of the screen", is_equal_approx(top.get_global_rect().position.y, 0.0), str(top.get_global_rect()))
+	top.fold_button.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	chk("folding the top bar leaves just the round and the time, and is remembered", not top.expanded and not top.rounds.pips.visible and not top.rounds.stage_label.visible and not top.timer.phase_label.visible and top.rounds.count_label.visible and top.timer.time_label.visible and not Settings.show_top_bar)
+	var folded_rect: Rect2 = top.get_global_rect()
+	chk("the folded bar is centred on the screen", absf(folded_rect.get_center().x - 576.0) <= 1.0, str(folded_rect))
+	top.fold_button.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	chk("unfolding brings it all back", top.expanded and top.rounds.pips.visible and top.timer.phase_label.visible and Settings.show_top_bar)
+	chk("the unfolded bar is centred too", absf(top.get_global_rect().get_center().x - 576.0) <= 1.0, str(top.get_global_rect()))
+	var rig = main.get_node("CameraRig")
+	rig.zoom_by(-100.0)
+	var zmin: float = rig.zoom
+	rig.zoom_by(100.0)
+	var zmax: float = rig.zoom
+	rig.zoom = 1.0
+	chk("camera zoom is clamped", is_equal_approx(zmin, rig.ZOOM_MIN) and is_equal_approx(zmax, rig.ZOOM_MAX))
+	rig.drag(Vector2(576, 300), Vector2(976, 600))
+	chk("at the default zoom the view can't be dragged", rig.position.distance_to(rig.target) < 0.001, str(rig.position))
+	rig.zoom = rig.ZOOM_MIN
+	rig._zoom_now = rig.ZOOM_MIN
+	rig._place()
+	var centre: Vector3 = rig.position
+	rig.drag(Vector2(576, 300), Vector2(526, 330))
+	chk("zoomed in, a small drag moves the view", rig.position.distance_to(centre) > 0.1, "%s -> %s" % [centre, rig.position])
+	for i in 30:
+		rig.drag(Vector2(576, 300), Vector2(176, 600))
+	var far_pos: Vector3 = rig.position
+	rig.drag(Vector2(576, 300), Vector2(176, 600))
+	chk("dragging far stops at the edge of the default view", far_pos.distance_to(rig.position) < 0.001 and far_pos.distance_to(centre) < 8.0, str(far_pos))
+	rig.pan = Vector3.ZERO
+	rig.zoom = 1.0
+	rig._zoom_now = 1.0
+	rig._place()
 	var left0: float = gm.prep_left
 	get_tree().paused = true
 	await get_tree().create_timer(0.5, true, false, true).timeout
@@ -282,7 +321,7 @@ func _run():
 		waited += 1
 	chk("the prep timer runs out by itself and the fight starts", timed[0])
 	await get_tree().process_frame
-	chk("fight: the label counts down the fight (Combat m:ss)", timer_label.text.begins_with("Combat ") or gm.phase != Events.Phase.COMBAT, timer_label.text)
+	chk("fight: the timer counts down the fight (COMBAT m:ss)", (timer.phase_label.text == "COMBAT" and (timer.time_label.text == "1:00" or timer.time_label.text.begins_with("0:"))) or gm.phase != Events.Phase.COMBAT, "%s %s" % [timer.phase_label.text, timer.time_label.text])
 	if gm.fighting:
 		insp2._fill()
 		chk("during the fight the inspector shows the same real bonuses", insp2.stats_label.text.begins_with("Health: 960"), insp2.stats_label.text.split("\n")[0])

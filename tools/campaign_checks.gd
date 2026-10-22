@@ -146,10 +146,16 @@ func _run():
 	chk("campaign loss damage from the level (6 + stars)", GameState.damage_for_loss(4) == 7)
 	chk("campaign rounds = waves", GameState.total_rounds() == 5)
 	chk("item drop rounds from level", GameState.item_drop_rounds() == [2, 4])
-	var stage_text: String = main.get_node("UI/TopBar/StageLabel").text
-	chk("stage label shows the wave and its name", stage_text == "First Blood   Wave 1/5: Scouts", stage_text)
-	var tip: String = main.get_node("UI/TopBar/StageLabel").tooltip_text
-	chk("stage label tooltip lists the enemies", tip == "Enemies this wave:\nKnight *", tip.replace("\n", " | "))
+	var tracker = main.get_node("UI/TopBar").rounds
+	chk("round tracker shows the wave", tracker.stage_label.text == "WAVE" and tracker.count_label.text == "1/5" and tracker.pips.states.size() == 5 and tracker.pips.states[0] == "current" and tracker.pips.states[4] == "boss", "%s %s %s" % [tracker.stage_label.text, tracker.count_label.text, tracker.pips.states])
+	var opp_row = main.get_node("UI/Standings").opponent_row()
+	chk("standings name the wave as the opponent", opp_row != null and opp_row.name_text == "Scouts" and opp_row.hp_lbl.text == "1/5" and opp_row.vs_tag.visible, opp_row.name_text if opp_row else "no row")
+	var tip: String = tracker.tooltip_text
+	chk("round tracker tooltip names the level and wave and lists the enemies", tip == "First Blood
+Wave 1/5: Scouts
+Enemies this wave:
+Knight *", tip.replace("
+", " | "))
 	chk("provider is WaveOpponents", gm.opponents is WaveOpponents)
 	chk("run_campaign found from the default path", GameState.run_campaign != null and GameState.run_campaign.find_level(&"ch1_l1") != null)
 
@@ -271,7 +277,10 @@ func _run():
 	# A new chapter starts fresh: its first level's own gold, level and 100 HP, no carried board.
 	await start(c2[0])
 	chk("chapter 2 starts fresh: 10 gold (+1 interest), level 2, 100 HP, empty board", not GameState.run_carried and GameState.me.gold == 11 and GameState.me.level == 2 and GameState.me.player_hp == 100 and board.all_player_units().is_empty() and GameState.total_rounds() == 6)
-	chk("chapter 2 level 1 top bar", main.get_node("UI/TopBar/StageLabel").text.begins_with("Smoke on the Horizon   Wave 1/6: Scouts"), main.get_node("UI/TopBar/StageLabel").text)
+	var tip2: String = main.get_node("UI/TopBar").rounds.tooltip_text
+	chk("chapter 2 level 1 round tracker", tip2.begins_with("Smoke on the Horizon
+Wave 1/6: Scouts"), tip2.replace("
+", " | "))
 	var scouts: Array = gm.spawn_board(c2[0].waves[0])
 	chk("chapter 2 enemies spawn from the new waves", scouts.size() == 2 and scouts.all(func(u): return u.team == 1))
 	clear_enemies()
@@ -300,8 +309,11 @@ func _run():
 
 	print("--- free play")
 	await start(null)
-	var free_text: String = main.get_node("UI/TopBar/StageLabel").text
-	chk("free play: RandomOpponents, 39 rounds, normal start", gm.opponents is RandomOpponents and GameState.total_rounds() == 39 and GameState.me.gold == 2 and free_text == "Stage 1-1", free_text)
+	var ft = main.get_node("UI/TopBar").rounds
+	var free_text: String = "%s %s" % [ft.stage_label.text, ft.count_label.text]
+	chk("free play: RandomOpponents, 39 rounds, normal start", gm.opponents is RandomOpponents and GameState.total_rounds() == 39 and GameState.me.gold == 2 and free_text == "STAGE 1 1-1" and ft.pips.states.size() == 3 and ft.tooltip_text == "", free_text)
+	var free_opp = main.get_node("UI/Standings").opponent_row()
+	chk("free play standings: you and Random enemies", free_opp.name_text == "Random enemies" and free_opp.hp_lbl.text == "" and main.get_node("UI/Standings").you_row().hp_lbl.text == "100")
 	var rb: EnemyBoard = gm.opponents.board_for_round(1)
 	chk("random board: no synergies, auto placement, scale 0.4", not rb.use_synergies and rb.units.all(func(b): return b.coord == Vector2i(-1, -1)) and is_equal_approx(rb.stat_scale, 0.4))
 	spawned = gm.spawn_board(rb)

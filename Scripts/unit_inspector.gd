@@ -10,10 +10,15 @@ var board: Board
 var shown: Unit = null
 
 func _ready():
-	# keep the box on screen: grow left from the right edge, and both ways vertically
+	# Bottom right, just above the shop bar, growing up and left, so it stays clear of the HP standings
+	# at the top right (the old HP label's spot).
+	set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	grow_vertical = Control.GROW_DIRECTION_BOTH
+	grow_vertical = Control.GROW_DIRECTION_BEGIN
 	offset_right = -24
+	offset_left = -24
+	offset_bottom = -96
+	offset_top = -96
 	visible = false
 	board = get_tree().get_first_node_in_group("board") as Board
 

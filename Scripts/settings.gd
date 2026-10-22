@@ -13,6 +13,7 @@ static var master_volume := 0.8   # 0..1
 static var show_damage_meter := true   # the Damage button's window, remembered between sessions
 static var show_synergies := true      # synergy list unfolded
 static var show_items := true          # item bar unfolded
+static var show_top_bar := true        # top bar (rounds and timer) unfolded
 static var _loaded := false
 
 static func ensure_loaded() -> void:
@@ -30,6 +31,7 @@ static func load_settings() -> void:
 	show_damage_meter = bool(cfg.get_value("hud", "show_damage_meter", show_damage_meter))
 	show_synergies = bool(cfg.get_value("hud", "show_synergies", show_synergies))
 	show_items = bool(cfg.get_value("hud", "show_items", show_items))
+	show_top_bar = bool(cfg.get_value("hud", "show_top_bar", show_top_bar))
 
 static func save_settings() -> void:
 	var cfg := ConfigFile.new()
@@ -39,6 +41,7 @@ static func save_settings() -> void:
 	cfg.set_value("hud", "show_damage_meter", show_damage_meter)
 	cfg.set_value("hud", "show_synergies", show_synergies)
 	cfg.set_value("hud", "show_items", show_items)
+	cfg.set_value("hud", "show_top_bar", show_top_bar)
 	var err := cfg.save(path)
 	if err != OK:
 		push_warning("Settings: can't write %s (%s)" % [path, error_string(err)])

@@ -29,6 +29,10 @@ func prepare(round_number: int) -> void:
 	_round = round_number
 	_snapshot = store.fetch(round_number, GameState.me.level, balance, rng, run_id)
 
+# The ghost picked for the coming fight (BoardSnapshot format), or {} when random enemies stand in.
+func current_snapshot() -> Dictionary:
+	return _snapshot
+
 func describe_next() -> String:
 	if _snapshot.is_empty():
 		return "Random enemies (no ghosts saved yet)"

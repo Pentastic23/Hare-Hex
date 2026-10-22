@@ -79,7 +79,7 @@ class Driver extends Node:
 		press("Async PvP")
 		await wait(0.5)
 		chk("Async PvP starts a ghost-mode free-play run", scene().name == "Main" and GameState.ghost_mode and GameState.run_level == null and scene().get_node("Game Manager").opponents is SnapshotOpponents)
-		chk("its top bar says who it will fight", scene().get_node("UI/TopBar/OpponentLabel").visible)
+		chk("its standings show who it will fight", scene().get_node("UI/Standings").opponent_row() != null)
 		GameState.go_to_menu()   # the real way out of a run, which clears ghost mode
 		await wait(0.4)
 		chk("back in the menu, ghost mode is off", not GameState.ghost_mode)

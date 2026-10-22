@@ -154,8 +154,8 @@ func _run():
 	GameState.round_number = biggest
 	Events.round_changed.emit(1, biggest)
 	await frames()
-	var stage_tip: String = main.get_node("UI/TopBar/StageLabel").tooltip_text
-	chk("the stage label lists a %d-unit wave" % worst_n, stage_tip.split("\n").size() == worst_n + 1, str(stage_tip.split("\n").size()))
+	var stage_tip: String = main.get_node("UI/TopBar").rounds.tooltip_text
+	chk("the round tracker lists a %d-unit wave" % worst_n, stage_tip.split("\n").size() == worst_n + 3, str(stage_tip.split("\n").size()))
 	bad = scan(main, "campaign %s wave %d" % [worst.id, biggest])
 	main.free()
 	chk("campaign: every tooltip fits", bad == 0)

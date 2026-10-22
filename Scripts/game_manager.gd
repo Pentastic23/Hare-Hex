@@ -11,6 +11,9 @@ var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
 @export var prep_time := 10
 @onready var board: Board = $"../Board"
 @export var unit_pool: Array[UnitData] = []
+# TEMPORARY while the unit models are tested: only units with a model (UnitData.model) are used, in
+# the shop, the planner and free-play enemies. Turn off (or delete) once every unit has a model.
+@export var only_units_with_models := true
 @export var item_roster: Array[ItemData] = []   # items that can drop; also resolves ids when loading saves
 @export_range(0.0, 1.0) var enemy_variation_chance := 0.3   # 30% of rounds get +1 or -1
 const REROLL_COST := 2
@@ -104,6 +107,12 @@ func _ready():
 # Sets up free play or the campaign level: run modifiers, shop roster, opponent provider, and the
 # player's carried board when this level continues a chapter run.
 func _begin_run():
+	if only_units_with_models:
+		var modelled: Array[UnitData] = []
+		for d in unit_pool:
+			if d != null and d.model != null:
+				modelled.append(d)
+		unit_pool = modelled
 	var camp := GameState.run_campaign
 	if camp == null and ResourceLoader.exists(DEFAULT_CAMPAIGN):
 		camp = load(DEFAULT_CAMPAIGN)
@@ -463,12 +472,12 @@ func _end_combat(player_won: bool, enemy_stars: int):
 	for n in board.get_node("Units").get_children():
 		var u := n as Unit
 		if u and u.team == 1:
-			u.queue_free()
+			u.leave_fight(not player_won)   # frees it; a falling or cheering model stays a moment longer
 	for t in board.tiles.values():
 		t.occupant = null
 	for u in snapshot:
 		if is_instance_valid(u):
-			u.end_combat()
+			u.end_combat(player_won)
 			board.put_on_tile(u, snapshot[u])
 	GameState.me.record_result(player_won)
 	if player_won:

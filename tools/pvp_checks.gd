@@ -200,18 +200,18 @@ func _run():
 	chk("the recorded snapshot holds your 3 units, mirrored", saved.board.units.size() == 3 and saved.run == str(GameState.run_seed) and saved.player_level == 5)
 
 	await load_main(444, true)
-	var label: Label = main.get_node("UI/TopBar/OpponentLabel")
 	await get_tree().process_frame
+	var row: StandingRow = main.get_node("UI/Standings").opponent_row()
 	chk("ghost mode uses the ghost provider", GameState.ghost_mode and gm.opponents is SnapshotOpponents)
-	chk("the top bar names the opponent (no ghost for this level yet -> random)", label.visible and label.text.contains("vs Random enemies"), label.text)
+	chk("the standings name the opponent (no ghost for this level yet -> random)", row != null and row.name_text == "Random enemies" and row.vs_tag.visible, row.name_text if row else "no row")
 	# a ghost saved by another run at round 1 now shows up in the next ghost run
 	var other := BoardSnapshot.capture(place_player_units(), meta("otherrun", 1, 1, gm.balance_hash))
 	other["player_level"] = 1
 	LocalSnapshotStore.new().submit(other)
 	await load_main(555, true)
 	await get_tree().process_frame
-	label = main.get_node("UI/TopBar/OpponentLabel")
-	chk("round 1 of the next ghost run announces the saved ghost", label.visible and label.text.contains("Ghost of You"), label.text)
+	row = main.get_node("UI/Standings").opponent_row()
+	chk("round 1 of the next ghost run shows the saved ghost in the standings, with its HP", row != null and row.name_text == "Ghost of You" and row.hp_lbl.text == str(int(other.get("hp", -1))), "%s %s" % [row.name_text, row.hp_lbl.text] if row else "no row")
 	gm.start_combat()
 	var ghosts := main.get_node("Board/Units").get_children().filter(func(n): return n is Unit and n.team == 1)
 	chk("and the ghost's units are on the enemy half at their mirrored tiles", ghosts.size() >= 1 and ghosts.all(func(u): return u.coord.y <= 3))
@@ -219,7 +219,7 @@ func _run():
 	await get_tree().process_frame
 
 	await load_main(666, false)
-	chk("free play has no opponent label", not main.get_node("UI/TopBar/OpponentLabel").visible and gm.opponents is RandomOpponents)
+	chk("free play: the opponent row says Random enemies", main.get_node("UI/Standings").opponent_row().name_text == "Random enemies" and gm.opponents is RandomOpponents)
 	GameState.ghost_mode = false
 
 	wipe(ROOT)

@@ -15,7 +15,10 @@ var moving := false
 var move_from := Vector3.ZERO
 var move_to := Vector3.ZERO
 var move_progress := 0.0   # 0..1 along the current step
-var letter_label: Label3D
+var letter_label: Label3D   # the placeholder capsule's name tag; units with a model don't show it
+var model_view: UnitModel   # the animated model (UnitData.model), or null for the placeholder capsule
+var bar_height := BAR_HEIGHT   # where the bars sit; set from the model's height and star
+var _hide_in := -1.0   # seconds until a dead unit with a model disappears (its death animation plays first)
 var bar_bg: Sprite3D
 var bar_fill: Sprite3D
 var _last_ratio := -1.0
@@ -53,7 +56,9 @@ const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45}
 @onready var board: Board = get_parent().get_parent()
 const BAR_PX_W := 100
 const BAR_PX_H := 10
-const BAR_HEIGHT := 2.4        # world height above the unit's feet; raise if your model is taller
+const BAR_HEIGHT := 2.4        # bar height for the placeholder capsule; models set bar_height from their own height
+const BAR_GAP := 0.35          # bars sit this far above a model's head
+const RING_COLORS := [Color("6cc4ff"), Color("ff8a4c")]   # team ring at a model's feet: you, enemy
 const MANA_PER_ATTACK := 10.0
 const MANA_FROM_DAMAGE := 0.1   # mana per point of damage taken
 const MANA_HIT_CAP := 15.0      # max mana from a single hit
@@ -89,6 +94,9 @@ func set_star(s: int):
 	health = max_hp()
 	_last_ratio = -1.0
 	$ModelHolder.scale = Vector3.ONE * STAR_SIZE[star]
+	if model_view != null:
+		model_view.set_star(star)
+		_place_bars()
 	if letter_label != null:
 		letter_label.text = data.label() + ("*".repeat(star - 1))
 
@@ -135,9 +143,24 @@ func _make_bar_sprite(tex: Texture2D, priority: int) -> Sprite3D:
 	add_child(s)
 	return s
 
-func _process(_delta):
+# Moves the health and mana bars to bar_height (models: just above the head at the current star).
+func _place_bars():
+	if model_view != null:
+		bar_height = model_view.height * STAR_SIZE[star] + BAR_GAP
+	if bar_bg == null:
+		return
+	bar_bg.position.y = bar_height
+	bar_fill.position.y = bar_height
+	mana_bg.position.y = bar_height - MANA_OFFSET
+	mana_fill.position.y = bar_height - MANA_OFFSET
+
+func _process(delta):
+	if _hide_in > 0.0:
+		_hide_in -= delta
+		if _hide_in <= 0.0 and dead:
+			visible = false   # the death animation has played
 	if item_icons != null:
-		item_icons.global_position = global_position + Vector3(0, BAR_HEIGHT + ICON_HEIGHT, 0)
+		item_icons.global_position = global_position + Vector3(0, bar_height + ICON_HEIGHT, 0)
 	if data == null or bar_fill == null:
 		return
 
@@ -146,7 +169,11 @@ func _process(_delta):
 		_last_ratio = ratio
 		bar_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * ratio, 0.01), BAR_PX_H)
 
-	var has_mana := data.max_mana > 0.0
+	bar_bg.visible = not dead   # a dying model lies there without bars until it disappears
+	bar_fill.visible = not dead
+	if item_icons != null:
+		item_icons.visible = not dead
+	var has_mana := data.max_mana > 0.0 and not dead
 	mana_bg.visible = has_mana
 	mana_fill.visible = has_mana
 	if has_mana:
@@ -168,15 +195,42 @@ func setup(d: UnitData, t: int):
 	if holder == null:
 		push_error("Unit was not created from unit.tscn (no ModelHolder)")
 		return
+	rotation.y = PI if team == 1 else 0.0   # face the other side of the board
 	if d.model:
-		holder.add_child(d.model.instantiate())
-	if team == 1:
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.9, 0.25, 0.25)
-		for m in holder.find_children("*", "MeshInstance3D", true, false):
-			m.material_override = mat
-	_make_letter()
+		var body := d.model.instantiate()
+		holder.add_child(body)
+		model_view = body as UnitModel
+	if model_view != null:
+		holder.get_node("MeshInstance3D").visible = false   # the placeholder capsule
+		model_view.unit = self
+		model_view.set_star(star)
+		_place_bars()
+		_make_ring()
+	else:
+		if team == 1:
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = Color(0.9, 0.25, 0.25)
+			for m in holder.find_children("*", "MeshInstance3D", true, false):
+				m.material_override = mat
+		_make_letter()
 	mana = d.start_mana
+
+# A flat ring at a model's feet in the team colour (the capsule is painted red for enemies instead).
+func _make_ring():
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.58
+	torus.outer_radius = 0.7
+	torus.rings = 32
+	ring.mesh = torus
+	ring.scale = Vector3(1.0, 0.12, 1.0)
+	ring.position.y = 0.04
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = RING_COLORS[team]
+	ring.material_override = mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ring)
 
 func begin_combat():
 	if data == null:
@@ -192,10 +246,38 @@ func begin_combat():
 	damage_dealt = 0.0
 	damage_taken = 0.0
 
-func end_combat():
+# An enemy leaving the board when its fight ends (GameManager frees it). A model still falling, or
+# celebrating because the enemy side won, is left behind as a stand-in that finishes and then
+# disappears. Visual only: the Unit itself is gone at once.
+func leave_fight(enemy_won: bool):
+	if model_view != null and visible and (dead or enemy_won) and is_inside_tree():
+		var holder: Node3D = $ModelHolder
+		var stand_in := Node3D.new()
+		stand_in.name = "StandIn"
+		board.get_parent().add_child(stand_in)
+		stand_in.global_transform = global_transform
+		remove_child(holder)
+		stand_in.add_child(holder)
+		model_view.unit = null
+		var left := model_view.death_left() + 0.4
+		if not dead:
+			model_view.on_fight_over(true)
+			left = UnitModel.VICTORY_TIME
+		get_tree().create_timer(left).timeout.connect(stand_in.queue_free)
+		model_view = null
+	queue_free()
+
+# won: the player won the fight; surviving units with a model celebrate (visual only).
+func end_combat(won := false):
+	var celebrate := won and not dead and team == 0
 	moving = false
 	dead = false
 	visible = true
+	_hide_in = -1.0
+	if team == 0:
+		rotation = Vector3.ZERO   # face the enemy side again
+	if model_view != null:
+		model_view.on_fight_over(celebrate)
 	clear_bonuses()   # synergies are re-applied at the next combat start
 	health = max_hp()
 	target = null
@@ -231,6 +313,8 @@ func combat_step(delta: float):
 			return
 		if cooldown <= 0.0:
 			cooldown = attack_interval()
+			if model_view != null:
+				model_view.on_attack(cooldown)
 			var dmg := damage()
 			damage_dealt += target.take_damage(dmg)
 			gain_mana(MANA_PER_ATTACK)
@@ -259,8 +343,14 @@ func take_damage(amount: float) -> float:
 	gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
 	if health <= 0.0:
 		dead = true
-		visible = false
 		board.vacate(self)
+		if model_view != null:
+			model_view.on_death()   # stays visible while it falls; _process hides it after
+			_hide_in = model_view.death_left() + 0.4
+		else:
+			visible = false
+	elif model_view != null:
+		model_view.on_hit()
 	return removed
 
 func _face(u: Unit):
@@ -345,7 +435,7 @@ func _update_item_icons() -> void:
 		item_icons.top_level = true
 		add_child(item_icons)
 		if is_inside_tree():
-			item_icons.global_position = global_position + Vector3(0, BAR_HEIGHT + ICON_HEIGHT, 0)   # _process keeps it there
+			item_icons.global_position = global_position + Vector3(0, bar_height + ICON_HEIGHT, 0)   # _process keeps it there
 	for c in item_icons.get_children():
 		item_icons.remove_child(c)
 		c.queue_free()
@@ -380,6 +470,8 @@ func _cast(target_unit: Unit):
 	mana = 0.0
 	_last_mana_ratio = -1.0
 	_ability().cast(self, target_unit)
+	if model_view != null:
+		model_view.on_cast()
 	_cast_popup()
 
 func _cast_popup():
@@ -391,9 +483,9 @@ func _cast_popup():
 	l.modulate = Color(0.55, 0.85, 1.0)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
-	l.position = Vector3(0, BAR_HEIGHT + 0.3, 0)
+	l.position = Vector3(0, bar_height + 0.3, 0)
 	add_child(l)
 	var t := create_tween()
-	t.tween_property(l, "position:y", BAR_HEIGHT + 0.9, 0.6)
+	t.tween_property(l, "position:y", bar_height + 0.9, 0.6)
 	t.parallel().tween_property(l, "modulate:a", 0.0, 0.6)
 	t.tween_callback(l.queue_free)
