@@ -30,8 +30,9 @@ res://
   scenes/        menu.tscn (main menu, the project's main scene), main.tscn (a run), Tiles.tscn (one hex tile), unit.tscn, ui.tscn (all in-run UI, instanced in main)
   Scripts/       all .gd files
   models/units/  the unit models: <unit>_<n>star.glb for 1-3 stars (voxel, rigged, animated; from menagerie/)
+  textures/ui/shop/ shop art for a later reskin (not used yet): shop_strip_background, unit_slot_1-5 (one per cost), unit_silhouette_1-5, buy_xp_panel, reroll_panel, level_gold_panel, gold_icon
   scenes/models/ one wrapper scene per modelled unit (UnitModel root + its three star glbs); UnitData.model points here
-  menagerie/     art drop from a separate chat: README (model format, clips, impact frames), hud/HUD_SPEC.md, previews, vox, the generator, the unused 4-star glbs. Has a .gdignore, so Godot never imports it
+  menagerie/     art drop from a separate chat: README (model format, clips, impact frames), hud/HUD_SPEC.md (with mockups hud_states_sheet.png, hp_standings_mockup.png, timer_round_mockup.png), previews, vox, the generator, the unused 4-star glbs. Has a .gdignore, so Godot never imports it
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
   tres/items/    ItemData .tres files (one per item)
   tres/campaign/ campaign.tres -> chapter_1..3.tres -> levels/ch1_l*, ch2_l*, ch3_l*.tres (waves embedded in each level); tutorial.tres
