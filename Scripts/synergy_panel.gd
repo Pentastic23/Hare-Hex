@@ -26,7 +26,7 @@ func _ready():
 	header.add_theme_font_size_override("font_size", 16)
 	header.add_theme_color_override("font_color", GOLD)
 	header.add_theme_color_override("font_hover_color", Color.WHITE)
-	header.tooltip_text = "Show or hide the synergy list."
+	header.tooltip_text = Tip.wrap("Show or hide the synergy list.")
 	header.pressed.connect(func():
 		expanded = not expanded
 		Settings.show_synergies = expanded
@@ -90,7 +90,7 @@ func _refresh():
 			parts.append(str(th))
 		var l := Label.new()
 		l.text = "%s  %d/%d" % [tag, n, Synergies.next_threshold(tag, n)]
-		l.tooltip_text = "%s\nTiers: %s units" % [Synergies.DEFS[tag]["desc"], " / ".join(parts)]
+		l.tooltip_text = Tip.wrap("%s\nTiers: %s units" % [Synergies.DEFS[tag]["desc"], " / ".join(parts)])
 		l.mouse_filter = Control.MOUSE_FILTER_STOP
 		l.modulate = GOLD if t >= 0 else Color(0.65, 0.65, 0.65)
 		list.add_child(l)

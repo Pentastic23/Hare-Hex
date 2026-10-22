@@ -90,7 +90,7 @@ func _process(delta):
 func _update_buttons():
 	var s: Dictionary = _steps[step]
 	next_button.disabled = s.has("next_when") and not s.next_when.call()
-	next_button.tooltip_text = "After the fight." if next_button.disabled else ""
+	next_button.tooltip_text = Tip.wrap("After the fight.") if next_button.disabled else ""
 	var gm = _gm()
 	fight_button.visible = gm != null and gm.phase == Events.Phase.PREP and step >= 3 and not gm.game_over and not next_button.visible
 

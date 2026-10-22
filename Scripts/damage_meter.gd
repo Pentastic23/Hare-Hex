@@ -32,7 +32,7 @@ func _ready():
 	header.focus_mode = Control.FOCUS_NONE
 	header.add_theme_font_size_override("font_size", 16)
 	header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	header.tooltip_text = "Click to switch between damage dealt and damage taken."
+	header.tooltip_text = Tip.wrap("Click to switch between damage dealt and damage taken.")
 	header.pressed.connect(func():
 		show_taken = not show_taken
 		_refresh())

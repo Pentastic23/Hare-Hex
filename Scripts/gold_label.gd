@@ -18,5 +18,5 @@ func _get_tooltip(_at_position: Vector2) -> String:
 	var base: int = GameState.base_income_for_round(next_round)
 	var interest: int = GameState.me.interest_gold()
 	var streak: int = GameState.me.streak_bonus()
-	return "Next round income\nBase: %d\nInterest: %d\nStreak: %d\nTotal: %d" % [
-		base, interest, streak, base + interest + streak]
+	return Tip.wrap("Next round income\nBase: %d\nInterest: %d\nStreak: %d\nTotal: %d" % [
+		base, interest, streak, base + interest + streak])

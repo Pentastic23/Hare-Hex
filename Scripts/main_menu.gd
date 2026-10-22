@@ -13,7 +13,7 @@ const TUTORIAL_PATH := "res://tres/campaign/tutorial.tres"
 const GOLD := Color(1.0, 0.85, 0.3)
 const GREY := Color(0.65, 0.65, 0.7)
 const PVP_TINT := Color(0.7, 0.85, 1.0)
-const ASYNC_PVP_TIP := "Free-play rules, but every round you fight a ghost: a board saved from an earlier run, recorded at the same round. Your own boards are saved too. With no ghosts saved yet you meet random enemies. Boards stay on this PC for now."
+const ASYNC_PVP_TIP := "Free play against ghosts: boards saved from earlier runs. Your own boards are saved too. No ghosts yet? You meet random enemies."
 const LIVE_PVP_TEXT := "Real-time matches with up to 8 players on a server: one shared unit pool, a fight against another player every round, last one standing wins.\n\nComing later. Async PvP comes first."
 
 var campaign: Campaign
@@ -51,13 +51,13 @@ func _ready():
 
 	main_box.add_child(_section("SINGLE PLAYER"))
 	tutorial_button = _button(main_box, "Tutorial", _start_tutorial)
-	tutorial_button.tooltip_text = "A short guided level that teaches buying, placing, merging, synergies, items and levelling up."
+	tutorial_button.tooltip_text = Tip.wrap("A short guided level that teaches buying, placing, merging, synergies, items and levelling up.")
 	_button(main_box, "Campaign", func(): _show_panel(campaign_panel))
-	_button(main_box, "Free Play", func(): _start(null, {})).tooltip_text = "39 rounds against random enemies. No campaign rules."
+	_button(main_box, "Free Play", func(): _start(null, {})).tooltip_text = Tip.wrap("39 rounds against random enemies. No campaign rules.")
 
 	main_box.add_child(_section("PVP"))
 	var async_btn := _button(main_box, "Async PvP", func(): _start(null, {}, true))
-	async_btn.tooltip_text = ASYNC_PVP_TIP
+	async_btn.tooltip_text = Tip.wrap(ASYNC_PVP_TIP)
 	var live_btn := _button(main_box, "Live PvP   (coming soon)", func(): _show_info("Live PvP", LIVE_PVP_TEXT))
 	for b in [async_btn, live_btn]:
 		b.modulate = PVP_TINT
@@ -215,13 +215,13 @@ func _fill_campaign_list():
 			else:
 				status = "Locked"
 			var row := _label("  %d. %s  (%d waves)   %s" % [i + 1, level.display_name, level.waves.size(), status], 18, color)
-			row.tooltip_text = level.description
+			row.tooltip_text = Tip.wrap(level.description)
 			row.mouse_filter = Control.MOUSE_FILTER_STOP
 			list.add_child(row)
 		var start := _button(list, "Start %s" % ch.display_name, _start_chapter.bind(ch))
 		start.disabled = not campaign.is_unlocked(ch.levels[0])
 		if start.disabled:
-			start.tooltip_text = "Complete the previous chapter first."
+			start.tooltip_text = Tip.wrap("Complete the previous chapter first.")
 
 func _build_settings_panel() -> PanelContainer:
 	var panel := _panel()

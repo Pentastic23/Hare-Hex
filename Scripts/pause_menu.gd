@@ -35,7 +35,7 @@ func _ready():
 	box.add_child(title)
 	_button(box, "Resume", close)
 	var to_menu := _button(box, "Main menu", func(): GameState.go_to_menu())
-	to_menu.tooltip_text = "Campaign: your run continues from the start of this level."
+	to_menu.tooltip_text = Tip.wrap("Campaign: your run continues from the start of this level.")
 	if OS.get_name() != "Web":
 		_button(box, "Quit game", func(): get_tree().quit())
 

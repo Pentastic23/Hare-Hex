@@ -55,7 +55,7 @@ func _meter():
 func _button(label: String, tip: String) -> Button:
 	var b := Button.new()
 	b.text = label
-	b.tooltip_text = tip
+	b.tooltip_text = Tip.wrap(tip)
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(84, 34)
 	b.add_theme_font_size_override("font_size", 15)

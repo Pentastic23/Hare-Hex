@@ -22,5 +22,5 @@ func _update(s: int, r: int):
 		for bu in wave.units:
 			if bu != null and bu.unit != null:
 				lines.append("%s %s%s" % [bu.unit.display_name, "*".repeat(bu.star), ("  (%d items)" % bu.items.size()) if not bu.items.is_empty() else ""])
-	tooltip_text = "Enemies this wave:\n" + "\n".join(lines) if not lines.is_empty() else ""
+	tooltip_text = Tip.wrap("Enemies this wave:\n" + "\n".join(lines)) if not lines.is_empty() else ""
 	mouse_filter = Control.MOUSE_FILTER_STOP if tooltip_text != "" else Control.MOUSE_FILTER_IGNORE

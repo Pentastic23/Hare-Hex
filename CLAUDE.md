@@ -32,7 +32,7 @@ res://
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
   tres/items/    ItemData .tres files (one per item)
   tres/campaign/ campaign.tres -> chapter_1..3.tres -> levels/ch1_l*, ch2_l*, ch3_l*.tres (waves embedded in each level); tutorial.tres
-  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn, combat_checks.tscn, tutorial_checks.tscn, pvp_checks.tscn)
+  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn, combat_checks.tscn, tutorial_checks.tscn, pvp_checks.tscn, tooltip_checks.tscn)
   docs/          design docs (items-plan.md, campaign-and-opponents.md, item-ideas.md, multiplayer-design.md)
   addons/        third-party plugins; don't edit
 ```
@@ -119,6 +119,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | `unit.gd` (class Unit) | Stats, star level, combat step (tick-stepped movement, `take_damage` returns HP removed), health/mana bars, letter label, synergy bonus fields, items (`items`, `item_*` fields, `equip` / `set_items` / `take_items`, item icons above the health bar), placeholder ability casting |
 | `item_data.gd` (class ItemData) | Resource: stable `id`, name, description, color, stat boosts (hp, dmg, attack_speed, mana, damage_reduction, lifesteal) |
 | `item_bar.gd` | Inventory panel: one button per item, starts item drags, drag ghost label |
+| `tip.gd` (class Tip) | `Tip.wrap(text)` word-wraps tooltip text at 340 px (Godot does not wrap tooltips); `Tip.width_of(line)` measures a line; every tooltip goes through it |
 | `unit_data.gd` (class UnitData) | Resource: name, cost, stats, tags, mana, model, ability |
 | `ability.gd` (class Ability) | Resource base class; `cast(caster, target)` does nothing yet (placeholder) |
 | `synergies.gd` (class Synergies) | Static synergy table + count (units) / count_data (UnitData, for the planner) / active_tier / next_threshold / apply |
@@ -260,6 +261,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 
 ## Conventions and gotchas
 
+- **Tooltips must be wrapped.** Godot does not wrap tooltip text, so a long single line runs off the screen (the Async PvP tooltip was 1783 px wide in a 1152 px window). Always write `tooltip_text = Tip.wrap("...")` (or `return Tip.wrap(...)` from `_get_tooltip`); `Tip.wrap` breaks lines at 340 px using the real font, keeping your own newlines. Keep tooltips short anyway. `tools/tooltip_checks` builds every screen and measures every tooltip (the free-play HUD, planner, items, all synergy tags, menu panels, campaign stage label, tutorial); run it after adding any tooltip.
 - One function per name per script: Godot errors on duplicates, and many past bugs were leftover copies of replaced functions.
 - When looping over untyped arrays or dictionaries, type variables explicitly (`var c: Vector2i = key`) to avoid "cannot infer type" errors.
 - Exported scene references (`@export var tile_scene`) reset when a script is re-attached; prefer `preload`.
@@ -276,6 +278,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Combat checks: `... res://tools/combat_checks.tscn --fixed-fps 60` (12 checks: the same fight resolved repeatedly, real time == `resolve_combat()`, node order irrelevant, target ties, seeded shops/enemies/drops, per-player state). `-- realtime` prints the fight's SIGNATURE line; compare it across `--fixed-fps 30` and `--fixed-fps 144` runs to prove frame-rate independence.
 - Tutorial checks: `... res://tools/tutorial_checks.tscn --fixed-fps 60` (27 checks: every tutorial step with game actions, Watch waiting for Next, sell and lock steps, Start fight, end screen, saved chapter run untouched by winning or losing the tutorial). Run after changing the tutorial, end screen, GameManager phase flow or the chapter-run code.
 - PvP checks: `... res://tools/pvp_checks.tscn --fixed-fps 60` (33 checks: board mirroring and hex distances, snapshot capture/JSON round trip, balance hash, the local store (fetch rules, neighbouring rounds, level fit, corrupt files, pruning), the ghost provider and its fallback, a ghost fight twice, recording in free play, the ghost-mode top bar). Uses its own snapshot folder. Run after changing snapshots, opponent providers, GameManager.start_combat or the units/items stats (the balance hash). New tests that start free-play or ghost runs headless are safe: they write to `snapshots_headless`.
+- Tooltip checks: `... res://tools/tooltip_checks.tscn --fixed-fps 60` (12 checks: the measurement itself, a control case proving an unwrapped tooltip is flagged, and every tooltip on the menu panels, a free-play run, the biggest campaign wave and the tutorial; 44 distinct tooltips, widest line 339 px against a 360 px limit). Run it after adding or changing any tooltip or the text in one.
 - When a test awaits a game signal (e.g. `combat_ended`), read what it needs right away and `await get_tree().process_frame` before freeing the scene: freeing it inside the signal crashes Godot.
 - The main scene is menu.tscn. To jump straight into a run while testing, open main.tscn and press F6 (Run Current Scene); Debug Level applies there.
 - Never use a level's `id` for two levels, and never rename one: the save file keys progress by it.

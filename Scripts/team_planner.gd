@@ -134,7 +134,7 @@ func _rebuild():
 			tags.append(String(t))
 		var have := int(owned.get(d.display_name, 0))
 		b.text = "%s%s\n%dg  %s" % ["* " if on else "", d.display_name, d.cost, ("owned x%d" % have) if have > 0 else ""]
-		b.tooltip_text = "%s (%d gold)\n%s\nClick to %s the plan." % [d.display_name, d.cost, ", ".join(tags), "remove from" if on else "add to"]
+		b.tooltip_text = Tip.wrap("%s (%d gold)\n%s\nClick to %s the plan." % [d.display_name, d.cost, ", ".join(tags), "remove from" if on else "add to"])
 		b.add_theme_font_size_override("font_size", 14)
 		for state in ["normal", "hover", "pressed"]:
 			b.add_theme_stylebox_override(state, _style_on if on else _style_off)

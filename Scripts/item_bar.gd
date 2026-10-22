@@ -23,7 +23,7 @@ func _ready():
 	header.add_theme_font_size_override("font_size", 16)
 	header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	header.add_theme_color_override("font_hover_color", Color.WHITE)
-	header.tooltip_text = "Show or hide your items."
+	header.tooltip_text = Tip.wrap("Show or hide your items.")
 	header.pressed.connect(func():
 		expanded = not expanded
 		Settings.show_items = expanded
@@ -78,7 +78,7 @@ func _make_button(item: ItemData, index: int) -> Button:
 	b.custom_minimum_size = SLOT
 	b.focus_mode = Control.FOCUS_NONE
 	b.text = item.display_name.substr(0, 2).to_upper()
-	b.tooltip_text = "%s\n%s" % [item.display_name, item.description]
+	b.tooltip_text = Tip.wrap("%s\n%s" % [item.display_name, item.description])
 	b.add_theme_font_size_override("font_size", 20)
 	b.add_theme_color_override("font_color", Color.WHITE)
 	b.add_theme_color_override("font_hover_color", Color.WHITE)

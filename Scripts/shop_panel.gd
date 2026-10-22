@@ -33,12 +33,12 @@ func _on_lock_changed(on: bool):
 	# A locked shop can't be rerolled; unlocking and rerolling replaces all five offers.
 	var reroll: Button = $HBoxContainer/RerollButton
 	reroll.disabled = on
-	reroll.tooltip_text = "Unlock the shop to reroll." if on else ""
+	reroll.tooltip_text = Tip.wrap("Unlock the shop to reroll.") if on else ""
 
 func _small_button(label: String, tip: String) -> Button:
 	var b := Button.new()
 	b.text = label
-	b.tooltip_text = tip
+	b.tooltip_text = Tip.wrap(tip)
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(72, 60)
 	b.add_theme_font_size_override("font_size", 15)
