@@ -31,7 +31,9 @@ res://
   Scripts/       all .gd files
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
   tres/items/    ItemData .tres files (one per item)
-  docs/          design plans (items-plan.md)
+  tres/campaign/ campaign.tres -> chapter_1.tres -> levels/ch1_l*.tres (waves embedded in each level)
+  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn)
+  docs/          design docs (items-plan.md, campaign-and-opponents.md, item-ideas.md)
   addons/        third-party plugins; don't edit
 ```
 
@@ -56,7 +58,7 @@ Main (Node3D)
      └─ Camera3D                  pos (0, 10, 9.5), rot ~(-55, 0, 0)
 ```
 
-The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 10 unit .tres files (this is the **roster**, not the shared pool), `item_roster` = the 6 item .tres files, `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05`.
+The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 10 unit .tres files (this is the **roster**, not the shared pool), `item_roster` = the 6 item .tres files, `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05` (free-play random enemies). `debug_level` (CampaignLevel) is empty in the committed main.tscn (free play): set it in the Inspector to a level file such as `tres/campaign/levels/ch1_l1.tres` to play the campaign until the main menu exists. Always load a level **file** into it; a "New CampaignLevel" has no waves, so the game warns and plays free play instead. `continue_saved_run` (default on): with Debug Level set, launching continues the saved chapter run if it's in the same chapter.
 
 **ui.tscn** (root `UI`, CanvasLayer):
 
@@ -64,7 +66,7 @@ The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 1
 UI
  ├─ TopBar (HBoxContainer, top center)
  │   ├─ Timer (Label)             no script, unused
- │   └─ StageLabel                stage_label.gd
+ │   └─ StageLabel                stage_label.gd ("Stage 2-4", or "Level name   Wave 2/5: Wave name" in a campaign, tooltip lists the wave's enemies)
  ├─ ShopPanel (PanelContainer, bottom center)   shop_panel.gd
  │   └─ HBoxContainer
  │       ├─ StatBox/VBoxContainer: Gold (gold_label.gd), Level (label.gd = XP/level label)
@@ -75,7 +77,7 @@ UI
  │   └─ InfoRow (HBox): BoardLabel (board_label.gd, unit cap), StreakLabel (streak_label.gd)
  ├─ HpLabel                       hp_label.gd (right side)
  ├─ "End Screen" (ColorRect)      end_screen.gd
- │   └─ CenterContainer/Backing/Margin/VBoxContainer: TitleLabel, DetailLabel, RestartButton
+ │   └─ CenterContainer/Backing/Margin/VBoxContainer: TitleLabel, DetailLabel, RestartButton (a "Next level" button is added in code, campaign only)
  ├─ SynergyBox (PanelContainer, panel_style.tres)
  │   └─ SynergyPanel (VBoxContainer)   synergy_panel.gd
  ├─ UnitInspector (PanelContainer, panel_style.tres)   unit_inspector.gd
@@ -94,7 +96,7 @@ Several node names contain spaces ("Game Manager", "End Screen", "Slot 1"). Any 
 ## Autoloads
 
 - **Events** (`events.gd`): all global signals, plus `enum Phase { PREP, COMBAT, RESULT }`.
-- **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `items` (unequipped item inventory), `ITEM_DROP_ROUNDS`, `reset()`.
+- **GameState** (`GameState.gd`): gold, level, xp, round_number, player_hp, streaks, shop odds, income, stage math, `items` (unequipped item inventory), `ITEM_DROP_ROUNDS` / `item_drop_rounds()`, `reset()`, and the run setup: `run_level` (CampaignLevel or null = free play), `run_campaign`, `start_hp` (also the HP-pack cap), `run_carry` (chapter run state for the next level), `run_carried`, `begin_run(level, campaign) -> carry` (reset + level modifiers, or the carried gold/level/XP/HP), `heal(n)`. `run_level` / `run_campaign` / `run_carry` survive `reset()`.
 
 Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`, `combat_ended`, `xp_changed`, `reroll_pressed`, `buy_xp_pressed`, `board_limit_hit`, `round_changed`, `streak_changed`, `hp_changed`, `unit_sold(data, star, refund)`, `run_won`, `run_lost`, `items_changed`, `item_drag_started(index)`, `item_drag_ended`.
 
@@ -112,9 +114,13 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | `unit_data.gd` (class UnitData) | Resource: name, cost, stats, tags, mana, model, ability |
 | `ability.gd` (class Ability) | Resource base class; `cast(caster, target)` does nothing yet (placeholder) |
 | `synergies.gd` (class Synergies) | Static synergy table + count / tier / apply |
-| `game_manager.gd` | Phase loop, shop rolling (from `shared_pool`), buying, enemy spawning, combat loop, end of combat, run end |
+| `game_manager.gd` | Run setup (`_begin_run`: free play or campaign level, shop roster, opponent provider), phase loop, shop rolling (from `shared_pool`), buying, enemy spawning (`spawn_board`), combat loop, end of combat (HP packs), run end (records campaign completion; `make_carry` / `_restore_carry` move the board between chapter levels) |
+| `enemy_board.gd` (class EnemyBoard), `board_unit.gd` (class BoardUnit) | The enemy-side format: units with star, coord, items; `stat_scale`, `use_synergies`; `to_dict()` / `from_dict()` for saves and snapshots |
+| `opponent_provider.gd` (class OpponentProvider) | `board_for_round(round) -> EnemyBoard`; implemented by `random_opponents.gd` (free play) and `wave_opponents.gd` (campaign) |
+| `campaign.gd`, `campaign_chapter.gd`, `campaign_level.gd` | Campaign data: chapters, levels (waves + modifiers + rewards), unlock order, `validate()` |
+| `save_game.gd` (class SaveGame) | Static save system: campaign progress and unlocks in `user://save.json` |
 | `drag_controller.gd` | Left-drag units, swaps, snapping (board tiles only on the player half, rows 4-7; a drop on an enemy-side tile returns the unit to where it came from), sell zone, F-to-sell, drag cancel on phase change; dropping dragged items on units (`equip_item_on`) |
-| `unit_pool.gd` (class UnitPool) | Shared unit pool: copies left per UnitData, weighted `pick(cost)`, `take` / `give_back`, `copies_in(star)` |
+| `unit_pool.gd` (class UnitPool) | Shared unit pool: copies left per UnitData, weighted `pick(cost)`, `take` / `take_copies` / `give_back`, `copies_in(star)` |
 | `shop_slot.gd` (class ShopSlot) | Shop button; checks gold and bench space (in PREP, completing a merge also counts); `clear_offer()` for empty slots |
 | `shop_panel.gd` | Wires shop buttons, fills slots from `shop_rolled` |
 | UI labels | `gold_label.gd`, `label.gd` (XP/level), `stage_label.gd`, `hp_label.gd`, `odds_label.gd`, `streak_label.gd`, `board_label.gd`, `bottom_info.gd`, `synergy_panel.gd`, `unit_inspector.gd`, `end_screen.gd` |
@@ -154,16 +160,28 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 
 **Mana:** +10 per attack, +10% of damage taken (max 15 per hit). Resets to `start_mana` each fight. At full mana the unit casts its ability (placeholder: shows a "CAST" popup, does nothing) and mana resets to 0.
 
-**Enemies:** Count = player's unit cap (level), with a 30% chance of +1 or -1, clamped to open enemy tiles. Unit cost limited early (`max_cost = 1 + round/3`). Stats scaled by `enemy_base_scale + enemy_scale_per_round * (round-1)`. Placed with `put_enemy_on_tile` (never the bench). Enemies have no synergies or star levels yet.
+**Enemies:** GameManager asks its `OpponentProvider` for an `EnemyBoard` each fight and places it with `spawn_board()` (details: `docs/campaign-and-opponents.md`).
+- Free play (`RandomOpponents`): count = player's unit cap, with a 30% chance of +1 or -1. Unit cost limited early (`max_cost = 1 + round/3`). Stats scaled by `enemy_base_scale + enemy_scale_per_round * (round-1)`. Random tiles, no stars, items or synergies (balance unchanged from before).
+- Campaign (`WaveOpponents`): the level's authored wave for that round, times the level's `enemy_stat_mult`. Units can have stars, items and set tiles, and get synergies.
+- Placement: only unlocked, empty enemy tiles (they unlock with the player's level). A set tile that's locked or taken falls back to the nearest open one; units that don't fit are skipped with a warning. Placed with `put_enemy_on_tile` (never the bench).
 
-**Player HP:** Starts at 100. Loss damage = `round(5 * stage + 0.25 * sum of surviving enemy star levels)`. HP 0 = defeat screen; finishing the last round = victory screen. Restart calls `GameState.reset()` then reloads the scene.
+**Campaign:** `Campaign` -> `CampaignChapter` -> `CampaignLevel` in `tres/campaign/`. A level has one round per wave plus settings (start gold/level/HP for fresh starts, `start_heal`, income bonus, enemy strength, `loss_damage`, prep time, item drop rounds, allowed shop units) and `unlocks`. Waves (`EnemyBoard`) can have an `hp_reward`.
+- **A chapter is one run (roguelite):** the first level starts fresh at 100 HP. Completing a level carries everything into the next level of the chapter: board and bench units (stars, items, tiles/slots), item bar, gold, player level, XP and HP. HP packs: the next level's `start_heal` on arrival plus `hp_reward` for beating certain waves; HP never exceeds the run's start HP.
+- A level is complete when every wave is survived **and the last wave is won**; completion is saved. **Defeat ends the chapter run**: Restart chapter goes back to its first level with an empty board. Finishing the last level completes the chapter; the next chapter starts fresh.
+- The chapter run is saved (`SaveGame` `chapter_run`) when a level is completed, so quitting and continuing restarts the next level with the saved board.
+- End screen: LEVEL COMPLETE with only Next level; CHAPTER COMPLETE with Next chapter (if any) / Play chapter again; DEFEAT with Restart chapter. Levels unlock in order (the first is always open). The top bar shows "Level name   Wave x/y: wave name" (hover for the enemies).
+- `CampaignLevel.validate()` / `Campaign.validate()` report authoring mistakes and run at level start. Sample chapter 1 (3 levels, 100 HP, later levels much stronger to match carried boards) is tuned with `tools/bot_playtest -- chapter`: the bot clears level 1 ~90%, level 2 ~80% and level 3 ~55% of the time it reaches them, and finishes the chapter in ~40% of runs. Details: `docs/campaign-and-opponents.md`.
+
+**Saves:** `SaveGame` (static, no autoload) keeps campaign progress (`completed_levels`: best HP, times, first completion), `unlocks` and the `chapter_run` in progress in `user://save.json` (version 2; version 1 files load fine). Writes go through a temp file; an unreadable save is copied to `.corrupt` and progress starts empty. Progress inside a level isn't saved.
+
+**Player HP:** Starts at 100. Loss damage = `round(5 * stage + 0.25 * sum of surviving enemy star levels)`; in a campaign level with `loss_damage` set, that replaces `5 * stage` (rounds restart every level, so the stage stays low). HP 0 = defeat screen; finishing the last round = victory screen (campaign: only if the last wave was won). HP label colours are relative to `GameState.start_hp`. Restart calls `GameState.reset()` then reloads the scene (campaign: from the chapter's first level).
 
 **Items:** `ItemData` resources in `tres/items/` (Iron Belt +150 HP, Longsword +15 dmg, Quick Bow +15% attack speed, Mana Charm +15 start mana, Chain Vest +10% damage reduction, Blood Fang +10% lifesteal). Details and reasoning in `docs/items-plan.md`.
 - **Drops:** a random item from `GameManager.item_roster` at PREP start on rounds in `GameState.ITEM_DROP_ROUNDS` (1-2, 1-3, and the last round of stages 2-6) goes into `GameState.items`. The inventory is unlimited and cleared by `reset()`.
 - **Equipping:** drag an item from the item bar onto one of your units (board or bench, any phase, including units that are fighting). Max 3 items per unit; dead units, enemies and full units refuse. Released over the UI, enemies or empty ground, the item stays in the inventory. Fighting units get the boost immediately (HP is added to current health; mana item adds to current mana once).
 - **No removal:** items only leave a unit when it is sold (they return to the inventory) or merged (the kept unit takes them up to 3, extras return). Units removed for lack of room also return their items.
 - **Stats:** kept in `Unit.item_*` fields, separate from the synergy `bonus_*` fields (those are cleared every combat). Flat HP and damage add to base stats before the star and synergy multipliers (so they scale with stars); attack speed, damage reduction and lifesteal add to the synergy percentages; item mana adds to starting mana. The 60% damage-reduction cap covers both sources.
-- **Enemies have no items yet.** `Unit.set_items(list)` is the hook for the opponent provider, and board entries should carry `items`. Items must be saved by `ItemData.id` (never rename an id).
+- **Enemies:** free-play random enemies have no items; campaign waves can give enemies items (`BoardUnit.items`, applied with `Unit.set_items`). Items are saved by `ItemData.id` (never rename an id).
 
 **Synergies:** Each unique unit on the board counts once per tag. `Synergies.apply()` clears and re-applies bonuses at combat start; `Unit.end_combat()` clears them again.
 
@@ -222,15 +240,19 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Combat is not deterministic yet (tweens + frame delta + unseeded random). Required before networked PvP.
 - `game_manager.gd` joins group `game_manager`; other scripts find it with `get_first_node_in_group` (its node name "Game Manager" has a space, so path lookups are fragile).
 - `GameManager.unit_pool` is the roster export (all unit types). The limited-copies pool is `GameManager.shared_pool` (UnitPool). Don't confuse them, and don't rename the export (main.tscn stores its value by name).
-- Testing without the editor: `Godot_v4.7.2-stable_win64.exe --headless --path . --quit-after 600` runs the main scene for ~10 s and prints script errors. Autoloads don't exist in `--script` mode, so test scripts that touch GameState/Events must run through the main scene.
+- Testing without the editor: `Godot_v4.7.2-stable_win64.exe --headless --path . --quit-after 600` runs the main scene for ~10 s and prints script errors. Autoloads don't exist in `--script` mode, so test scripts that touch GameState/Events must run through the main scene. After adding a new `class_name` script, headless runs don't know the class until Godot rescans: open the editor, or run `--headless --path . --import` once.
+- Balance check for the campaign: `Godot_v4.7.2-stable_win64.exe --headless --path . res://tools/bot_playtest.tscn --fixed-fps 60 -- chapter` (12 bot chapter runs with carried boards, about a minute). Without arguments it plays each level fresh; add level paths after `--` for single levels, or `-- free` for a 15-round free-play smoke test.
+- Regression checks for opponents, campaign and saves: `... res://tools/campaign_checks.tscn --fixed-fps 60` (69 checks, ~20 s; must end with `RESULT: ALL PASS`; tests override Debug Level, so main.tscn's setting doesn't matter). Run it after changing game_manager.gd, GameState.gd, the campaign scripts or save_game.gd.
+- Never use a level's `id` for two levels, and never rename one: the save file keys progress by it.
 
 ---
 
 ## Current status (2026-10-21)
 
-- Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, items, unit inspector, end screen.
-- Last finished: Items (roadmap item 3), all steps of `docs/items-plan.md`. Checked headless, including simulated mouse drags (equip in prep, on the bench, on a fighting unit; refused on enemies, full units, empty ground and over the UI). Not yet tried by hand in the game window.
-- Next: playtest Items by hand, then the opponent provider layer (roadmap item 4, Opus plans it first).
+- Working: full run loop (prep/combat/result over 39 rounds), economy, leveling, board unlocks, shop odds, shared unit pool, merging, selling, synergies, items, unit inspector, end screen, opponent providers, campaign chapter runs with carried boards (via `debug_level`), campaign saves.
+- Last finished (2026-10-21, Opus, **not committed yet**): opponent provider layer, campaign structure, save system, then (after the user's design review) chapter runs: boards/gold/level/items/HP carry between levels, HP packs, roguelite defeat, saved chapter run, `loss_damage`, sample levels retuned for carried boards. Checked headless (69 checks + bot chapter runs). The user played level 1 under the old rules; the chapter-run version is not yet played by hand. Design decisions (all confirmed) are at the end of `docs/campaign-and-opponents.md`.
+- Next: playtest a full chapter run, then the main menu (roadmap 8) with Continue / chapter select / free play.
+- Ideas for later: `docs/item-ideas.md` (item mechanics brainstorm; resonance/item combinations first).
 
 ## Known issues
 
@@ -254,16 +276,16 @@ Model tags: **[Sonnet]** = do directly. **[Opus]** = recommend switching before 
 1. Abilities **[Opus plan, Sonnet build]**: real designs deferred until unit visuals exist; placeholder system is in place.
 2. ~~Shared unit pool~~: done (see Game rules).
 3. ~~Items~~: done (see Game rules and `docs/items-plan.md`). Not yet playtested by hand.
-4. **Opponent provider layer** (next up) **[Opus]**: it should also give enemies items (`Unit.set_items`). `_spawn_enemies()` asks a provider for a board (units, stars, tile positions) instead of rolling randomly. Its board format is reused by campaign waves and PvP snapshots, so get it right once.
+4. ~~Opponent provider layer~~: done (`EnemyBoard` format, `RandomOpponents`, `WaveOpponents`, `spawn_board`; see `docs/campaign-and-opponents.md`).
 
 ### Phase 2: Campaign
-5. Hand-authored waves as resources (plus bosses) **[Sonnet]**, once item 4's format exists.
-6. Campaign structure **[Opus]**: chapters/levels with their own waves, gold, modifiers.
-7. Save system **[Opus]** for progress and unlocks.
-8. Main menu with mode select **[Sonnet]**.
+5. Hand-authored waves as resources (plus bosses) **[Sonnet]**: format and 3 sample levels (18 waves, 3 bosses) done; more chapters and hand balancing still to do. Check difficulty with `tools/bot_playtest`.
+6. ~~Campaign structure~~: done (chapters as roguelite runs with carried boards, levels, modifiers, HP packs, unlock order, final-wave rule, end screen).
+7. ~~Save system~~: done for progress, unlocks and the chapter run in progress (`SaveGame`). Progress inside a level isn't saved.
+8. **Main menu with mode select** (next up) **[Sonnet]**: Continue (if `SaveGame.chapter_run()` isn't empty: set `GameState.run_level` to its level, `run_carry` to it), chapter select (start a chapter's first level fresh; `Campaign.is_unlocked()`, `SaveGame.best_hp()`), free play. Set `GameState.run_campaign`, then change to main.tscn. Remove the need for `debug_level`.
 
 ### Phase 3: PvP
-9. Board snapshots **[Sonnet]** in the same format as waves; fight your own past boards offline.
+9. Board snapshots **[Sonnet]** in the same format as waves (`EnemyBoard.to_dict()` / `from_dict()` exist); add a snapshot `OpponentProvider`; fight your own past boards offline.
 10. Deterministic combat **[Opus]** (seeded RNG, fixed timestep).
 11. Per-player state **[Opus]** (refactor global GameState).
 12. Async PvP **[Opus]**: fight other players' uploaded snapshots.

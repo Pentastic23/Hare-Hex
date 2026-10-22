@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CampaignChapter" format=3]
+
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="1_whfhk"]
+[ext_resource type="Resource" path="res://tres/campaign/levels/ch1_l1.tres" id="2_cgc7i"]
+[ext_resource type="Resource" path="res://tres/campaign/levels/ch1_l2.tres" id="3_aqf2i"]
+[ext_resource type="Resource" path="res://tres/campaign/levels/ch1_l3.tres" id="4_non3u"]
+[ext_resource type="Script" path="res://Scripts/campaign_chapter.gd" id="5_iv6x0"]
+
+[resource]
+script = ExtResource("5_iv6x0")
+id = &"ch1"
+display_name = "The Borderlands"
+description = "Defend the border, clear the woods, and climb to the dragon's roost."
+levels = Array[ExtResource("1_whfhk")]([ExtResource("2_cgc7i"), ExtResource("3_aqf2i"), ExtResource("4_non3u")])

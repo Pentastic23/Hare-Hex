@@ -24,6 +24,11 @@ const SHOP_ODDS := {
 const ITEM_DROP_ROUNDS := [2, 3, 9, 15, 21, 27, 33]
 
 var items: Array[ItemData] = []   # unequipped items the player owns
+var run_level: CampaignLevel = null    # the campaign level being played; null = free play
+var run_campaign: Campaign = null      # campaign that run_level belongs to (for "next level")
+var start_hp := MAX_HP                 # player HP this run started with; also the cap for HP packs
+var run_carry: Dictionary = {}         # chapter run state to load into the next level (GameManager.make_carry)
+var run_carried := false               # this level continued a chapter run (board carried over)
 var gold := 2:
 	set(v):
 		gold = v
@@ -52,6 +57,8 @@ func max_board_units() -> int:
 	return level
 
 func total_rounds() -> int:
+	if run_level != null and not run_level.waves.is_empty():
+		return run_level.waves.size()   # campaign: one round per wave
 	return FIRST_STAGE_ROUNDS + (TOTAL_STAGES - 1) * ROUNDS_PER_STAGE   # 39
 
 func stage() -> int:
@@ -70,8 +77,16 @@ func rounds_in_current_stage() -> int:
 func is_final_round() -> bool:
 	return round_number >= total_rounds()
 
-@warning_ignore("integer_division")
 func base_income_for_round(r: int) -> int:
+	return _standard_income(r) + (run_level.income_bonus if run_level != null else 0)
+
+func item_drop_rounds() -> Array:
+	if run_level != null and not run_level.item_drop_rounds.is_empty():
+		return run_level.item_drop_rounds
+	return ITEM_DROP_ROUNDS
+
+@warning_ignore("integer_division")
+func _standard_income(r: int) -> int:
 	if r <= FIRST_STAGE_ROUNDS:
 		if r == 1: return 0
 		if r == 2: return 2
@@ -114,7 +129,10 @@ func streak_bonus() -> int:
 	return 0
 
 func damage_for_loss(enemy_star_total: int) -> int:
-	return roundi(5.0 * stage() + 0.25 * enemy_star_total)
+	var base := 5.0 * stage()
+	if run_level != null and run_level.loss_damage > 0:
+		base = run_level.loss_damage   # campaign: rounds restart each level, so the level sets the stakes
+	return roundi(base + 0.25 * enemy_star_total)
 
 func reset():
 	gold = 2
@@ -128,3 +146,38 @@ func reset():
 	items.clear()
 	Events.items_changed.emit()
 	Events.streak_changed.emit(0, 0)
+
+# Starts a run: free play when lvl is null, otherwise that campaign level. If run_carry holds a
+# chapter run for this level, gold, level, XP and HP come from it (plus the level's start_heal);
+# otherwise the level's start modifiers apply. Returns the carry used (empty if none) so
+# GameManager can rebuild the board, bench and items. run_level / run_campaign survive reset().
+func begin_run(lvl: CampaignLevel = null, campaign: Campaign = null) -> Dictionary:
+	run_level = lvl
+	run_campaign = campaign
+	var carry: Dictionary = {}
+	if lvl != null and str(run_carry.get("level", "")) == String(lvl.id):
+		carry = run_carry
+	run_carry = {}
+	run_carried = not carry.is_empty()
+	if run_carried:
+		start_hp = int(carry.get("max_hp", MAX_HP))
+	else:
+		start_hp = lvl.player_hp if lvl != null else MAX_HP
+	reset()
+	if run_carried:
+		gold = int(carry.get("gold", 0))
+		level = int(carry.get("player_level", 1))
+		xp = int(carry.get("xp", 0))
+		player_hp = int(carry.get("hp", start_hp))
+		heal(lvl.start_heal)
+	elif lvl != null:
+		gold = lvl.start_gold
+		level = lvl.start_level
+		player_hp = lvl.player_hp
+	Events.xp_changed.emit(level, xp, xp_needed())
+	return carry
+
+# HP packs: restore HP, never above the run's starting HP.
+func heal(amount: int):
+	if amount > 0:
+		player_hp = mini(player_hp + amount, start_hp)

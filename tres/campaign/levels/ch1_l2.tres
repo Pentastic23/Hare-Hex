@@ -1,0 +1,167 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_xwwa3"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="2_qh2iu"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="3_m08we"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="4_0rjur"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="5_7jv6p"]
+[ext_resource type="Resource" path="res://tres/thief.tres" id="6_3lmiw"]
+[ext_resource type="Resource" path="res://tres/archer.tres" id="7_7y70c"]
+[ext_resource type="Resource" path="res://tres/assassin.tres" id="8_l7tt0"]
+[ext_resource type="Resource" path="res://tres/hunter.tres" id="9_4mov1"]
+[ext_resource type="Resource" path="res://tres/items/longsword.tres" id="10_trc54"]
+[ext_resource type="Resource" path="res://tres/items/blood_fang.tres" id="11_g4g1w"]
+
+[sub_resource type="Resource" id="Resource_oursp"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_h6y6f"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_1h5bw"]
+script = ExtResource("3_m08we")
+display_name = "Cutpurses"
+units = Array[ExtResource("4_0rjur")]([SubResource("Resource_oursp"), SubResource("Resource_h6y6f")])
+stat_scale = 0.6
+
+[sub_resource type="Resource" id="Resource_bo0yy"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_8yoan"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("7_7y70c")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_1ijkt"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("7_7y70c")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_dso5x"]
+script = ExtResource("3_m08we")
+display_name = "Ambush"
+units = Array[ExtResource("4_0rjur")]([SubResource("Resource_bo0yy"), SubResource("Resource_8yoan"), SubResource("Resource_1ijkt")])
+stat_scale = 0.7
+
+[sub_resource type="Resource" id="Resource_krxdx"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("8_l7tt0")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_5deej"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_eeltu"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("7_7y70c")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_4ug0c"]
+script = ExtResource("3_m08we")
+display_name = "Knives Out"
+units = Array[ExtResource("4_0rjur")]([SubResource("Resource_krxdx"), SubResource("Resource_5deej"), SubResource("Resource_eeltu")])
+stat_scale = 0.8
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_vx547"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("8_l7tt0")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_7y71j"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_128kg"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("9_4mov1")
+coord = Vector2i(3, 1)
+
+[sub_resource type="Resource" id="Resource_nde3w"]
+script = ExtResource("3_m08we")
+display_name = "Hunting Party"
+units = Array[ExtResource("4_0rjur")]([SubResource("Resource_vx547"), SubResource("Resource_7y71j"), SubResource("Resource_128kg")])
+stat_scale = 0.9
+
+[sub_resource type="Resource" id="Resource_k0trq"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("8_l7tt0")
+star = 2
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_4x2k3"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_lkjnh"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_tlnp5"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("7_7y70c")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_gkx7d"]
+script = ExtResource("3_m08we")
+display_name = "Gathering Dark"
+units = Array[ExtResource("4_0rjur")]([SubResource("Resource_k0trq"), SubResource("Resource_4x2k3"), SubResource("Resource_lkjnh"), SubResource("Resource_tlnp5")])
+
+[sub_resource type="Resource" id="Resource_l5dtf"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("8_l7tt0")
+star = 2
+coord = Vector2i(3, 3)
+items = Array[ExtResource("5_7jv6p")]([ExtResource("10_trc54"), ExtResource("11_g4g1w")])
+
+[sub_resource type="Resource" id="Resource_74v71"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("6_3lmiw")
+star = 2
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_ugj8a"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("7_7y70c")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_v7csx"]
+script = ExtResource("4_0rjur")
+unit = ExtResource("7_7y70c")
+coord = Vector2i(5, 2)
+
+[sub_resource type="Resource" id="Resource_cbfyw"]
+script = ExtResource("3_m08we")
+display_name = "The Night Blade"
+units = Array[ExtResource("4_0rjur")]([SubResource("Resource_l5dtf"), SubResource("Resource_74v71"), SubResource("Resource_ugj8a"), SubResource("Resource_v7csx")])
+stat_scale = 0.65
+hp_reward = 10
+
+[resource]
+script = ExtResource("2_qh2iu")
+id = &"ch1_l2"
+display_name = "Shadows in the Wood"
+description = "Something hunts in the forest. Extra gold each round, but the enemy strikes fast."
+waves = Array[ExtResource("3_m08we")]([SubResource("Resource_1h5bw"), SubResource("Resource_dso5x"), SubResource("Resource_4ug0c"), SubResource("Resource_nde3w"), SubResource("Resource_gkx7d"), SubResource("Resource_cbfyw")])
+start_gold = 10
+start_level = 3
+player_hp = 100
+start_heal = 10
+income_bonus = 1
+enemy_stat_mult = 1.8
+loss_damage = 10
+prep_time = 0
+item_drop_rounds = Array[int]([2, 4])
+allowed_units = Array[ExtResource("1_xwwa3")]([])
+unlocks = Array[StringName]([])

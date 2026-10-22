@@ -4,6 +4,7 @@ extends ColorRect
 @onready var title: Label = $CenterContainer/Backing/Margin/VBoxContainer/TitleLabel
 @onready var detail: Label = $CenterContainer/Backing/Margin/VBoxContainer/DetailLabel
 @onready var restart_button: Button = $CenterContainer/Backing/Margin/VBoxContainer/RestartButton
+var next_button: Button   # campaign only, after a completed level that has a next one
 
 func _ready():
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -39,16 +40,69 @@ func _ready():
 	restart_button.custom_minimum_size = Vector2(200, 56)
 	restart_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
+	next_button = Button.new()
+	next_button.text = "Next level"
+	next_button.custom_minimum_size = Vector2(200, 56)
+	next_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	next_button.visible = false
+	box.add_child(next_button)
+	box.move_child(next_button, restart_button.get_index())   # above Restart
+	next_button.pressed.connect(_next_level)
+
 	Events.run_lost.connect(func(): _show(false))
 	Events.run_won.connect(func(): _show(true))
 	restart_button.pressed.connect(_restart)
 
 func _show(won: bool):
-	title.text = "VICTORY" if won else "DEFEAT"
 	title.modulate = Color(0.4, 0.9, 0.4) if won else Color(0.95, 0.4, 0.4)
-	detail.text = "Reached Stage %d-%d\nLevel %d" % [GameState.stage(), GameState.round_in_stage(), GameState.level]
+	var lvl := GameState.run_level
+	restart_button.visible = true
+	next_button.visible = false
+	if lvl == null:
+		title.text = "VICTORY" if won else "DEFEAT"
+		detail.text = "Reached Stage %d-%d\nLevel %d" % [GameState.stage(), GameState.round_in_stage(), GameState.level]
+		restart_button.text = "Restart"
+	elif not won:
+		# Roguelite: a defeat ends the chapter run.
+		title.text = "DEFEAT"
+		detail.text = "%s, wave %d of %d\nYour chapter run is over" % [lvl.display_name, GameState.round_number, GameState.total_rounds()]
+		restart_button.text = "Restart chapter"
+	elif not GameState.run_carry.is_empty():
+		# Mid-chapter: the board carries on, so the only way forward is the next level.
+		title.text = "LEVEL COMPLETE"
+		detail.text = "%s   HP %d/%d\nYour board carries into %s" % [lvl.display_name, GameState.player_hp, GameState.start_hp, _next().display_name]
+		next_button.text = "Next level"
+		next_button.visible = true
+		restart_button.visible = false
+	else:
+		title.text = "CHAPTER COMPLETE"
+		var ch := GameState.run_campaign.chapter_of(lvl) if GameState.run_campaign != null else null
+		detail.text = "%s cleared with %d HP" % [ch.display_name if ch != null else lvl.display_name, GameState.player_hp]
+		next_button.text = "Next chapter"
+		next_button.visible = _next() != null
+		restart_button.text = "Play chapter again"
 	visible = true
 
+# The next level in campaign order (a new chapter starts fresh; within a chapter run_carry holds the board).
+func _next() -> CampaignLevel:
+	if GameState.run_campaign == null or GameState.run_level == null:
+		return null
+	return GameState.run_campaign.next_level(GameState.run_level)
+
+func _next_level():
+	var nxt := _next()
+	if nxt == null:
+		return
+	GameState.run_level = nxt
+	GameState.reset()
+	get_tree().reload_current_scene()
+
 func _restart():
+	if GameState.run_level != null:
+		# Campaign: back to the first level of the chapter with an empty board.
+		if GameState.run_campaign != null:
+			GameState.run_level = GameState.run_campaign.first_of_chapter(GameState.run_level)
+		GameState.run_carry = {}
+		SaveGame.clear_chapter_run()
 	GameState.reset()
 	get_tree().reload_current_scene()

@@ -1,0 +1,134 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_nyg4m"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="2_8p54t"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="3_fv6xd"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="4_svjwh"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="5_g64vb"]
+[ext_resource type="Resource" path="res://tres/knight.tres" id="6_2hckm"]
+[ext_resource type="Resource" path="res://tres/archer.tres" id="7_5y1ej"]
+[ext_resource type="Resource" path="res://tres/guardian.tres" id="8_kqfja"]
+[ext_resource type="Resource" path="res://tres/cleric.tres" id="9_g2tnf"]
+[ext_resource type="Resource" path="res://tres/items/chain_vest.tres" id="10_8qqt8"]
+
+[sub_resource type="Resource" id="Resource_od4cp"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("6_2hckm")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_r7t64"]
+script = ExtResource("3_fv6xd")
+display_name = "Scouts"
+units = Array[ExtResource("4_svjwh")]([SubResource("Resource_od4cp")])
+stat_scale = 0.5
+
+[sub_resource type="Resource" id="Resource_ouwm2"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("6_2hckm")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_b76y7"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("7_5y1ej")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_u12mc"]
+script = ExtResource("3_fv6xd")
+display_name = "Raiders"
+units = Array[ExtResource("4_svjwh")]([SubResource("Resource_ouwm2"), SubResource("Resource_b76y7")])
+stat_scale = 0.55
+
+[sub_resource type="Resource" id="Resource_f0wnp"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("6_2hckm")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_1rh2s"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("6_2hckm")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_77e1m"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("7_5y1ej")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_5fffk"]
+script = ExtResource("3_fv6xd")
+display_name = "Patrol"
+units = Array[ExtResource("4_svjwh")]([SubResource("Resource_f0wnp"), SubResource("Resource_1rh2s"), SubResource("Resource_77e1m")])
+stat_scale = 0.6
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_4o2gb"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("6_2hckm")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_2l4i8"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("8_kqfja")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_c8f2q"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("7_5y1ej")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_wloxx"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("9_g2tnf")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_kgbju"]
+script = ExtResource("3_fv6xd")
+display_name = "Shield Wall"
+units = Array[ExtResource("4_svjwh")]([SubResource("Resource_4o2gb"), SubResource("Resource_2l4i8"), SubResource("Resource_c8f2q"), SubResource("Resource_wloxx")])
+stat_scale = 0.65
+
+[sub_resource type="Resource" id="Resource_s8pbi"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("8_kqfja")
+star = 2
+coord = Vector2i(3, 3)
+items = Array[ExtResource("5_g64vb")]([ExtResource("10_8qqt8")])
+
+[sub_resource type="Resource" id="Resource_titao"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("6_2hckm")
+coord = Vector2i(2, 3)
+
+[sub_resource type="Resource" id="Resource_wc7p3"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("6_2hckm")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_xpulm"]
+script = ExtResource("4_svjwh")
+unit = ExtResource("7_5y1ej")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_brhak"]
+script = ExtResource("3_fv6xd")
+display_name = "Raid Captain"
+units = Array[ExtResource("4_svjwh")]([SubResource("Resource_s8pbi"), SubResource("Resource_titao"), SubResource("Resource_wc7p3"), SubResource("Resource_xpulm")])
+stat_scale = 0.6
+hp_reward = 10
+
+[resource]
+script = ExtResource("2_8p54t")
+id = &"ch1_l1"
+display_name = "First Blood"
+description = "Raiders are testing the border. Hold the line for five waves."
+waves = Array[ExtResource("3_fv6xd")]([SubResource("Resource_r7t64"), SubResource("Resource_u12mc"), SubResource("Resource_5fffk"), SubResource("Resource_kgbju"), SubResource("Resource_brhak")])
+start_gold = 4
+start_level = 1
+player_hp = 100
+start_heal = 0
+income_bonus = 0
+enemy_stat_mult = 1.35
+loss_damage = 6
+prep_time = 0
+item_drop_rounds = Array[int]([2, 4])
+allowed_units = Array[ExtResource("1_nyg4m")]([])
+unlocks = Array[StringName]([])

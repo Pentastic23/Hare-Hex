@@ -15,7 +15,7 @@
 [ext_resource type="Script" uid="uid://ce2pb23tyvtfo" path="res://Scripts/drag_controller.gd" id="11_ya4ey"]
 [ext_resource type="Resource" uid="uid://20gip7sufmpd" path="res://tres/mage.tres" id="11_yc10j"]
 [ext_resource type="Resource" uid="uid://b2mytmpbefx1k" path="res://tres/thief.tres" id="14_gqmmt"]
-[ext_resource type="Script" path="res://Scripts/item_data.gd" id="15_itemdata"]
+[ext_resource type="Script" uid="uid://dl63wcdxt36o7" path="res://Scripts/item_data.gd" id="15_itemdata"]
 [ext_resource type="Resource" path="res://tres/items/iron_belt.tres" id="16_ironbelt"]
 [ext_resource type="Resource" path="res://tres/items/longsword.tres" id="17_longsword"]
 [ext_resource type="Resource" path="res://tres/items/quick_bow.tres" id="18_quickbow"]

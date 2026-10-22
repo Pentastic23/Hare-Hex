@@ -23,6 +23,11 @@ func take(d: UnitData) -> bool:
 	remaining[d] -= 1
 	return true
 
+# Removes copies the player already owns (a board carried into a new campaign level).
+func take_copies(d: UnitData, copies: int) -> void:
+	if remaining.has(d):
+		remaining[d] = maxi(remaining[d] - copies, 0)
+
 func give_back(d: UnitData, copies := 1):
 	if remaining.has(d):
 		remaining[d] = mini(remaining[d] + copies, COPIES_PER_COST.get(d.cost, 0))

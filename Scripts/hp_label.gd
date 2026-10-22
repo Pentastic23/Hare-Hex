@@ -17,9 +17,10 @@ func _ready():
 
 func _update(hp: int):
 	text = "HP %d" % hp
-	if hp <= 25:
+	var ratio := float(hp) / float(maxi(GameState.start_hp, 1))   # campaign levels can start below 100
+	if ratio <= 0.25:
 		modulate = Color(1.0, 0.35, 0.35)
-	elif hp <= 50:
+	elif ratio <= 0.5:
 		modulate = Color(1.0, 0.85, 0.3)
 	else:
 		modulate = Color.WHITE

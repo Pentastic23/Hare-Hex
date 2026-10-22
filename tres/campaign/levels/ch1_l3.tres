@@ -1,0 +1,205 @@
+[gd_resource type="Resource" script_class="CampaignLevel" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_y7vo0"]
+[ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="2_8b31y"]
+[ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="3_sf75u"]
+[ext_resource type="Script" path="res://Scripts/board_unit.gd" id="4_id6tn"]
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="5_dep45"]
+[ext_resource type="Resource" path="res://tres/mage.tres" id="6_fmg0w"]
+[ext_resource type="Resource" path="res://tres/knight.tres" id="7_y0vv6"]
+[ext_resource type="Resource" path="res://tres/guardian.tres" id="8_xgtt6"]
+[ext_resource type="Resource" path="res://tres/berserker.tres" id="9_dssxm"]
+[ext_resource type="Resource" path="res://tres/cleric.tres" id="10_1n0bm"]
+[ext_resource type="Resource" path="res://tres/hunter.tres" id="11_hy3om"]
+[ext_resource type="Resource" path="res://tres/dragon.tres" id="12_jn02h"]
+[ext_resource type="Resource" path="res://tres/items/iron_belt.tres" id="13_1dd71"]
+[ext_resource type="Resource" path="res://tres/items/chain_vest.tres" id="14_22f1x"]
+
+[sub_resource type="Resource" id="Resource_pdeie"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("6_fmg0w")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_v2heq"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("7_y0vv6")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_cgup1"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("7_y0vv6")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_s7tgv"]
+script = ExtResource("3_sf75u")
+display_name = "Foothills"
+units = Array[ExtResource("4_id6tn")]([SubResource("Resource_pdeie"), SubResource("Resource_v2heq"), SubResource("Resource_cgup1")])
+stat_scale = 0.65
+
+[sub_resource type="Resource" id="Resource_nesff"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("6_fmg0w")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_spo04"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("6_fmg0w")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_q7uu2"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("8_xgtt6")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_jw0si"]
+script = ExtResource("3_sf75u")
+display_name = "Spellwardens"
+units = Array[ExtResource("4_id6tn")]([SubResource("Resource_nesff"), SubResource("Resource_spo04"), SubResource("Resource_q7uu2")])
+stat_scale = 0.75
+
+[sub_resource type="Resource" id="Resource_y6kds"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("9_dssxm")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_24v3q"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("7_y0vv6")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_17smk"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("6_fmg0w")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_wsrxg"]
+script = ExtResource("3_sf75u")
+display_name = "Rage of the Pass"
+units = Array[ExtResource("4_id6tn")]([SubResource("Resource_y6kds"), SubResource("Resource_24v3q"), SubResource("Resource_17smk")])
+stat_scale = 0.85
+
+[sub_resource type="Resource" id="Resource_g26ih"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("9_dssxm")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_cgiax"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("8_xgtt6")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_q2l0v"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("6_fmg0w")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_e84k1"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("10_1n0bm")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_nup17"]
+script = ExtResource("3_sf75u")
+display_name = "Temple Guard"
+units = Array[ExtResource("4_id6tn")]([SubResource("Resource_g26ih"), SubResource("Resource_cgiax"), SubResource("Resource_q2l0v"), SubResource("Resource_e84k1")])
+stat_scale = 0.95
+hp_reward = 5
+
+[sub_resource type="Resource" id="Resource_bmlov"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("11_hy3om")
+coord = Vector2i(3, 1)
+
+[sub_resource type="Resource" id="Resource_7g0jr"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("11_hy3om")
+coord = Vector2i(4, 1)
+
+[sub_resource type="Resource" id="Resource_htt26"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("8_xgtt6")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_10f23"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("9_dssxm")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_ojyjt"]
+script = ExtResource("3_sf75u")
+display_name = "Cliff Archers"
+units = Array[ExtResource("4_id6tn")]([SubResource("Resource_bmlov"), SubResource("Resource_7g0jr"), SubResource("Resource_htt26"), SubResource("Resource_10f23")])
+stat_scale = 1.05
+
+[sub_resource type="Resource" id="Resource_pstdg"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("12_jn02h")
+coord = Vector2i(3, 2)
+
+[sub_resource type="Resource" id="Resource_h08sn"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("7_y0vv6")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_hq77m"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("7_y0vv6")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_ah7wo"]
+script = ExtResource("3_sf75u")
+display_name = "Wyrmling"
+units = Array[ExtResource("4_id6tn")]([SubResource("Resource_pstdg"), SubResource("Resource_h08sn"), SubResource("Resource_hq77m")])
+stat_scale = 1.15
+
+[sub_resource type="Resource" id="Resource_3rl6i"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("12_jn02h")
+star = 2
+coord = Vector2i(3, 2)
+items = Array[ExtResource("5_dep45")]([ExtResource("13_1dd71"), ExtResource("14_22f1x")])
+
+[sub_resource type="Resource" id="Resource_4nvev"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("6_fmg0w")
+coord = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_2sbh7"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("6_fmg0w")
+coord = Vector2i(4, 2)
+
+[sub_resource type="Resource" id="Resource_kcc5u"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("8_xgtt6")
+coord = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Resource_mlymk"]
+script = ExtResource("4_id6tn")
+unit = ExtResource("9_dssxm")
+coord = Vector2i(4, 3)
+
+[sub_resource type="Resource" id="Resource_xv8yy"]
+script = ExtResource("3_sf75u")
+display_name = "Ashwing"
+units = Array[ExtResource("4_id6tn")]([SubResource("Resource_3rl6i"), SubResource("Resource_4nvev"), SubResource("Resource_2sbh7"), SubResource("Resource_kcc5u"), SubResource("Resource_mlymk")])
+stat_scale = 0.7
+hp_reward = 10
+
+[resource]
+script = ExtResource("2_8b31y")
+id = &"ch1_l3"
+display_name = "The Dragon's Roost"
+description = "Climb the mountain and face the dragon. You start stronger; so do they."
+waves = Array[ExtResource("3_sf75u")]([SubResource("Resource_s7tgv"), SubResource("Resource_jw0si"), SubResource("Resource_wsrxg"), SubResource("Resource_nup17"), SubResource("Resource_ojyjt"), SubResource("Resource_ah7wo"), SubResource("Resource_xv8yy")])
+start_gold = 20
+start_level = 5
+player_hp = 100
+start_heal = 10
+income_bonus = 0
+enemy_stat_mult = 2.2
+loss_damage = 14
+prep_time = 0
+item_drop_rounds = Array[int]([2, 4, 6])
+allowed_units = Array[ExtResource("1_y7vo0")]([])
+unlocks = Array[StringName]([&"chapter_1_complete"])

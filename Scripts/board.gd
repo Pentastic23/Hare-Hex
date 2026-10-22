@@ -416,7 +416,7 @@ func refresh_unlocks(level: int, animate := true):
 			tiles[c].set_unlocked(open, animate)
 	_build_border()
 
-func tiles_open_for_level(level: int) -> int:
+static func tiles_open_for_level(level: int) -> int:   # per side; static so campaign validation can use it
 	var per_side := ROWS / 2 * COLS   # 28
 	var t := clampf(float(level - 1) / float(FULL_BOARD_LEVEL - 1), 0.0, 1.0)
 	return 2 + roundi((per_side - 2) * t)
