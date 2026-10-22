@@ -9,6 +9,7 @@ const GOLD := Color(1.0, 0.85, 0.3)
 var board: Board
 var header: Button
 var list: VBoxContainer
+var scroll: ScrollContainer   # holds `list`; the roster has many tags, so the list scrolls
 var expanded := true
 var _timer := 0.0
 var _last_sig := ""
@@ -33,15 +34,21 @@ func _ready():
 		Settings.save_settings()
 		_apply_expanded())
 	add_child(header)
+	scroll = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, 0)
+	add_child(scroll)
 	list = VBoxContainer.new()
 	list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 6)
-	add_child(list)
+	scroll.add_child(list)
 	get_parent().visible = false
 	_apply_expanded()
 
 func _apply_expanded():
 	list.visible = expanded
+	scroll.visible = expanded
 	header.text = "Synergies  [-]" if expanded else "Synergies (%d active)  [+]" % _active
 
 func _process(delta):
@@ -94,4 +101,5 @@ func _refresh():
 		l.mouse_filter = Control.MOUSE_FILTER_STOP
 		l.modulate = GOLD if t >= 0 else Color(0.65, 0.65, 0.65)
 		list.add_child(l)
+	scroll.custom_minimum_size.y = minf(tags.size() * 28.0, 220.0)   # about 8 rows, then it scrolls
 	_apply_expanded()

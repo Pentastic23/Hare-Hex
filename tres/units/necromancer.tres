@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UnitData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_ud"]
+
+[resource]
+script = ExtResource("1_ud")
+display_name = "Necromancer"
+short_name = "NE"
+max_health = 580.0
+max_mana = 70.0
+start_mana = 20.0
+attack_damage = 45.0
+attack_range = 3.0
+attacks_per_second = 0.7
+move_speed = 1.5
+cost = 2
+tags = Array[StringName]([&"Undead", &"Summoner"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"

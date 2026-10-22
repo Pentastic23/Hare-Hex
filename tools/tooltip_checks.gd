@@ -114,10 +114,10 @@ func _run():
 	GameState.me.gold = 99
 	board.refresh_unlocks(8, false)
 	var c := 0
-	for n in ["knight", "archer", "cleric", "guardian", "thief", "mage", "assassin", "hunter", "berserker", "dragon"]:
+	for d in _cover_every_tag(main.get_node("Game Manager").unit_pool):
 		var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
 		board.get_node("Units").add_child(u)
-		u.setup(load("res://tres/%s.tres" % n), 0)
+		u.setup(d, 0)
 		board.put_on_tile(u, board.player_order[c])
 		c += 1
 	for it in ["iron_belt", "longsword", "quick_bow", "mana_charm", "chain_vest", "blood_fang"]:
@@ -129,7 +129,7 @@ func _run():
 	await frames(8)   # the synergy list refreshes a few times a second
 	bad = scan(main, "free play")
 	main.free()
-	chk("free play: every tooltip fits (10 synergy tags, 6 items, 10 planner buttons, shop, HUD, pause menu)", bad == 0)
+	chk("free play: every tooltip fits (every synergy tag, 6 items, the whole planner, shop, HUD, pause menu)", bad == 0)
 
 	print("--- a campaign level with the biggest wave (stage label lists the enemies)")
 	var camp: Campaign = load("res://tres/campaign/campaign.tres")
@@ -191,3 +191,30 @@ func _run():
 	GameState.run_campaign = null
 	print("RESULT: ", "ALL PASS" if fails == 0 else "%d FAILED" % fails)
 	get_tree().quit()
+
+# A small set of units that between them carry every synergy tag, so the synergy list shows them all.
+func _cover_every_tag(roster: Array) -> Array:
+	var missing := {}
+	for t in Synergies.DEFS:
+		missing[t] = true
+	var picked: Array = []
+	while not missing.is_empty():
+		var best: UnitData = null
+		var best_n := 0
+		for x in roster:
+			var d := x as UnitData
+			if picked.has(d):
+				continue
+			var n := 0
+			for t in d.tags:
+				if missing.has(String(t)):
+					n += 1
+			if n > best_n:
+				best_n = n
+				best = d
+		if best == null:
+			break
+		picked.append(best)
+		for t in best.tags:
+			missing.erase(String(t))
+	return picked

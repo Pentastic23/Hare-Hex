@@ -37,18 +37,22 @@ func _ready():
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_color_override("font_color", GREY)
 	box.add_child(hint)
+	var grid_scroll := ScrollContainer.new()   # 65 units: the grid scrolls
+	grid_scroll.custom_minimum_size = Vector2(0, 300)
+	grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(grid_scroll)
 	grid = GridContainer.new()
-	grid.columns = 5
+	grid.columns = 7
 	grid.add_theme_constant_override("h_separation", 6)
 	grid.add_theme_constant_override("v_separation", 6)
-	box.add_child(grid)
+	grid_scroll.add_child(grid)
 	summary_label = Label.new()
 	summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(summary_label)
 	synergy_label = Label.new()
 	synergy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	synergy_label.custom_minimum_size = Vector2(560, 0)
+	synergy_label.custom_minimum_size = Vector2(820, 0)
 	box.add_child(synergy_label)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -128,7 +132,7 @@ func _rebuild():
 			planned_data.append(d)
 		var b := Button.new()
 		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(118, 64)
+		b.custom_minimum_size = Vector2(112, 56)
 		var tags: PackedStringArray = []
 		for t in d.tags:
 			tags.append(String(t))

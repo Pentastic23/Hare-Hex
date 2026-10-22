@@ -32,7 +32,7 @@ res://
   tres/          UnitData .tres files (one per unit type) + panel_style.tres (shared StyleBoxFlat)
   tres/items/    ItemData .tres files (one per item)
   tres/campaign/ campaign.tres -> chapter_1..3.tres -> levels/ch1_l*, ch2_l*, ch3_l*.tres (waves embedded in each level); tutorial.tres
-  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn, combat_checks.tscn, tutorial_checks.tscn, pvp_checks.tscn, tooltip_checks.tscn)
+  tools/         dev tools, not part of the game (bot_playtest.tscn, campaign_checks.tscn, menu_checks.tscn, hud_checks.tscn, combat_checks.tscn, tutorial_checks.tscn, pvp_checks.tscn, tooltip_checks.tscn, roster_checks.tscn)
   docs/          design docs (items-plan.md, campaign-and-opponents.md, item-ideas.md, multiplayer-design.md)
   addons/        third-party plugins; don't edit
 ```
@@ -58,7 +58,7 @@ Main (Node3D)
      └─ Camera3D                  pos (0, 10, 9.5), rot ~(-55, 0, 0)
 ```
 
-The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 10 unit .tres files (this is the **roster**, not the shared pool), `item_roster` = the 6 item .tres files, `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05` (free-play random enemies). `debug_level` (CampaignLevel) is empty: it only matters when main.tscn is run directly (F6 in the editor) to jump straight into a campaign level for testing; runs started from the main menu ignore it (`GameState.launched_from_menu`). Always load a level **file** into it; a "New CampaignLevel" has no waves, so the game warns and plays free play instead. `continue_saved_run` (default on): with Debug Level set, running main.tscn directly continues the saved chapter run if it's in the same chapter.
+The Game Manager exports set in main.tscn: `prep_time = 15`, `unit_pool` = all 65 unit .tres files (this is the **roster**, not the shared pool), `item_roster` = the 6 item .tres files, `enemy_base_scale = 0.4`, `enemy_scale_per_round = 0.05` (free-play random enemies). `debug_level` (CampaignLevel) is empty: it only matters when main.tscn is run directly (F6 in the editor) to jump straight into a campaign level for testing; runs started from the main menu ignore it (`GameState.launched_from_menu`). Always load a level **file** into it; a "New CampaignLevel" has no waves, so the game warns and plays free play instead. `continue_saved_run` (default on): with Debug Level set, running main.tscn directly continues the saved chapter run if it's in the same chapter.
 
 **menu.tscn** (the project's main scene, `run/main_scene`): a full-screen Control with `main_menu.gd`, which builds everything in code: title "AZTactics", Continue (only with a saved chapter run), then **SINGLE PLAYER**: Tutorial ("(start here)" for new players, "(done)" once completed), Campaign panel (chapters, levels with status: Completed/best HP, Not completed, Locked; Start chapter), Free Play; then **PVP** (tinted blue): **Async PvP** (a real mode: free-play rules against ghost boards, see Async PvP below; sets `GameState.ghost_mode`) and Live PvP (a "coming soon" placeholder that opens an info panel); then Settings / Quit on one row. The menu must fit a 648 px tall window (`menu_checks` measures it). Starting a run sets `GameState.run_level` / `run_campaign` / `run_carry` / `launched_from_menu`, calls `reset()` and changes to main.tscn.
 
@@ -188,7 +188,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 - A level is complete when every wave is survived **and the last wave is won**; completion is saved. **Defeat ends the chapter run**: Restart chapter goes back to its first level with an empty board. Finishing the last level completes the chapter; the next chapter starts fresh.
 - The chapter run is saved (`SaveGame` `chapter_run`) when a level is completed, so quitting and continuing restarts the next level with the saved board.
 - End screen: LEVEL COMPLETE with only Next level; CHAPTER COMPLETE with Next chapter (if any) / Play chapter again; DEFEAT with Restart chapter. Levels unlock in order (the first is always open). The top bar shows "Level name   Wave x/y: wave name" (hover for the enemies).
-- `CampaignLevel.validate()` / `Campaign.validate()` report authoring mistakes and run at level start. The sample campaign has 3 chapters of 3 levels each (The Borderlands, The Ashen Frontier, The Shattered Sky; 63 waves in all, every chapter ending in a boss), tuned with `tools/bot_playtest -- chapter` so the difficulty steps down across chapters: the bot completes about 60% of chapter 1 runs, 45% of chapter 2 and 35% of chapter 3. A chapter always starts fresh (its first level sets its own gold and level); finishing it unlocks the next chapter's first level and the end screen offers Next chapter. Details and per-level settings: `docs/campaign-and-opponents.md`.
+- `CampaignLevel.validate()` / `Campaign.validate()` report authoring mistakes and run at level start. The sample campaign has 3 chapters of 3 levels each (The Borderlands, The Ashen Frontier, The Shattered Sky; 63 waves in all, every chapter ending in a boss), tuned with `tools/bot_playtest -- chapter` so the difficulty steps down across chapters: with the 65-unit roster the bot completes about 50% of chapter 1 runs, 33% of chapter 2 and 33% of chapter 3 (12-run samples; the bigger shop makes the bot build worse teams, so multipliers were lowered 2026-10-21). A chapter always starts fresh (its first level sets its own gold and level); finishing it unlocks the next chapter's first level and the end screen offers Next chapter. Details and per-level settings: `docs/campaign-and-opponents.md`.
 
 **Async PvP (ghost mode):** the menu's Async PvP starts a free-play run (39 rounds, shared pool, items) with `GameState.ghost_mode` set, so `GameManager` uses `SnapshotOpponents` instead of random enemies. At every fight start in free play and ghost mode, `_record_snapshot()` saves the player's board (units with stars and items, mirrored onto the enemy half by `BoardSnapshot.mirror`: `(x, y) -> (6-x, 7-y)`) with the round, level, HP, a balance hash and the run id to `LocalSnapshotStore`. When PREP starts the provider picks a ghost: same balance hash, same round (or one either side), level at most 1 above yours (nearest preferred), never from this run; the top bar announces it, and the ghost spawns like any enemy board with synergies. With no match it falls back to random enemies. Ghost fights are deterministic (same boards, same result). Headless runs write to `user://snapshots_headless`, never your real `user://snapshots`. Campaign levels and the tutorial neither record nor use ghosts. Details: `docs/multiplayer-design.md` Part 1.
 
@@ -216,28 +216,37 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 | Caster | 2 | +20 starting mana | tag |
 | Protector | 2 | 10% damage reduction | team |
 | Rogue | 2 | +40% damage | tag |
+| Undead | 2 / 4 | 15% / 30% lifesteal | tag |
+| Ember | 2 / 4 | +20% / +45% damage | tag |
+| Frost | 2 / 4 | 15% / 30% damage reduction | tag |
+| Fey | 2 / 4 | +15% / +40% attack speed | tag |
+| Dwarven | 2 / 4 | +10% / +25% max HP | team |
+| Infernal | 2 / 3 | +15% / +40% damage | tag |
+| Healer | 2 / 4 | 6% / 15% lifesteal | team |
+| Summoner | 2 / 3 | +15% / +35% max HP | tag |
+| Monk | 2 / 4 | +20% / +45% attack speed | tag |
+| Alchemist | 2 / 3 | +8% / +20% damage | team |
+| Bard | 2 / 4 | +10 / +25 starting mana | team |
+| Dragonlord (Dragon) | 1 | +15% damage | team |
+| Ascendant (Seraph) | 1 | 10% lifesteal | team |
+| Lich King (Deathlord) | 1 | 40% lifesteal | tag |
+| Earthshaker (Titan) | 1 | +20% max HP | team |
+| Inferno (Pyromancer) | 1 | +35% damage | tag |
+| Crusade (Paladin) | 1 | 8% damage reduction | team |
 
+Every unit has one origin and one class tag; the six **unique** synergies (threshold 1, shown 1/1) are a third tag held by exactly one unit (4 five-cost, 2 three-cost units). The full list is in `docs/units.md`.
 Damage reduction is capped at 60%.
 
 ---
 
-## Unit roster (placeholder fantasy classes)
+## Unit roster
 
-| Unit | Cost | Tags | HP | Dmg | Range | Atk/s | Mana | Start |
-|---|---|---|---|---|---|---|---|---|
-| Knight | 1 | Order, Warrior | 650 | 50 | 1 | 0.7 | 80 | 20 |
-| Archer | 1 | Wild, Ranger | 450 | 45 | 4 | 0.8 | 60 | 0 |
-| Cleric | 1 | Order, Caster | 500 | 35 | 3 | 0.6 | 50 | 20 |
-| Guardian | 2 | Order, Protector | 850 | 45 | 1 | 0.6 | 100 | 40 |
-| Thief | 2 | Shadow, Rogue | 550 | 60 | 1 | 0.9 | 50 | 0 |
-| Mage | 3 | Arcane, Caster | 600 | 55 | 3 | 0.65 | 50 | 10 |
-| Assassin | 3 | Shadow, Rogue | 700 | 75 | 1 | 0.9 | 60 | 0 |
-| Hunter | 4 | Wild, Ranger | 750 | 80 | 4 | 0.85 | 70 | 0 |
-| Berserker | 4 | Wild, Warrior | 1000 | 85 | 1 | 0.8 | 80 | 0 |
-| Dragon | 5 | Arcane, Protector | 1400 | 90 | 2 | 0.7 | 100 | 30 |
+65 units: 14 one-cost, 13 two-cost, 14 three-cost, 14 four-cost, 10 five-cost. Full stat tables, labels and synergy list: **`docs/units.md`**. The original 10 live in `tres/*.tres`, the other 55 in `tres/units/*.tres`; all are in Game Manager's `unit_pool` in main.tscn.
 
-All move speed 1.5. Display names must be unique (merging groups by name). Tag spelling must match the keys in `Synergies.DEFS` exactly. The .tres files in `tres/` match this table (fixed 2026-10-21). 1-cost units: Knight, Archer, Cleric.
-
+- Display names must be unique (merging groups by name). Tag spelling must match the keys in `Synergies.DEFS` exactly.
+- `UnitData.short_name` is the 2-3 letters drawn on the unit's body (`UnitData.label()`); each is unique.
+- To add a unit: create the .tres, add it to `unit_pool` in main.tscn, then run `tools/roster_checks` (unique names/labels, valid tags, every synergy tier reachable, unique synergies have one holder; update its `EXPECT` counts if the roster size changes).
+- UI that lists units or tags scrolls (team planner grid, synergy box) because of the roster size.
 ---
 
 ## UI behaviour
@@ -278,6 +287,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Combat checks: `... res://tools/combat_checks.tscn --fixed-fps 60` (12 checks: the same fight resolved repeatedly, real time == `resolve_combat()`, node order irrelevant, target ties, seeded shops/enemies/drops, per-player state). `-- realtime` prints the fight's SIGNATURE line; compare it across `--fixed-fps 30` and `--fixed-fps 144` runs to prove frame-rate independence.
 - Tutorial checks: `... res://tools/tutorial_checks.tscn --fixed-fps 60` (27 checks: every tutorial step with game actions, Watch waiting for Next, sell and lock steps, Start fight, end screen, saved chapter run untouched by winning or losing the tutorial). Run after changing the tutorial, end screen, GameManager phase flow or the chapter-run code.
 - PvP checks: `... res://tools/pvp_checks.tscn --fixed-fps 60` (33 checks: board mirroring and hex distances, snapshot capture/JSON round trip, balance hash, the local store (fetch rules, neighbouring rounds, level fit, corrupt files, pruning), the ghost provider and its fallback, a ghost fight twice, recording in free play, the ghost-mode top bar). Uses its own snapshot folder. Run after changing snapshots, opponent providers, GameManager.start_combat or the units/items stats (the balance hash). New tests that start free-play or ghost runs headless are safe: they write to `snapshots_headless`.
+- Roster checks: `... res://tools/roster_checks.tscn` (checks the 65-unit roster and the synergy table; no `--fixed-fps` needed). Run it after adding or changing units or synergies.
 - Tooltip checks: `... res://tools/tooltip_checks.tscn --fixed-fps 60` (12 checks: the measurement itself, a control case proving an unwrapped tooltip is flagged, and every tooltip on the menu panels, a free-play run, the biggest campaign wave and the tutorial; 44 distinct tooltips, widest line 339 px against a 360 px limit). Run it after adding or changing any tooltip or the text in one.
 - When a test awaits a game signal (e.g. `combat_ended`), read what it needs right away and `await get_tree().process_frame` before freeing the scene: freeing it inside the signal crashes Godot.
 - The main scene is menu.tscn. To jump straight into a run while testing, open main.tscn and press F6 (Run Current Scene); Debug Level applies there.
@@ -294,7 +304,7 @@ All move speed 1.5. Display names must be unique (merging groups by name). Tag s
 - Done and committed (cdd6999): deterministic combat (roadmap 10), per-player state (roadmap 11), seeded run RNG, `docs/multiplayer-design.md`.
 - Done and committed (c609132): main menu split into Single player (Tutorial, Campaign, Free Play) and PvP (Async/Live placeholders with info panels); a guided tutorial level with a step panel and Start fight; `GameManager.end_prep_early()`; fix so levels outside a chapter can't touch the saved chapter run; `tools/tutorial_checks` (27) and more `menu_checks` (28). A flaky crash in `combat_checks` (test freed the scene mid-signal) fixed. Not yet played by hand.
 - Done and committed (50370a3, 27b7363): synergy bonuses in the inspector stats, prep/combat timer label, chapters 2 and 3, bot chapter mode, stray .tmp files removed.
-- Last finished (2026-10-21, Sonnet, **not committed yet**): **Async PvP Part 1** (roadmap 12): boards are recorded at every fight in free play and ghost mode, the menu's Async PvP button starts a free-play run against ghost boards (falls back to random enemies when none match), the top bar names the coming opponent; `tools/pvp_checks` (33 checks) and menu_checks (35). Not yet played by hand.
+- Last finished (2026-10-21, Sonnet, **not committed yet**): **65-unit roster** (14/13/14/14/10 by cost, 11 new tags, 6 unique 1/1 synergies, `short_name` body labels, scrolling planner and synergy box, `tools/roster_checks`, `docs/units.md`, campaign `enemy_stat_mult` retuned). Also uncommitted: **Async PvP Part 1** (roadmap 12): boards are recorded at every fight in free play and ghost mode, the menu's Async PvP button starts a free-play run against ghost boards (falls back to random enemies when none match), the top bar names the coming opponent; `tools/pvp_checks` (33 checks) and menu_checks (35). Not yet played by hand.
 - Next: playtest Async PvP (play a few free-play runs first so ghosts exist), then mid-level saves (needs a design: see the handoff in the roadmap), then item combinations. Volume has no effect until there's sound.
 - Ideas for later: `docs/item-ideas.md` (item mechanics brainstorm; resonance/item combinations first).
 

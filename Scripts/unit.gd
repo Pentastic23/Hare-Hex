@@ -72,7 +72,7 @@ func _make_letter():
 	if data == null or data.display_name.is_empty():
 		return
 	letter_label = Label3D.new()
-	letter_label.text = data.display_name.substr(0, 2).to_upper()
+	letter_label.text = data.label()
 	letter_label.font_size = 128
 	letter_label.pixel_size = 0.006
 	letter_label.outline_size = 24
@@ -90,7 +90,7 @@ func set_star(s: int):
 	_last_ratio = -1.0
 	$ModelHolder.scale = Vector3.ONE * STAR_SIZE[star]
 	if letter_label != null:
-		letter_label.text = data.display_name.substr(0, 2).to_upper() + ("*".repeat(star - 1))
+		letter_label.text = data.label() + ("*".repeat(star - 1))
 
 func _ready():
 	_make_bar()

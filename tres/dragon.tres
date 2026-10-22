@@ -12,5 +12,5 @@ attack_damage = 90.0
 attacks_per_second = 0.7
 move_speed = 1.5
 cost = 5
-tags = Array[StringName]([&"Arcane", &"Protector"])
+tags = Array[StringName]([&"Arcane", &"Protector", &"Dragonlord"])
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

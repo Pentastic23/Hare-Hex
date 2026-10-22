@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UnitData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_ud"]
+
+[resource]
+script = ExtResource("1_ud")
+display_name = "Firebrand"
+short_name = "FI"
+max_health = 540.0
+max_mana = 70.0
+start_mana = 0.0
+attack_damage = 52.0
+attack_range = 1.0
+attacks_per_second = 0.75
+move_speed = 1.5
+cost = 1
+tags = Array[StringName]([&"Ember", &"Warrior"])
+metadata/_custom_type_script = "uid://cps714rkrb4e0"
