@@ -20,6 +20,7 @@
 [ext_resource type="Script" path="res://Scripts/hud_buttons.gd" id="19_hudbuttons"]
 [ext_resource type="Script" path="res://Scripts/tutorial.gd" id="20_tutorial"]
 [ext_resource type="Script" path="res://Scripts/phase_timer.gd" id="21_timer"]
+[ext_resource type="Script" path="res://Scripts/opponent_label.gd" id="22_opponent"]
 [ext_resource type="Script" uid="uid://dd1to35gp48ge" path="res://Scripts/unit_inspector.gd" id="14_h1mc3"]
 
 [node name="UI" type="CanvasLayer" unique_id=1303589865]
@@ -40,6 +41,10 @@ script = ExtResource("21_timer")
 [node name="StageLabel" type="Label" parent="TopBar" unique_id=1601579986]
 layout_mode = 2
 script = ExtResource("4_8dubc")
+
+[node name="OpponentLabel" type="Label" parent="TopBar"]
+layout_mode = 2
+script = ExtResource("22_opponent")
 
 [node name="ShopPanel" type="PanelContainer" parent="." unique_id=124967976]
 anchors_preset = 7

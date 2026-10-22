@@ -3,7 +3,7 @@ extends Control
 
 # The first screen: title, Continue (saved chapter run), then two sections:
 #   SINGLE PLAYER: Tutorial, Campaign (chapters and levels), Free Play
-#   PVP: Async PvP and Live PvP (coming soon: each opens an info panel)
+#   PVP: Async PvP (ghost opponents, playable) and Live PvP (coming later: opens an info panel)
 # and Settings / Quit. Built in code; menu.tscn is just this script on a full-screen Control.
 
 const TITLE := "AZTactics"
@@ -13,7 +13,7 @@ const TUTORIAL_PATH := "res://tres/campaign/tutorial.tres"
 const GOLD := Color(1.0, 0.85, 0.3)
 const GREY := Color(0.65, 0.65, 0.7)
 const PVP_TINT := Color(0.7, 0.85, 1.0)
-const ASYNC_PVP_TEXT := "Fight ghost copies of other players' boards, recorded at the same round of their run. Your board is saved every round too, so others fight yours. No waiting for opponents: play whenever you like.\n\nComing soon."
+const ASYNC_PVP_TIP := "Free-play rules, but every round you fight a ghost: a board saved from an earlier run, recorded at the same round. Your own boards are saved too. With no ghosts saved yet you meet random enemies. Boards stay on this PC for now."
 const LIVE_PVP_TEXT := "Real-time matches with up to 8 players on a server: one shared unit pool, a fight against another player every round, last one standing wins.\n\nComing later. Async PvP comes first."
 
 var campaign: Campaign
@@ -56,7 +56,8 @@ func _ready():
 	_button(main_box, "Free Play", func(): _start(null, {})).tooltip_text = "39 rounds against random enemies. No campaign rules."
 
 	main_box.add_child(_section("PVP"))
-	var async_btn := _button(main_box, "Async PvP   (coming soon)", func(): _show_info("Async PvP", ASYNC_PVP_TEXT))
+	var async_btn := _button(main_box, "Async PvP", func(): _start(null, {}, true))
+	async_btn.tooltip_text = ASYNC_PVP_TIP
 	var live_btn := _button(main_box, "Live PvP   (coming soon)", func(): _show_info("Live PvP", LIVE_PVP_TEXT))
 	for b in [async_btn, live_btn]:
 		b.modulate = PVP_TINT
@@ -86,7 +87,8 @@ func _unhandled_input(event):
 # --- starting a run ---------------------------------------------------------------------------
 
 # level null = free play. carry = a saved chapter run to continue, or {} for a fresh start.
-func _start(level: CampaignLevel, carry: Dictionary):
+func _start(level: CampaignLevel, carry: Dictionary, ghost := false):
+	GameState.ghost_mode = ghost   # async PvP: free-play rules against ghost boards
 	GameState.run_level = level
 	GameState.run_campaign = campaign if level != null else null
 	GameState.run_carry = carry

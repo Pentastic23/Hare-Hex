@@ -63,18 +63,31 @@ class Driver extends Node:
 		var menu_h: float = scene().main_box.get_combined_minimum_size().y
 		chk("menu fits a 648 px tall window", menu_h <= 620, "height %d" % menu_h)
 
-		# PvP modes are placeholders with an info panel
-		press("Async PvP")
-		await get_tree().process_frame
-		var info = scene().info_panel
-		chk("Async PvP opens its coming-soon panel", info.get_parent().visible and info.get_child(0).get_node("Title").text == "Async PvP" and find_button(scene(), "Free Play") == null)
-		await esc()
+		# Live PvP is still a placeholder with an info panel
+		var async_btn := find_button(scene(), "Async PvP")
+		chk("Async PvP is a real button now (no 'coming soon')", async_btn != null and not async_btn.text.contains("coming soon") and async_btn.tooltip_text.contains("ghost"))
 		press("Live PvP")
 		await get_tree().process_frame
-		chk("Live PvP opens its own panel", info.get_parent().visible and info.get_child(0).get_node("Title").text == "Live PvP")
+		var info = scene().info_panel
+		chk("Live PvP opens its coming-soon panel", info.get_parent().visible and info.get_child(0).get_node("Title").text == "Live PvP" and find_button(scene(), "Free Play") == null)
 		press("Back")
 		await get_tree().process_frame
 		chk("Back returns to the menu", find_button(scene(), "Free Play") != null)
+
+		# Async PvP starts a free-play run against ghosts (isolated snapshot folder: nothing of yours is touched)
+		LocalSnapshotStore.root = "user://menu_test_snapshots"
+		press("Async PvP")
+		await wait(0.5)
+		chk("Async PvP starts a ghost-mode free-play run", scene().name == "Main" and GameState.ghost_mode and GameState.run_level == null and scene().get_node("Game Manager").opponents is SnapshotOpponents)
+		chk("its top bar says who it will fight", scene().get_node("UI/TopBar/OpponentLabel").visible)
+		GameState.go_to_menu()   # the real way out of a run, which clears ghost mode
+		await wait(0.4)
+		chk("back in the menu, ghost mode is off", not GameState.ghost_mode)
+		press("Free Play")
+		await wait(0.5)
+		chk("Free Play is not ghost mode", not GameState.ghost_mode and scene().get_node("Game Manager").opponents is RandomOpponents)
+		await to_menu()
+		LocalSnapshotStore.root = ""
 
 		# Tutorial starts the tutorial level
 		press("Tutorial")

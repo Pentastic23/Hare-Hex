@@ -37,6 +37,7 @@ var run_campaign: Campaign = null      # campaign that run_level belongs to (for
 var run_carry: Dictionary = {}         # chapter run state to load into the next level (GameManager.make_carry)
 var run_carried := false               # this level continued a chapter run (board carried over)
 var launched_from_menu := false        # the main menu chose this run, so Game Manager's Debug Level is ignored
+var ghost_mode := false                # async PvP: free-play rules, opponents are saved boards (ghosts); set by the menu
 var run_seed := 0                      # seeds GameManager.rng and each player's rng for this run
 var next_seed := 0                     # set before a run to replay it exactly (tests, PvP); 0 = random
 
@@ -141,6 +142,7 @@ func begin_run(lvl: CampaignLevel = null, campaign: Campaign = null) -> Dictiona
 # the current level, so the menu's Continue resumes it there.
 func go_to_menu():
 	get_tree().paused = false
+	ghost_mode = false
 	run_level = null
 	run_campaign = null
 	run_carry = {}

@@ -23,3 +23,4 @@ signal item_drag_started(index: int)  # index into GameState.me.items
 signal item_drag_ended
 signal shop_lock_changed(locked: bool)
 signal team_plan_changed              # SaveGame team plan edited in the team planner
+signal opponent_announced(text: String)   # who the coming fight is against (async PvP); "" = nothing to show

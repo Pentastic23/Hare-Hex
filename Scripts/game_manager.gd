@@ -5,6 +5,8 @@ var phase: int = Events.Phase.PREP
 var fighting := false
 var combat_time := 0.0
 var snapshot := {}   # Unit -> Vector2i
+var snapshot_store: SnapshotStore   # async PvP boards; null in campaign levels
+var balance_hash := ""              # BoardSnapshot.balance_hash of the roster and items
 var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
 @export var prep_time := 10
 @onready var board: Board = $"../Board"
@@ -65,6 +67,9 @@ func _enter(p: int):
 			board.merge_all()
 			GameState.me.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
+			if opponents != null:
+				opponents.prepare(GameState.round_number)   # async PvP picks this round's ghost now
+				Events.opponent_announced.emit(opponents.describe_next())
 			if not GameState.me.shop_locked or not GameState.me.shop_has_rolled:
 				roll_shop()
 			prep_left = float(prep_time)   # counted down in _process, so the timer label can show it and pausing stops it
@@ -134,6 +139,30 @@ func _begin_run():
 		opponents = WaveOpponents.new(lvl.waves, lvl.enemy_stat_mult)
 	else:
 		opponents = RandomOpponents.new(unit_pool, enemy_base_scale, enemy_scale_per_round, enemy_variation_chance, rng)
+	snapshot_store = null
+	if lvl == null:
+		# Free play and async PvP record the player's board at every fight; campaign levels don't.
+		snapshot_store = LocalSnapshotStore.new()
+		balance_hash = BoardSnapshot.balance_hash(unit_pool, item_roster)
+		if GameState.ghost_mode:
+			opponents = SnapshotOpponents.new(snapshot_store, opponents, unit_pool, item_roster, balance_hash, rng, str(GameState.run_seed))
+
+# Saves the board that is about to fight, so other runs (and this player's later runs) can meet it as a ghost.
+func _record_snapshot():
+	if snapshot_store == null:
+		return
+	var fighters: Array = snapshot.keys().filter(func(u): return is_instance_valid(u))
+	if fighters.is_empty():
+		return
+	snapshot_store.submit(BoardSnapshot.capture(fighters, {
+		"name": GameState.me.display_name,
+		"run": str(GameState.run_seed),
+		"round": GameState.round_number,
+		"stage": "%d-%d" % [GameState.stage(), GameState.round_in_stage()],
+		"level": GameState.me.level,
+		"hp": GameState.me.player_hp,
+		"balance": balance_hash,
+	}))
 
 # What a chapter run carries into its next level; the save file stores the same dictionary.
 # Units are stored by display_name, items by id; board units keep their tile, bench units their slot.
@@ -293,6 +322,7 @@ func start_combat():
 	for u in snapshot:
 		if is_instance_valid(u):
 			mine.append(u)
+	_record_snapshot()
 	Synergies.apply(mine)
 	_spawn_enemies()
 	for n in units_node.get_children():

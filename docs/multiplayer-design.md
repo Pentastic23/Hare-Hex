@@ -19,7 +19,15 @@ Still single-player assumptions: one `Board` scene (the local player's), the sha
 
 ---
 
-## Part 1: Async PvP, local first (build next)
+## Part 1: Async PvP, local first (BUILT 2026-10-21)
+
+**Status:** all six build-order steps are done and checked by `tools/pvp_checks` (33 checks). The menu's **Async PvP** button starts a ghost-mode run. Differences from the plan below, all deliberate:
+- `fetch` also takes the game's balance hash and the run's seeded RNG: `fetch(round, player_level, balance, rng, exclude_run := "")`. The seeded RNG means a run seed picks the same ghost every time; "exclude_run" (the run id = run seed) replaces "exclude_name", so you never fight your own current run.
+- Which ghosts fit: same balance hash, same round (or the round before or after if that one is empty), and a ghost level at most 1 above the player's (otherwise it could have more units than the open enemy tiles). Ghosts within 1 level of the player are preferred.
+- The ghost is chosen when PREP starts (`OpponentProvider.prepare`) and announced on the top bar (`Events.opponent_announced`, `OpponentLabel`); it falls back to random enemies when nothing matches.
+- Boards are recorded in free play and ghost mode, not in campaign levels, since only free-play rounds line up with each other.
+- Headless runs (test tools, the bot) write to `user://snapshots_headless` instead of `user://snapshots`, so tests never fill your real store. Tests can also set `LocalSnapshotStore.root`.
+- Not done: the HTTP store (Part 1b), and a rule for mid-fight item equips in PvP (still to decide before Part 2).
 
 You fight **ghosts**: other players' boards recorded at the same point of their run. "Local first" means snapshots are saved on this PC; a server swaps in later behind the same interface.
 
@@ -42,7 +50,7 @@ At every combat start, record the local player's board:
 ```gdscript
 class_name SnapshotStore extends RefCounted
 func submit(snapshot: Dictionary) -> void
-func fetch(round: int, player_level: int, exclude_name := "") -> Dictionary   # {} if none
+func fetch(round: int, player_level: int, balance: String, rng: RandomNumberGenerator, exclude_run := "") -> Dictionary   # {} if none (as built)
 ```
 
 - **LocalSnapshotStore** (first): files in `user://snapshots/`, bucketed by round, at most ~50 per round (drop the oldest). Your own past runs become your opponents, so the mode works offline from the first run.
