@@ -138,9 +138,11 @@ Levels 2 and 3 are tuned for **arriving with a carried board**. Started directly
 
 Coord tips: row 3 is the enemy front line, row 0 the back; columns 3 and 4 are the center, and those tiles unlock first. At player level 1 only 2 enemy tiles are open, level 2 opens 6, level 3 opens 9, level 5 opens 15 (see `Board.tiles_open_for_level`).
 
-### Playing before the main menu exists
+### Starting the campaign
 
-Select **Game Manager** in `main.tscn` and set **Debug Level** to a level **file** (e.g. `ch1_l1.tres`), then run. A "New CampaignLevel" has no waves, so the game warns and plays free play instead. **Continue Saved Run** (on by default) makes the game continue your saved chapter run when you launch, if it's in the same chapter as Debug Level. Clear Debug Level for free play.
+From the **main menu**: **Continue** resumes a saved chapter run at the start of its next level; **Campaign** lists chapters and levels (completed with best HP, not completed, locked) and **Start chapter** begins a fresh run (asking first if that abandons a saved run).
+
+For testing, you can skip the menu: set **Debug Level** on Game Manager in `main.tscn` to a level **file** (e.g. `ch1_l1.tres`) and run main.tscn directly (F6). A "New CampaignLevel" has no waves, so the game warns and plays free play instead. **Continue Saved Run** (on by default) continues your saved chapter run if it's in the same chapter. Runs started from the menu ignore Debug Level.
 
 ## Save system (`Scripts/save_game.gd`)
 
@@ -181,6 +183,5 @@ Static class (no autoload, so `project.godot` stays untouched). Loads on first u
 
 ## Not done (next steps)
 
-- Main menu (roadmap 8): Continue (from `SaveGame.chapter_run()`), chapter/level select (`Campaign.all_levels()`, `is_unlocked()`, `SaveGame.best_hp()`), free play. Set `GameState.run_level` / `run_campaign` / `run_carry`, then change to `main.tscn`.
 - Snapshot provider for PvP (roadmap 9).
 - More chapters; balance testing by hand.

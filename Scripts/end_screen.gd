@@ -5,6 +5,7 @@ extends ColorRect
 @onready var detail: Label = $CenterContainer/Backing/Margin/VBoxContainer/DetailLabel
 @onready var restart_button: Button = $CenterContainer/Backing/Margin/VBoxContainer/RestartButton
 var next_button: Button   # campaign only, after a completed level that has a next one
+var menu_button: Button   # always shown
 
 func _ready():
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -48,6 +49,13 @@ func _ready():
 	box.add_child(next_button)
 	box.move_child(next_button, restart_button.get_index())   # above Restart
 	next_button.pressed.connect(_next_level)
+
+	menu_button = Button.new()
+	menu_button.text = "Main menu"
+	menu_button.custom_minimum_size = Vector2(200, 56)
+	menu_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(menu_button)   # last, below Restart
+	menu_button.pressed.connect(func(): GameState.go_to_menu())
 
 	Events.run_lost.connect(func(): _show(false))
 	Events.run_won.connect(func(): _show(true))

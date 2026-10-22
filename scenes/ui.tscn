@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://bulihufd4rq5o" path="res://Scripts/synergy_panel.gd" id="12_6rmj2"]
 [ext_resource type="StyleBox" uid="uid://dmwjq3idfkk1x" path="res://tres/panel_style.tres" id="12_qsv74"]
 [ext_resource type="Script" path="res://Scripts/item_bar.gd" id="15_itembar"]
+[ext_resource type="Script" path="res://Scripts/pause_menu.gd" id="16_pause"]
 [ext_resource type="Script" uid="uid://dd1to35gp48ge" path="res://Scripts/unit_inspector.gd" id="14_h1mc3"]
 
 [node name="UI" type="CanvasLayer" unique_id=1303589865]
@@ -234,3 +235,13 @@ layout_mode = 2
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 6
 columns = 2
+
+[node name="PauseMenu" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("16_pause")

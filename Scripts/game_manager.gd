@@ -16,8 +16,8 @@ const BUY_XP_COST := 4
 @export var enemy_base_scale := 0.6        # round 1 enemies are 60% strength
 @export var enemy_scale_per_round := 0.08  # +8% each round
 var game_over := false
-# Plays this campaign level instead of free play when set (for testing until the main menu exists).
-# GameState.run_level takes priority, so "Next level" and Restart work.
+# Plays this campaign level instead of free play when main.tscn is run directly (F6 in the editor),
+# for testing. Ignored when the game was started from the main menu.
 @export var debug_level: CampaignLevel
 # With Debug Level set, launching the game continues a saved chapter run in the same chapter.
 @export var continue_saved_run := true
@@ -62,7 +62,7 @@ func _enter(p: int):
 			GameState.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
 			roll_shop()
-			await get_tree().create_timer(prep_time).timeout
+			await get_tree().create_timer(prep_time, false).timeout   # false: the prep timer stops while paused
 			if game_over: return
 			_enter(Events.Phase.COMBAT)
 		Events.Phase.COMBAT:
@@ -100,7 +100,7 @@ func _begin_run():
 	if camp == null and ResourceLoader.exists(DEFAULT_CAMPAIGN):
 		camp = load(DEFAULT_CAMPAIGN)
 	var lvl := GameState.run_level
-	if lvl == null and debug_level != null:
+	if lvl == null and debug_level != null and not GameState.launched_from_menu:
 		lvl = debug_level
 		var saved := SaveGame.chapter_run()
 		if continue_saved_run and not saved.is_empty() and camp != null:
