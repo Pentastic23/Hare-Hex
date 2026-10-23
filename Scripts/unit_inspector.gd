@@ -18,6 +18,8 @@ var portrait_slot: Control
 var _portrait_of: UnitData
 var item_row: HBoxContainer        # one hoverable chip per item (icon; tooltip with what it does)
 var res_row: HFlowContainer        # one hoverable chip per resonance
+var ability_head: Label            # "ABILITY · SHEPHERD'S LIGHT"
+var ability_text: Label            # what it does at the unit's star (abilities.gd)
 var _items_sig := ""
 
 func _ready():
@@ -53,11 +55,23 @@ func _process(_delta):
 		_close()
 		return
 	_fill()   # keeps it right if the unit merges up a star
+	_yield_standings()
 
 func _close():
 	shown = null
 	_items_sig = ""
 	visible = false
+	_yield_standings()
+
+# A tall inspector (an ability, three items and their resonances) can reach up into the HP standings;
+# they fade out while it covers them and come back when it closes or shrinks. (The right box decides
+# whether they are shown at all; this only touches their transparency.)
+func _yield_standings() -> void:
+	var standings := get_parent().get_node_or_null("Standings") as Control
+	if standings == null:
+		return
+	var covered := visible and get_global_rect().intersects(standings.get_global_rect())
+	standings.modulate.a = 0.0 if covered else 1.0
 
 func _unit_under_mouse() -> Unit:
 	if board == null:
@@ -103,6 +117,12 @@ func _fill():
 	for t in d.tags:
 		tags.append(String(t))
 	tags_label.text = "  ·  ".join(tags)
+	var has_ability := Abilities.has(d)
+	ability_head.visible = has_ability
+	ability_text.visible = has_ability
+	if has_ability:
+		ability_head.text = "ABILITY  ·  " + Abilities.name_of(d).to_upper()
+		ability_text.text = Abilities.text(d, u.star)
 
 	# Items and resonances as chips you can hover (rebuilt only when they change).
 	var sig := str(u.items.map(func(i): return i.id)) + str(u.item_stacks)
@@ -130,7 +150,6 @@ func _fill():
 	if steal > 0.0:
 		lines.append("Omnivamp: %d%%" % roundi(steal * 100.0))
 	lines.append_array(_mechanic_lines(b))
-	lines.append("Cost: %d g" % d.cost)
 	stats_label.text = "\n".join(lines)
 
 func _items_note(value: float, text: String) -> String:
@@ -218,6 +237,14 @@ func _restyle():
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(line)
 	box.move_child(line, items_label.get_index())
+	ability_head = HudStyle.caps(10, HudStyle.GOLD)
+	box.add_child(ability_head)
+	box.move_child(ability_head, line.get_index())
+	ability_text = Label.new()
+	_font_style(ability_text, 12, HudStyle.INK)
+	ability_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(ability_text)
+	box.move_child(ability_text, line.get_index())
 	_font_style(items_label, 12, HudStyle.GOLD)
 	item_row = HBoxContainer.new()
 	item_row.add_theme_constant_override("separation", 6)

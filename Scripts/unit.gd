@@ -66,6 +66,20 @@ const BURN_TIME := 3.0
 const CHILL_TIME := 2.0
 const CURSE_TIME := 3.0
 const CHILL_CAP := 0.8
+# Abilities (abilities.gd): crowd control, timed buffs, ability shields and the later hits of a cast.
+# All stepped by the combat tick in _tick_effects; cleared between fights.
+var stun_left := 0.0      # no attacks, moves or mana
+var silence_left := 0.0   # no mana
+var blind_hits := 0       # this many of its next attacks miss
+var taunt_by: Unit        # must target this unit while taunt_left runs
+var taunt_left := 0.0
+var cast_lock := 0.0      # casting: no attacks or moves
+var buffs := {}           # source -> [stat ("as", "dmg", "dr", "vamp", "regen"), amount, seconds left]
+var ab_shield := 0.0      # the part of `shield` from an ability; it runs out
+var ab_shield_left := 0.0
+var ab_shield_heals := false   # Little Prayer: whatever is left heals when it runs out
+var queued: Array = []    # [seconds left, Callable]: the later hits of multi-hit casts
+var next_attack_stun := 0.0    # Bamboo Calm
 var damage_dealt := 0.0   # this fight, HP actually removed from enemies (damage meter)
 var damage_taken := 0.0   # this fight, HP lost
 
@@ -104,7 +118,14 @@ func max_hp() -> float:
 	return (data.max_health + item_hp) * stat_scale * STAR_MULT[star] * (1.0 + bonus_hp)
 
 func damage() -> float:
-	return (data.attack_damage + item_dmg) * stat_scale * STAR_MULT[star] * (1.0 + bonus_dmg)
+	return (data.attack_damage + item_dmg) * stat_scale * STAR_MULT[star] * damage_bonus()
+
+# 1 + the damage bonus from synergies, items and ability buffs (attacks and ability damage).
+func damage_bonus() -> float:
+	return 1.0 + bonus_dmg + buff_total("dmg")
+
+func omnivamp() -> float:
+	return lifesteal + item_lifesteal + buff_total("vamp")
 
 func _make_letter():
 	if letter_label != null:
@@ -312,6 +333,18 @@ func _reset_fight_state():
 	chill_left = 0.0
 	curse_on = 0.0
 	curse_left = 0.0
+	stun_left = 0.0
+	silence_left = 0.0
+	blind_hits = 0
+	taunt_by = null
+	taunt_left = 0.0
+	cast_lock = 0.0
+	buffs.clear()
+	ab_shield = 0.0
+	ab_shield_left = 0.0
+	ab_shield_heals = false
+	queued.clear()
+	next_attack_stun = 0.0
 
 # An enemy leaving the board when its fight ends (GameManager frees it). A model still falling, or
 # celebrating because the enemy side won, is left behind as a stand-in that finishes and then
@@ -371,8 +404,12 @@ func combat_step(delta: float):
 		else:
 			position = move_from.lerp(move_to, move_progress)
 		return
+	if stun_left > 0.0 or cast_lock > 0.0:
+		return   # stunned or casting (both counted down in _tick_effects)
 	cooldown = maxf(0.0, cooldown - delta)
 
+	if taunt_left > 0.0 and is_instance_valid(taunt_by) and not taunt_by.dead and taunt_by.coord.x >= 0:
+		target = taunt_by
 	if not is_instance_valid(target) or target.dead:
 		target = board.nearest_enemy(self)
 		if target == null:
@@ -402,21 +439,31 @@ func combat_step(delta: float):
 
 # One attack on `t`: crits, dodges, damage, omnivamp, then the on-hit effects (burn, chill, curse,
 # execute) and kill heals. Part of the fixed combat tick.
-func _attack(t: Unit):
+# fixed >= 0: a strike from an ability (Monkey Barrage) with that damage; it counts as an attack for
+# the on-hit effects but gives no mana.
+func _attack(t: Unit, fixed := -1.0):
 	attacks_made += 1
-	gain_mana(MANA_PER_ATTACK)
+	if fixed < 0.0:
+		gain_mana(MANA_PER_ATTACK)
 	if ramp > 0.0 and ramp_stacks < ramp_max:
 		ramp_stacks += 1
+	if blind_hits > 0:
+		blind_hits -= 1
+		t._popup("MISS", Color(0.8, 0.85, 1.0))
+		return
 	if t.dodges_next():
 		t._popup("MISS", Color(0.8, 0.85, 1.0))
 		return
-	var dmg := damage()
+	var dmg := fixed if fixed >= 0.0 else damage()
 	if crit_every > 0 and attacks_made % crit_every == 0:
 		dmg *= 2.0
 	damage_dealt += t.take_damage(dmg, self, true)
-	var steal := lifesteal + item_lifesteal
+	var steal := omnivamp()
 	if steal > 0.0:
 		health = minf(health + dmg * steal, max_hp())
+	if next_attack_stun > 0.0 and not t.dead:
+		t.apply_stun(next_attack_stun)
+		next_attack_stun = 0.0
 	if not t.dead:
 		if burn > 0.0:
 			t.apply_burn(burn * t.max_hp(), self)
@@ -434,23 +481,74 @@ func dodges_next() -> bool:
 	attacks_taken += 1
 	return dodge_every > 0 and attacks_taken % dodge_every == 0
 
-func apply_burn(dps: float, by: Unit):
+func apply_burn(dps: float, by: Unit, secs := BURN_TIME):
 	burn_dps = maxf(burn_dps, dps) if burn_left > 0.0 else dps
-	burn_left = BURN_TIME
+	burn_left = maxf(burn_left, secs)
 	burn_by = by
 
-func apply_chill(amount: float):
+func apply_chill(amount: float, secs := CHILL_TIME):
 	chill_on = minf(maxf(chill_on, amount), CHILL_CAP)
-	chill_left = CHILL_TIME
+	chill_left = maxf(chill_left, secs)
 
-func apply_curse(amount: float):
+func apply_curse(amount: float, secs := CURSE_TIME):
 	curse_on = maxf(curse_on, amount)
-	curse_left = CURSE_TIME
+	curse_left = maxf(curse_left, secs)
 
-# Regen, burn damage and the chill / curse timers, once per combat tick.
+# Crowd control from abilities: the same kind doesn't stack, the longer one wins.
+func apply_stun(secs: float):
+	if not dead:
+		stun_left = maxf(stun_left, secs)
+
+func apply_silence(secs: float):
+	silence_left = maxf(silence_left, secs)
+
+func apply_blind(hits: int):
+	blind_hits = maxi(blind_hits, hits)
+
+func apply_taunt(by: Unit, secs: float):
+	taunt_by = by
+	taunt_left = maxf(taunt_left, secs)
+	target = by
+
+# A timed buff from an ability; casting the same one again refreshes it instead of stacking.
+func add_buff(source: String, stat: String, amount: float, secs: float):
+	buffs[source] = [stat, amount, secs]
+
+func buff_total(stat: String) -> float:
+	var sum := 0.0
+	for b in buffs.values():
+		if b[0] == stat:
+			sum += b[1]
+	return sum
+
+# A shield from an ability that runs out after secs; a new one replaces it (the bigger amount stays).
+func add_timed_shield(amount: float, secs: float, heals := false):
+	shield -= ab_shield
+	ab_shield = maxf(amount, ab_shield)
+	shield += ab_shield
+	ab_shield_left = secs
+	ab_shield_heals = heals
+
+# Heals up to max HP; returns the HP restored.
+func heal(amount: float) -> float:
+	if dead or amount <= 0.0:
+		return 0.0
+	var before := health
+	health = minf(health + amount, max_hp())
+	return health - before
+
+# Runs fn after secs (the later hits of a multi-hit cast); a delay of 0 runs it now.
+func queue_action(secs: float, fn: Callable):
+	if secs <= 0.0:
+		fn.call()
+	else:
+		queued.append([secs, fn])
+
+# Regen, burn damage, the chill / curse timers and the ability timers, once per combat tick.
 func _tick_effects(delta: float):
-	if regen > 0.0:
-		health = minf(health + max_hp() * regen * delta, max_hp())
+	var regen_now := regen + buff_total("regen")
+	if regen_now > 0.0:
+		health = minf(health + max_hp() * regen_now * delta, max_hp())
 	if burn_left > 0.0:
 		burn_left -= delta
 		var by: Unit = burn_by if is_instance_valid(burn_by) else null
@@ -465,6 +563,35 @@ func _tick_effects(delta: float):
 		curse_left -= delta
 		if curse_left <= 0.0:
 			curse_on = 0.0
+	stun_left = maxf(0.0, stun_left - delta)
+	silence_left = maxf(0.0, silence_left - delta)
+	cast_lock = maxf(0.0, cast_lock - delta)
+	if taunt_left > 0.0:
+		taunt_left -= delta
+		if taunt_left <= 0.0:
+			taunt_by = null
+	for source in buffs.keys():
+		buffs[source][2] -= delta
+		if buffs[source][2] <= 0.0:
+			buffs.erase(source)
+	if ab_shield_left > 0.0:
+		ab_shield_left -= delta
+		if ab_shield_left <= 0.0:
+			var left := minf(ab_shield, shield)
+			shield -= left
+			ab_shield = 0.0
+			if ab_shield_heals:
+				heal(left)
+	if not queued.is_empty():
+		var due: Array = []
+		for q in queued:
+			q[0] -= delta
+			if q[0] <= 0.0001:
+				due.append(q)
+		for q in due:
+			queued.erase(q)
+			if not dead:
+				q[1].call()
 
 # Returns the damage actually taken (after curse and damage reduction, shield included, without
 # overkill), for the damage meter. by: the attacker (or burner); attack: a hit (gives mana, flinches);
@@ -473,11 +600,13 @@ func take_damage(amount: float, by: Unit = null, attack := false, pierce := fals
 	if dead:
 		return 0.0
 	if not pierce:
-		amount *= (1.0 + curse_on) * (1.0 - minf(dmg_reduction + item_dr, 0.6))
+		# synergies and items share the 60% cap; ability buffs (Shell Up) reduce what is left
+		amount *= (1.0 + curse_on) * (1.0 - minf(dmg_reduction + item_dr, 0.6)) * (1.0 - minf(buff_total("dr"), 0.9))
 	if attack:
 		gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
 	var absorbed := minf(shield, amount)
 	shield -= absorbed
+	ab_shield = maxf(0.0, ab_shield - absorbed)   # ability shields are used up first
 	amount -= absorbed
 	var removed := absorbed + minf(amount, maxf(health, 0.0))
 	damage_taken += removed
@@ -509,7 +638,7 @@ func _face_point(p: Vector3):
 		look_at(flat)
 
 func gain_mana(n: float):
-	if data == null or data.max_mana <= 0.0:
+	if data == null or data.max_mana <= 0.0 or stun_left > 0.0 or silence_left > 0.0:
 		return
 	mana = minf(mana + n, data.max_mana)
 
@@ -544,7 +673,7 @@ func apply_synergy(fx: Dictionary):
 	kill_heal = fx.get("kill_heal", 0.0)
 
 func attack_interval() -> float:
-	var speed := 1.0 + bonus_as + item_as + ramp * ramp_stacks
+	var speed := 1.0 + bonus_as + item_as + ramp * ramp_stacks + buff_total("as")
 	return 1.0 / (data.attacks_per_second * speed * (1.0 - chill_on))
 
 func can_equip() -> bool:
@@ -672,10 +801,16 @@ func _ability() -> Ability:
 func _cast(target_unit: Unit):
 	mana = 0.0
 	_last_mana_ratio = -1.0
-	_ability().cast(self, target_unit)
+	var shown := "CAST"
+	if Abilities.has(data):
+		if Abilities.enabled:
+			shown = Abilities.name_of(data)
+			cast_lock = Abilities.cast(self, target_unit)   # locked while casting (longer for channels)
+	else:
+		_ability().cast(self, target_unit)   # units whose ability isn't built yet: the placeholder
 	if model_view != null:
 		model_view.on_cast()
-	_popup("CAST", Color(0.55, 0.85, 1.0))
+	_popup(shown, Color(0.55, 0.85, 1.0))
 
 # A word that floats up from the unit and fades ("CAST", "MISS", "REVIVE"). Visual only.
 func _popup(text: String, color: Color):
