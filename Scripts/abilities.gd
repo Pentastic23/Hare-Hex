@@ -11,7 +11,7 @@ class_name Abilities
 # x1 / x1.8 / x3.2 by star (rounded to 5), and with an enemy's stat_scale; damage also with the
 # caster's damage bonus. An array is the value at 1 / 2 / 3 stars as it is (percentages, seconds).
 # In "text", {a} / {b} show the values: all three stars in the shop, the unit's star in the inspector.
-# Units without an entry still cast the old placeholder (chunks 3-4 of the plan are not built yet).
+# Units without an entry still cast the old placeholder (chunk 4 of the plan is not built yet).
 
 const CAST_TIME := 0.5   # seconds a cast locks the caster (the skill clip; no attacks or moves)
 
@@ -68,7 +68,22 @@ const DEFS := {
 	"Warlord": {"name": "Rhino Charge", "a": 200, "text": "Charges up to 4 hexes towards the farthest enemy, stopping at the first unit in the way. Enemies next to its path take {a} and are stunned for 1 s."},
 	"Nightstalker": {"name": "Moonlit Hunt", "a": 250, "text": "Vanishes for 2 s: it can't be targeted but keeps attacking. Its first attack after it reappears deals {a} more and always crits."},
 	"Seraph": {"name": "Wings of Dawn", "a": 200, "text": "Heals every ally for {a}; the ally with the lowest HP% also can't be targeted for 1.5 s."},
+	# chunk 3: summons and zones
+	"Necromancer": {"name": "Raise Thrall", "a": 300, "b": 30, "text": "Raises a Bone Thrall ({a} HP, {b} damage) next to itself. One at a time: casting again heals it fully."},
+	"Demonologist": {"name": "Pact Demon", "a": 350, "b": 40, "c": 150, "text": "Summons a Pact Demon ({a} HP, {b} damage) that explodes for {c} to adjacent enemies when it dies. Up to two; with two out, casting heals them fully."},
+	"Beastmaster": {"name": "Jungle Call", "a": 250, "b": 35, "text": "Calls two jungle beasts ({a} HP, {b} damage, fast attacks). Casting again brings back any that died."},
+	"Plague Doctor": {"name": "Miasma", "a": 50, "text": "A plague cloud on the biggest cluster of enemies for 4 s: enemies within 1 hex of it take {a} per second and 15% more damage."},
+	"Druid": {"name": "Antler Grove", "b": [3, 4, 5], "text": "Grows a grove around itself for 4 s: allies within 1 hex of it regenerate {b}% of max HP per second."},
+	"Runesmith": {"name": "Rune Ward", "a": 160, "b": 20, "text": "The two allies with the lowest HP% get a {a} shield and thorns for 4 s: attackers take {b} per hit."},
 }
+
+# Summons (chunk 3): the model they borrow, their attack speed and how many letters they show.
+const SUMMONS := {
+	"Bone Thrall": {"model": "res://tres/units/skeleton.tres", "aps": 0.7, "label": "BT"},
+	"Pact Demon": {"model": "res://tres/units/imp.tres", "aps": 0.8, "label": "PD"},
+	"Jungle Beast": {"model": "res://tres/units/initiate.tres", "aps": 1.1, "label": "JB"},
+}
+const SUMMON_SIZE := 0.8   # summons are a little smaller than real units
 
 static var enabled := true   # tests turn casts off to check other mechanics on their own
 
@@ -359,7 +374,105 @@ static func cast(u: Unit, t: Unit) -> float:
 				a.heal(amt(u, "a"))
 			for a in low:
 				a.untargetable_left = maxf(a.untargetable_left, 1.5)
+		"Necromancer":
+			var alive := living_summons(u)
+			if alive.is_empty():
+				summon(u, "Bone Thrall", "a", "b")
+			else:
+				alive[0].heal(alive[0].max_hp())
+		"Demonologist":
+			var alive := living_summons(u)
+			if alive.size() < 2:
+				var demon := summon(u, "Pact Demon", "a", "b")
+				if demon != null:
+					var burst := amt(u, "c")
+					demon.on_death = func():
+						for e in enemies_within(demon, demon.coord, 1):
+							hit(demon, e, burst)
+			else:
+				for s in alive:
+					s.heal(s.max_hp())
+		"Beastmaster":
+			for i in 2 - living_summons(u).size():
+				summon(u, "Jungle Beast", "a", "b")
+		"Plague Doctor":
+			var c := cluster(u)
+			var gm = _gm(u)
+			if c != null and gm != null:
+				gm.add_zone("miasma", c.coord, 1, 4.0, u.team, amt(u, "a") * u.damage_bonus(), u)
+		"Druid":
+			var gm = _gm(u)
+			if gm != null:
+				gm.add_zone("grove", u.coord, 1, 4.0, u.team, amt(u, "b") / 100.0, u)
+		"Runesmith":
+			for a in lowest_hp_allies(u, 2):
+				a.add_timed_shield(amt(u, "a"), 4.0)
+				a.thorns = amt(u, "b")
+				a.thorns_left = 4.0
 	return lock
+
+static func _gm(u: Unit):
+	return u.get_tree().get_first_node_in_group("game_manager") if u.is_inside_tree() else null
+
+static func living_summons(u: Unit) -> Array[Unit]:
+	var out: Array[Unit] = []
+	for s in u.summons:
+		if is_instance_valid(s) and not s.dead:
+			out.append(s)
+	return out
+
+# A temporary unit for u's side on the free hex nearest to it: HP and damage from u's ability
+# (keys hp_key / dmg_key, by u's star and stat_scale), the look of another unit (SUMMONS), no traits,
+# items or mana. It joins the fight from the next tick and is freed when the fight ends.
+static func summon(u: Unit, sname: String, hp_key: String, dmg_key: String) -> Unit:
+	var gm = _gm(u)
+	var spot := free_tile_near(u, u.coord)
+	if gm == null or spot == Board.NO_STEP:
+		return null
+	var def: Dictionary = DEFS[u.data.display_name]
+	var info: Dictionary = SUMMONS[sname]
+	var look: UnitData = load(info.model)
+	var d := UnitData.new()
+	d.display_name = sname
+	d.short_name = info.label
+	d.cost = 0
+	d.max_health = value_at(def[hp_key], u.star)
+	d.attack_damage = value_at(def[dmg_key], u.star)
+	d.attack_range = 1.0
+	d.attacks_per_second = info.aps
+	d.move_speed = look.move_speed
+	d.max_mana = 0.0
+	d.start_mana = 0.0
+	d.model = look.model
+	var s := (load("res://scenes/unit.tscn").instantiate() as Unit)
+	u.board.get_node("Units").add_child(s)
+	s.setup(d, u.team)
+	s.summoned = true
+	s.stat_scale = u.stat_scale
+	s.get_node("ModelHolder").scale = Vector3.ONE * SUMMON_SIZE
+	u.board.claim(s, spot)
+	s.position = u.board.grid_to_world(spot)
+	s.begin_combat()
+	u.summons.append(s)
+	gm.add_summon(s)
+	return s
+
+# The empty, unlocked hex nearest to c (ties: lower tile), or Board.NO_STEP.
+static func free_tile_near(u: Unit, c: Vector2i) -> Vector2i:
+	var best := Board.NO_STEP
+	var best_d := 999
+	for t in u.board.tiles:
+		var tc: Vector2i = t
+		if not u.board.is_unlocked(tc):
+			continue
+		var occ = u.board.tiles[tc].occupant
+		if occ != null and is_instance_valid(occ):
+			continue
+		var d := Board.hex_distance(c, tc)
+		if d < best_d or (d == best_d and Board.tile_order(tc) < Board.tile_order(best)):
+			best_d = d
+			best = tc
+	return best
 
 # Nightblade and Assassin: leap next to the first enemy in `prey` that has an open hex beside it
 # (nearest to the caster, or farthest for a "behind" teleport) and strike it. With nowhere to land,

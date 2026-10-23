@@ -110,7 +110,7 @@ func _fill():
 		(p.get_theme_stylebox("panel") as StyleBoxFlat).border_width_bottom = 3
 		(p.get_theme_stylebox("panel") as StyleBoxFlat).border_color = DockKit.COST_COLORS.get(d.cost, HudStyle.MUTED)
 		portrait_slot.add_child(p)
-	team_label.text = ("ALLY" if u.team == 0 else "ENEMY") + "  ·  %d GOLD" % d.cost
+	team_label.text = ("ALLY" if u.team == 0 else "ENEMY") + ("  ·  SUMMONED" if u.summoned else "  ·  %d GOLD" % d.cost)
 	team_label.add_theme_color_override("font_color", HudStyle.YOU if u.team == 0 else HudStyle.ENEMY)
 
 	var tags: PackedStringArray = []

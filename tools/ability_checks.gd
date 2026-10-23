@@ -91,7 +91,7 @@ func _run():
 		elif Abilities.text(names[n]).contains("{") or Abilities.text(names[n], 2).contains("{"):
 			unfilled.append(n)
 	chk("every ability belongs to a unit in the roster", unknown.is_empty(), ", ".join(unknown))
-	chk("chunks 1 and 2: 46 units have an ability", Abilities.DEFS.size() == 46, str(Abilities.DEFS.size()))
+	chk("chunks 1-3: 52 units have an ability", Abilities.DEFS.size() == 52, str(Abilities.DEFS.size()))
 	chk("every text has its numbers filled in", unfilled.is_empty(), ", ".join(unfilled))
 	chk("shop text shows all three stars, the inspector one", Abilities.text(UD("cleric")).contains("110 / 200 / 350") and Abilities.text(UD("cleric"), 2).contains("for 200 each"), Abilities.text(UD("cleric")))
 	chk("per-star arrays stay as written", Abilities.text(UD("bard"), 3).contains("50%"))
@@ -297,6 +297,108 @@ func _run():
 	chk("and hides the weakest ally for 1.5 s", hurt2.untargetable_left == 1.5 and ok_ally.untargetable_left == 0.0 and board.nearest_enemy(foe2) != hurt2)
 	clear_units()
 
+	print("--- chunk 3: summons, zones and thorns")
+	var ne := place("necromancer", Vector2i(3, 6))
+	var nfoe := place("knight", Vector2i(3, 2), 1)
+	ne._cast(nfoe)
+	var thrall: Unit = ne.summons[0] if not ne.summons.is_empty() else null
+	chk("Raise Thrall: a Bone Thrall next to the Necromancer", thrall != null and thrall.summoned and thrall.team == 0 and Board.hex_distance(thrall.coord, ne.coord) == 1 and board.tiles[thrall.coord].occupant == thrall)
+	chk("with 300 HP, 30 damage, no traits and no mana", thrall != null and is_equal_approx(thrall.max_hp(), 300.0) and is_equal_approx(thrall.damage(), 30.0) and thrall.data.tags.is_empty() and thrall.data.max_mana == 0.0)
+	chk("it joins the fight's acting order", gm.new_summons.has(thrall))
+	thrall.take_damage(200.0)
+	ne._cast(nfoe)
+	chk("one at a time: casting again heals it fully", ne.summons.size() == 1 and is_equal_approx(thrall.health, 300.0))
+	chk("a summon can't be sold or given items", not (load("res://Scripts/drag_controller.gd") == null) and main.get_node("DragController").equip_item_on(thrall, null) == false)
+	clear_units()
+	gm.new_summons.clear()
+
+	var dm := place("demonologist", Vector2i(3, 6))
+	var dfoe := place("knight", Vector2i(3, 2), 1)
+	dm._cast(dfoe)
+	dm._cast(dfoe)
+	dm._cast(dfoe)
+	chk("Pact Demon: at most two", Abilities.living_summons(dm).size() == 2)
+	var demon: Unit = dm.summons[0]
+	var near_demon := place("thief", Vector2i(0, 0), 1)
+	board.claim(near_demon, board.neighbors(demon.coord).filter(func(c): return board.tiles[c].occupant == null)[0])
+	var nd0 := near_demon.health
+	demon.take_damage(9999.0)
+	chk("a dying demon explodes for 150 on adjacent enemies", demon.dead and is_equal_approx(nd0 - near_demon.health, 150.0), str(nd0 - near_demon.health))
+	clear_units()
+	gm.new_summons.clear()
+
+	var bm := place("beastmaster", Vector2i(3, 6))
+	var bfoe := place("knight", Vector2i(3, 2), 1)
+	bm._cast(bfoe)
+	chk("Jungle Call: two beasts", Abilities.living_summons(bm).size() == 2)
+	bm.summons[0].take_damage(9999.0)
+	bm._cast(bfoe)
+	chk("casting again brings back the one that died", Abilities.living_summons(bm).size() == 2 and bm.summons.size() == 3)
+	clear_units()
+	gm.new_summons.clear()
+
+	var pd := place("plague_doctor", Vector2i(3, 6))
+	var lone2 := place("thief", Vector2i(0, 0), 1)
+	var p1 := place("thief", Vector2i(5, 2), 1)
+	var p2 := place("thief", Vector2i(5, 1), 1)
+	gm.combatants.assign([pd, lone2, p1, p2])
+	pd._cast(lone2)
+	chk("Miasma: a zone on the cluster", gm.zones.size() == 1 and gm.zones[0].center in [p1.coord, p2.coord])
+	for i in 240:
+		gm._tick_zones()
+	chk("enemies in it take 50 a second for 4 s (cursed by it after the first tick), the lone one nothing", is_equal_approx(p1.max_hp() - p1.health, 50.0 / 60.0 + 239.0 * 50.0 / 60.0 * 1.15) and lone2.health == lone2.max_hp(), str(p1.max_hp() - p1.health))
+	chk("and the zone is gone after 4 s", gm.zones.is_empty() and pd.damage_dealt > 399.0)
+	clear_units()
+
+	var dru := place("druid", Vector2i(3, 6))
+	var close_ally := place("knight", Vector2i(3, 5))
+	var far_ally2 := place("knight", Vector2i(0, 7))
+	var dfoe2 := place("thief", Vector2i(3, 2), 1)
+	close_ally.health = 100.0
+	far_ally2.health = 100.0
+	gm.combatants.assign([dru, close_ally, far_ally2, dfoe2])
+	dru._cast(dfoe2)
+	for i in 60:
+		gm._tick_zones()
+	chk("Antler Grove: allies within 1 hex regenerate 3% a second", is_equal_approx(close_ally.health, 100.0 + close_ally.max_hp() * 0.03) and far_ally2.health == 100.0, str(close_ally.health))
+	gm.zones.clear()
+	clear_units()
+
+	var rs := place("runesmith", Vector2i(3, 6))
+	var warded := place("knight", Vector2i(3, 4))
+	var brute := place("guardian", Vector2i(3, 3), 1)
+	warded.health = 200.0
+	rs._cast(brute)
+	var b0 := brute.health
+	brute._attack(warded)
+	chk("Rune Ward: a shield and thorns (20 per hit back)", warded.ab_shield > 0.0 and is_equal_approx(b0 - brute.health, 20.0), str(b0 - brute.health))
+	timers([warded], 4.05)
+	var b1 := brute.health
+	brute._attack(warded)
+	chk("the thorns run out after 4 s", brute.health == b1)
+	clear_units()
+
+	print("--- summons in a real fight")
+	var fsigs: PackedStringArray = []
+	for i in 2:
+		await load_main(4242)
+		_summon_fight()
+		gm.start_combat()
+		gm.resolve_combat()
+		fsigs.append(_signature())
+		await get_tree().process_frame
+	var left_over := 0
+	for n in board.get_node("Units").get_children():
+		if (n as Unit).summoned and not n.is_queued_for_deletion():
+			left_over += 1
+	var on_tiles := 0
+	for t in board.tiles.values():
+		if t.occupant != null and is_instance_valid(t.occupant) and t.occupant.summoned:
+			on_tiles += 1
+	chk("summons took part", fsigs[0].contains("Bone Thrall") or fsigs[0].contains("Jungle Beast") or fsigs[0].contains("Pact Demon"), fsigs[0].left(160))
+	chk("the same fight with summons twice gives the same result", fsigs[0] == fsigs[1])
+	chk("when it ends every summon is gone and your units are back on their tiles", left_over == 0 and on_tiles == 0 and board.tiles[board.player_order[0]].occupant != null)
+
 	print("--- in the inspector")
 	var dr := place("dragon", Vector2i(3, 5), 0, 2)
 	var its: Array[ItemData] = []
@@ -381,3 +483,25 @@ func _signature() -> String:
 		if is_instance_valid(u):
 			parts.append("%s%d@%d,%d dealt=%.3f taken=%.3f" % [u.data.display_name, u.team, u.coord.x, u.coord.y, u.damage_dealt, u.damage_taken])
 	return " | ".join(parts)
+
+# Summoners on both sides.
+func _summon_fight():
+	GameState.me.level = 9
+	var mine := [["necromancer", 2], ["beastmaster", 1], ["knight", 2], ["druid", 1], ["runesmith", 1]]
+	for i in mine.size():
+		var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
+		board.get_node("Units").add_child(u)
+		u.setup(UD(mine[i][0]), 0)
+		u.set_star(mine[i][1])
+		u.mana = u.data.max_mana
+		board.put_on_tile(u, board.player_order[i])
+	var wave := EnemyBoard.new()
+	wave.display_name = "Summoners"
+	for e in [["demonologist", Vector2i(3, 3), 2], ["guardian", Vector2i(4, 3), 2], ["plague_doctor", Vector2i(3, 1), 1], ["necromancer", Vector2i(2, 2), 1]]:
+		var bu := BoardUnit.new()
+		bu.unit = UD(e[0])
+		bu.coord = e[1]
+		bu.star = e[2]
+		wave.units.append(bu)
+	var waves: Array[EnemyBoard] = [wave]
+	gm.opponents = WaveOpponents.new(waves, 1.0)

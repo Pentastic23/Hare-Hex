@@ -397,7 +397,7 @@ func is_over_sell_zone(p: Vector3) -> bool:
 	return Vector2(p.x - s.x, p.z - s.z).length() < HEX * 0.95
 
 func sell_unit(u: Unit):
-	if u == null or u.data == null:
+	if u == null or u.data == null or u.summoned:
 		return
 	var refund := u.data.cost * UnitPool.copies_in(u.star)   # use `u.data.cost` for a flat refund
 	var d := u.data

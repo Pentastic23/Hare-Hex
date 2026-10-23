@@ -137,7 +137,7 @@ func _drop_item():
 
 func equip_item_on(u: Unit, item: ItemData) -> bool:
 	var index := GameState.me.items.find(item)
-	if index == -1 or u == null or u.team != 0:
+	if index == -1 or u == null or u.team != 0 or u.summoned:
 		return false
 	if item.kind == &"remover":
 		return use_tongs_on(u, item)

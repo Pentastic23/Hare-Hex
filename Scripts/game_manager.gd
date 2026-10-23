@@ -33,6 +33,8 @@ var current_board: EnemyBoard      # the enemy board of the current/last fight (
 const COMBAT_TICK := 1.0 / 60.0   # seconds of fight per tick
 const COMBAT_MAX_TICKS := 3600    # 60 s; reaching it counts as a loss
 var combatants: Array[Unit] = []  # fixed acting order for the current fight (_combat_order)
+var new_summons: Array[Unit] = []   # summoned this tick; they join `combatants` (at the end) after it
+var zones: Array = []   # ground effects from abilities this fight (add_zone): ticked before the units act
 var combat_ticks := 0
 var prep_left := 0.0   # seconds of PREP left; 0 when not in PREP
 var rng := RandomNumberGenerator.new()   # run RNG (seeded): random enemies and placement. Shop and drops use GameState.me.rng.
@@ -421,6 +423,8 @@ func start_combat():
 		if u and u.coord.x >= 0:
 			u.begin_combat()
 	combatants = _combat_order()
+	new_summons.clear()
+	zones.clear()
 	combat_ticks = 0
 	combat_time = 0.0
 	fighting = true
@@ -518,9 +522,13 @@ func _physics_process(_delta):
 func combat_tick():
 	combat_ticks += 1
 	combat_time = combat_ticks * COMBAT_TICK
+	_tick_zones()
 	for u in combatants:
 		if is_instance_valid(u) and not u.dead and u.coord.x >= 0:
 			u.combat_step(COMBAT_TICK)
+	if not new_summons.is_empty():
+		combatants.append_array(new_summons)   # they act from the next tick
+		new_summons.clear()
 	var alive_p := 0
 	var alive_e := 0
 	var enemy_stars := 0
@@ -531,9 +539,39 @@ func combat_tick():
 			alive_p += 1
 		else:
 			alive_e += 1
-			enemy_stars += u.star
+			if not u.summoned:
+				enemy_stars += u.star   # summons don't add to the loss damage
 	if alive_p == 0 or alive_e == 0 or combat_ticks >= COMBAT_MAX_TICKS:
 		_end_combat(alive_e == 0 and alive_p > 0, enemy_stars)
+
+# A ground effect from an ability (Miasma, Antler Grove): every tick for `secs`, the units within
+# `radius` of `center` are affected. kind "miasma": enemies of `team` take `amount` per second and are
+# cursed 15%; kind "grove": allies of `team` regenerate `amount` of their max HP per second. It stays
+# if its caster dies; `by` gets the damage credit while it lives.
+func add_zone(kind: String, center: Vector2i, radius: int, secs: float, team: int, amount: float, by: Unit) -> void:
+	zones.append({"kind": kind, "center": center, "radius": radius, "left": secs, "team": team, "amount": amount, "by": by})
+
+func _tick_zones() -> void:
+	if zones.is_empty():
+		return
+	for z in zones:
+		z.left -= COMBAT_TICK
+		var by: Unit = z.by if is_instance_valid(z.by) else null
+		for u in combatants:
+			if not is_instance_valid(u) or u.dead or u.coord.x < 0 or Board.hex_distance(z.center, u.coord) > z.radius:
+				continue
+			if z.kind == "miasma" and u.team != z.team:
+				var removed := u.take_damage(z.amount * COMBAT_TICK, by)
+				if by != null:
+					by.damage_dealt += removed
+				u.apply_curse(0.15, 0.25)
+			elif z.kind == "grove" and u.team == z.team:
+				u.heal(u.max_hp() * z.amount * COMBAT_TICK)
+	zones = zones.filter(func(z): return z.left > 0.0001)   # (float steps: 240 ticks of 1/60 leave a crumb)
+
+# Adds a summoned unit to the fight; it acts from the next tick (see combat_tick).
+func add_summon(u: Unit) -> void:
+	new_summons.append(u)
 
 # Runs the current fight to the end immediately (tests now; a PvP server or replays later).
 func resolve_combat() -> bool:
@@ -553,10 +591,12 @@ func _end_combat(player_won: bool, enemy_stars: int):
 	if not fighting: return
 	fighting = false
 	GameState.me.last_combat_won = player_won
+	zones.clear()
+	new_summons.clear()
 	for n in board.get_node("Units").get_children():
 		var u := n as Unit
-		if u and u.team == 1:
-			u.leave_fight(not player_won)   # frees it; a falling or cheering model stays a moment longer
+		if u and (u.team == 1 or u.summoned):
+			u.leave_fight(not player_won and u.team == 1)   # frees it (summons too); a falling or cheering model stays a moment longer
 	for t in board.tiles.values():
 		t.occupant = null
 	for u in snapshot:

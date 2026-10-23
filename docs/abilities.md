@@ -1,6 +1,6 @@
 # Abilities: one per unit (plan)
 
-Status: **chunks 1 and 2 built** (2026-10-23): 46 units cast for real (`Scripts/abilities.gd`, `tools/ability_checks`). Chunks 3 and 4 (19 units) still cast the placeholder. Spell effects (VFX) come after the abilities, and the bot balance pass waits until all 65 are in (user decisions). Roadmap item 1. If this doc and the code disagree, the code wins.
+Status: **chunks 1-3 built** (2026-10-23): 52 units cast for real (`Scripts/abilities.gd`, `tools/ability_checks`). Chunk 4 (13 units) still casts the placeholder. Spell effects (VFX) come after the abilities, and the bot balance pass waits until all 65 are in (user decisions). Roadmap item 1. If this doc and the code disagree, the code wins.
 
 Every one of the 65 units gets its own ability, themed on its animal, its class and its origin. Today a full mana bar casts a placeholder (`Ability.cast` does nothing and a "CAST" word floats up). This plan says what each cast does, the rules all abilities share, the new combat mechanics they need, and the order to build them in.
 
@@ -155,7 +155,7 @@ Format: **Ability name**, then the effect with values at 1★ / 2★ / 3★. Man
 
 1. **Toolkit and simple casts (40 units), built 2026-10-23:** the ability data format, cast time, the name popup, ability damage, direct heal, flat shields, timed buffs and debuffs, stun, silence, blind and taunt; areas, lines, clusters and multi-target picks. That covers every unit not listed in the later chunks. Checks: one per mechanic, plus a fight full of casts resolved twice (deterministic).
 2. **Movement and stealth (6), built 2026-10-23:** leap, teleport and dash with tile claiming, untargetable. Scout, Nightblade, Assassin, Warlord, Nightstalker, Seraph.
-3. **Summons and zones (6):** temporary units, persistent areas, thorns. Necromancer, Demonologist, Beastmaster, Plague Doctor, Druid, Runesmith.
+3. **Summons and zones (6), built 2026-10-23:** temporary units, persistent areas, thorns. Necromancer, Demonologist, Beastmaster, Plague Doctor, Druid, Runesmith.
 4. **Special rules (13):** mana grant and burn, link, parry, delayed damage, root, charm, raise, the Thief's gold, eruptions and refunds. Minstrel, Zen Master, Paladin, Duelist, Archdemon, Treant, Faerie Queen, Deathlord, Thief, Magma Guard, Reaper, Phoenix, Frost Queen.
 5. **UI and balance:** ability text in the inspector, shop and planner tooltips (`Tip.wrap`, checked by `tooltip_checks`); a combat speed check; a bot retune of every campaign level's `enemy_stat_mult` (casts make both sides stronger, but waves are hand-built, so expect the clear rates to move).
 
@@ -211,3 +211,19 @@ A charmed unit must be obvious at a glance for the whole time it is charmed:
   - The Scout only leaps if a hex within 2 is farther from the nearest enemy than where it stands.
   - The Warlord charges towards the farthest enemy, not its target (see its entry). Enemies within 1 hex of any hex of its path, its starting hex included, are hit.
   - A vanished unit's attackers drop it and pick another target. If every enemy has vanished, they wait.
+
+## Chunk 3 as built (2026-10-23)
+
+- **Units casting:** Necromancer, Demonologist, Beastmaster, Plague Doctor, Druid, Runesmith.
+- **Summons** (`Abilities.summon`):
+  - A real `unit.tscn` unit with a UnitData made in code: HP and damage from the ability (by the summoner's star and `stat_scale`), melee, no traits, no items, no mana.
+  - Each borrows another unit's model, at 80% size: the Bone Thrall looks like the Skeleton (rat), the Pact Demon like the Imp (bat), and the jungle beasts like the Initiate (monkey).
+  - A summon appears on the free hex nearest its summoner. It joins the fight's acting order at the end, from the next tick (`GameManager.add_summon`), so the order stays fixed.
+  - When the fight ends, every summon is freed (`_end_combat`).
+  - Summons can't be sold or given items. They count as living units for who wins the fight, but not towards the loss damage. The damage meter lists only your real units.
+  - The inspector labels them "SUMMONED".
+- **Zones** (`GameManager.add_zone`, ticked at the start of each combat tick, before the units act): the Miasma cloud and the Antler Grove. A zone stays where it was cast, and keeps going if its caster dies.
+  - The Miasma's own 15% curse also raises its damage after the first tick (about 230 over 4 s at 1 star instead of 200).
+- **Thorns** (Rune Ward): attackers take the thorns damage on each attack while it lasts. Thorns damage isn't an attack, so it never bounces back.
+- **Death hook:** `Unit.on_death` runs once when a unit dies (the Pact Demon's explosion). A revive doesn't trigger it.
+- **Choices:** with two demons out, the Demonologist heals both fully instead of summoning a third. The Beastmaster tops its pack back up to two.

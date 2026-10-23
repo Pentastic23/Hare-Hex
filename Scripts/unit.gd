@@ -86,6 +86,11 @@ var empower_dmg := 0.0
 var empower_crit := false # ...and always crit
 var empower_after_stealth := false   # Moonlit Hunt: only once the unit can be targeted again
 var move_rate := 0.0      # steps per second for a leap or charge (0 = its own move_speed)
+var thorns := 0.0         # attackers take this much per hit while thorns_left runs (Rune Ward)
+var thorns_left := 0.0
+var summoned := false     # a temporary unit from an ability: no traits or items, gone when the fight ends
+var summons: Array[Unit] = []   # what this unit has summoned this fight
+var on_death: Callable    # runs once when it dies (the Pact Demon's explosion)
 var damage_dealt := 0.0   # this fight, HP actually removed from enemies (damage meter)
 var damage_taken := 0.0   # this fight, HP lost
 
@@ -357,6 +362,9 @@ func _reset_fight_state():
 	empower_crit = false
 	empower_after_stealth = false
 	move_rate = 0.0
+	thorns = 0.0
+	thorns_left = 0.0
+	summons.clear()
 
 # An enemy leaving the board when its fight ends (GameManager frees it). A model still falling, or
 # celebrating because the enemy side won, is left behind as a stand-in that finishes and then
@@ -599,6 +607,7 @@ func _tick_effects(delta: float):
 	stun_left = maxf(0.0, stun_left - delta)
 	silence_left = maxf(0.0, silence_left - delta)
 	untargetable_left = maxf(0.0, untargetable_left - delta)
+	thorns_left = maxf(0.0, thorns_left - delta)
 	cast_lock = maxf(0.0, cast_lock - delta)
 	if taunt_left > 0.0:
 		taunt_left -= delta
@@ -644,6 +653,8 @@ func take_damage(amount: float, by: Unit = null, attack := false, pierce := fals
 	amount -= absorbed
 	var removed := absorbed + minf(amount, maxf(health, 0.0))
 	damage_taken += removed
+	if attack and thorns_left > 0.0 and is_instance_valid(by) and not by.dead:
+		damage_dealt += by.take_damage(thorns, self)   # not an attack, so thorns never bounce back
 	health -= amount
 	if health <= 0.0:
 		if revive > 0.0 and not revived:
@@ -654,6 +665,8 @@ func take_damage(amount: float, by: Unit = null, attack := false, pierce := fals
 			return removed
 		dead = true
 		board.vacate(self)
+		if on_death.is_valid():
+			on_death.call()
 		if model_view != null:
 			model_view.on_death()   # stays visible while it falls; _process hides it after
 			_hide_in = model_view.death_left() + 0.4
