@@ -175,6 +175,29 @@ func _run():
 	chk("with a ghost: describes it for the top bar", prov.describe_next() == "Ghost of You (round 9, level 5, 74 HP)", prov.describe_next())
 	chk("and returns its board", prov.board_for_round(9).display_name == "Ghost of You" and prov.board_for_round(9).units.size() == 3)
 
+	print("--- ghosts from an older balance version (before a stats or synergy change)")
+	wipe(ROOT)
+	var old := snap.duplicate(true)
+	old["balance"] = "oldbalance000000"
+	old["run"] = "oldrun"
+	store.submit(old)
+	prov.prepare(9)
+	chk("with no current ghost, an older one still plays (today's stats)", prov.current_snapshot().get("run") == "oldrun" and prov.board_for_round(9).units.size() == 3, str(prov.current_snapshot().get("run")))
+	var cur := snap.duplicate(true)
+	cur["run"] = "currun"
+	store.submit(cur)
+	var always_current := true
+	for i in 10:
+		prov.prepare(9)
+		always_current = always_current and prov.current_snapshot().get("run") == "currun"
+	chk("a ghost with today's balance is always preferred", always_current)
+	wipe(ROOT)
+	var gone := old.duplicate(true)
+	gone.board.units[0]["unit"] = "A Unit That Was Removed"
+	store.submit(gone)
+	prov.prepare(9)
+	chk("an older ghost with a unit that no longer exists is skipped", prov.current_snapshot().is_empty() and prov.board_for_round(9).display_name == "Random")
+
 	print("--- a ghost fight is deterministic")
 	var sigs: PackedStringArray = []
 	for i in 2:

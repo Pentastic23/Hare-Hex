@@ -65,7 +65,7 @@ func _read(round: int, file: String) -> Dictionary:
 		return parsed
 	return {}   # unreadable or from another version: ignored, never deleted
 
-func fetch(round: int, player_level: int, balance: String, rng: RandomNumberGenerator, exclude_run := "") -> Dictionary:
+func fetch(round: int, player_level: int, balance: String, rng: RandomNumberGenerator, exclude_run := "", accept := Callable()) -> Dictionary:
 	for r in [round, round - 1, round + 1]:   # the exact round first, then its neighbours
 		if r < 1:
 			continue
@@ -73,7 +73,9 @@ func fetch(round: int, player_level: int, balance: String, rng: RandomNumberGene
 		var any: Array = []
 		for file in _files(r):
 			var s := _read(r, file)
-			if s.is_empty() or str(s.balance) != balance or str(s.run) == exclude_run:
+			if s.is_empty() or (balance != "" and str(s.balance) != balance) or str(s.run) == exclude_run:
+				continue
+			if accept.is_valid() and not accept.call(s):
 				continue
 			var level := int(s.player_level)
 			if level > player_level + LEVEL_SPREAD:
