@@ -256,19 +256,9 @@ static func portrait_well(d: UnitData, side: float, font_size := 14) -> PanelCon
 
 # --- synergy text ---------------------------------------------------------------------------------
 
-# The effect at one tier: "Order units gain 20% / 40% max HP" at tier 1 -> "Order units gain 40% max HP".
+# The effect at one tier, as the player reads it ("Casters +30% damage").
 static func effect_text(tag: String, tier: int) -> String:
-	if not Synergies.DEFS.has(tag):
-		return ""
-	var desc: String = Synergies.DEFS[tag]["desc"]
-	var re := RegEx.new()
-	re.compile("[+]?\\d+%?(?: / [+]?\\d+%?)+")
-	var m := re.search(desc)
-	if m == null:
-		return desc
-	var parts := m.get_string().split(" / ")
-	var pick := parts[clampi(tier, 0, parts.size() - 1)]
-	return desc.substr(0, m.get_start()) + pick + desc.substr(m.get_end())
+	return Synergies.tier_text(tag, tier)
 
 # --- pixel icons ----------------------------------------------------------------------------------
 

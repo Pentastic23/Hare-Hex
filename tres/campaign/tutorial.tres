@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_rsvqh"]
 [ext_resource type="Resource" path="res://tres/knight.tres" id="2_opea7"]
 [ext_resource type="Resource" path="res://tres/cleric.tres" id="3_1fxho"]
+[ext_resource type="Resource" path="res://tres/units/militia.tres" id="4_militia"]
 [ext_resource type="Script" path="res://Scripts/campaign_level.gd" id="4_ocbf7"]
 [ext_resource type="Script" path="res://Scripts/enemy_board.gd" id="5_nfygj"]
 [ext_resource type="Script" path="res://Scripts/board_unit.gd" id="6_tm08j"]
@@ -110,5 +111,5 @@ enemy_stat_mult = 1.0
 loss_damage = 2
 prep_time = 600
 item_drop_rounds = Array[int]([3])
-allowed_units = Array[ExtResource("1_rsvqh")]([ExtResource("2_opea7"), ExtResource("3_1fxho")])
+allowed_units = Array[ExtResource("1_rsvqh")]([ExtResource("2_opea7"), ExtResource("4_militia")])
 unlocks = Array[StringName]([])

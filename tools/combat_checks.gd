@@ -223,6 +223,151 @@ func _run():
 	gm.resolve_combat()
 	await get_tree().process_frame
 
+	print("--- synergy tiers (docs/synergies-v2.md)")
+	await load_main(31)
+	GameState.me.level = 10
+	board.refresh_unlocks(10, false)
+	var team_of := func(names: Array) -> Array:
+		var out: Array = []
+		for n in names:
+			out.append(bare(n))
+		return out
+	var casters: Array = team_of.call(["cleric", "apprentice", "sprite", "sparkcaller", "mage", "ice_mage", "runesmith", "lich", "archmage"])
+	var fx: Dictionary = Synergies.effects_for(casters)
+	chk("9 Casters: Archmagi +90% damage and every 3rd attack crits (plus +10% from the 3 Arcane among them)", is_equal_approx(fx[casters[4]].get("dmg", 0.0), 1.0) and int(fx[casters[4]].get("crit", 0)) == 3, str(fx[casters[4]]))
+	chk("tiers don't stack: 5 Order units get +50% HP, not 15+25+35+50", is_equal_approx(Synergies.effects_for(team_of.call(["knight", "militia", "guardian", "warlord", "herald"])).values()[0].get("hp", 0.0), 0.5))
+	chk("Lich King gives every Undead a revive", is_equal_approx(Synergies.effects_for([bare("deathlord"), bare("ghoul")]).values()[1].get("revive", 0.0), 0.3))
+	chk("every trait's tooltip lists one line per tier", Synergies.tooltip("Warrior").split("\n").size() == 5 and Synergies.tooltip("Warrior", 7).contains("> 7:"))
+
+	print("--- synergy mechanics, one at a time")
+	await load_main(32)
+	GameState.me.level = 10
+	board.refresh_unlocks(10, false)
+	var a: Unit = place("knight", Vector2i(3, 4))
+	var t: Unit = place("knight", Vector2i(3, 3), 1)
+	a.apply_synergy({})
+	t.apply_synergy({"shield": 0.5})
+	a.begin_combat()
+	t.begin_combat()
+	var full := t.max_hp()
+	var took := t.take_damage(100.0, a, true)
+	chk("a shield absorbs damage before HP, and counts as damage dealt", is_equal_approx(t.health, full) and is_equal_approx(t.shield, full * 0.5 - 100.0) and is_equal_approx(took, 100.0))
+	t.apply_synergy({"revive": 0.3})
+	t.begin_combat()
+	t.take_damage(full * 5.0, a, true)
+	chk("revive: the first killing blow leaves 30% HP", not t.dead and t.revived and is_equal_approx(t.health, full * 0.3))
+	t.take_damage(full * 5.0, a, true)
+	chk("revive works once", t.dead)
+	t = place("knight", Vector2i(2, 3), 1)
+	t.apply_synergy({"dodge": 2})
+	t.begin_combat()
+	var misses: Array = []
+	for i in 4:
+		misses.append(t.dodges_next())
+	chk("dodge: every 2nd attack misses", misses == [false, true, false, true], str(misses))
+	t.apply_synergy({})
+	t.begin_combat()
+	a.apply_synergy({"crit": 2})
+	a.begin_combat()
+	var hp0 := t.health
+	a._attack(t)
+	var hit1 := hp0 - t.health
+	a._attack(t)
+	var hit2 := hp0 - hit1 - t.health
+	chk("crit: every 2nd attack deals double", is_equal_approx(hit2, hit1 * 2.0), "%.1f then %.1f" % [hit1, hit2])
+	t.begin_combat()
+	a.apply_synergy({"curse": 0.25})
+	a.begin_combat()
+	a._attack(t)
+	var cursed_hit := full - t.health
+	t.begin_combat()
+	t.apply_curse(0.25)
+	var before := t.health
+	t.take_damage(100.0, a, true)
+	chk("curse: the target takes 25% more damage", is_equal_approx(before - t.health, 125.0) and t.curse_on == 0.25 and cursed_hit > 0.0)
+	t.begin_combat()
+	a.apply_synergy({"burn": 0.05})
+	a.begin_combat()
+	a._attack(t)
+	var after_hit := t.health
+	for i in 240:   # 4 s of ticks: the burn lasts 3
+		t._tick_effects(gm.COMBAT_TICK)
+	chk("burn: 5% of max HP per second for 3 s", absf((after_hit - t.health) - full * 0.05 * 3.0) < full * 0.01 and t.burn_left <= 0.0, "%.1f burned" % (after_hit - t.health))
+	t.begin_combat()
+	var normal := t.attack_interval()
+	t.apply_chill(0.5)
+	chk("chill: attack interval doubles at 50%", is_equal_approx(t.attack_interval(), normal * 2.0))
+	for i in 150:
+		t._tick_effects(gm.COMBAT_TICK)
+	chk("chill wears off after 2 s", is_equal_approx(t.attack_interval(), normal))
+	t.begin_combat()
+	a.apply_synergy({"execute": 0.2, "kill_heal": 0.3})
+	a.begin_combat()
+	a.health = a.max_hp() * 0.5
+	t.health = t.max_hp() * 0.2
+	a._attack(t)
+	chk("execute: a target left below 20% dies, and the kill heals 30%", t.dead and is_equal_approx(a.health, a.max_hp() * 0.8))
+	a.apply_synergy({"ramp": 0.1, "ramp_max": 2})
+	a.begin_combat()
+	var base_iv := a.attack_interval()
+	var t2: Unit = place("guardian", Vector2i(4, 3), 1)
+	t2.begin_combat()
+	for i in 3:
+		a._attack(t2)
+	chk("ramp: +10% attack speed per attack, capped at 2 stacks", a.ramp_stacks == 2 and is_equal_approx(a.attack_interval(), base_iv / 1.2))
+	a.apply_synergy({"regen": 0.1})
+	a.begin_combat()
+	a.health = a.max_hp() * 0.5
+	for i in 60:
+		a._tick_effects(gm.COMBAT_TICK)
+	chk("regen: 10% of max HP per second", absf(a.health - a.max_hp() * 0.6) < 1.0)
+
+	print("--- a fight full of mechanics is still deterministic")
+	var msigs: PackedStringArray = []
+	for i in 2:
+		await load_main(4242)
+		GameState.me.level = 10
+		board.refresh_unlocks(10, false)
+		var mine_names := ["imp", "thief", "sprite", "minstrel", "faerie_queen", "pyromancer", "sparkcaller", "ice_mage", "frost_queen", "phoenix"]
+		for k in mine_names.size():
+			place(mine_names[k], board.player_order[k])
+		var wave := EnemyBoard.new()
+		for e in [["skeleton", Vector2i(1, 3)], ["ghoul", Vector2i(2, 3)], ["necromancer", Vector2i(3, 2)], ["plague_doctor", Vector2i(4, 2)], ["deathlord", Vector2i(3, 3)], ["reaper", Vector2i(4, 3)], ["assassin", Vector2i(5, 3)], ["nightblade", Vector2i(2, 2)]]:
+			var bu := BoardUnit.new()
+			bu.unit = UD(e[0])
+			bu.coord = e[1]
+			wave.units.append(bu)
+		var waves: Array[EnemyBoard] = [wave]
+		gm.opponents = WaveOpponents.new(waves, 1.0)
+		gm.start_combat()
+		gm.resolve_combat()
+		msigs.append(signature())
+		await get_tree().process_frame
+	chk("same result twice (tricksters, burns, chills, revives, executes, crits)", msigs[0] == msigs[1], msigs[0].left(120))
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
 	print("RESULT: ", "ALL PASS" if fails == 0 else "%d FAILED" % fails)
 	get_tree().quit()
+
+# A unit data by file name, from tres/ or tres/units/.
+func UD(n: String) -> UnitData:
+	var p := "res://tres/units/%s.tres" % n
+	return load(p if ResourceLoader.exists(p) else "res://tres/%s.tres" % n)
+
+# A unit of `team` on a tile (player or enemy side), ready for a test.
+func place(n: String, c: Vector2i, team := 0) -> Unit:
+	var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
+	board.get_node("Units").add_child(u)
+	u.setup(UD(n), team)
+	if team == 0:
+		board.put_on_tile(u, c)
+	else:
+		board.put_enemy_on_tile(u, c)
+	return u
+
+# A unit that isn't on any tile (for trait maths).
+func bare(n: String) -> Unit:
+	var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
+	board.get_node("Units").add_child(u)
+	u.setup(UD(n), 0)
+	return u

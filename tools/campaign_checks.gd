@@ -168,7 +168,7 @@ Knight *", tip.replace("
 	chk("authored coords used", guardian.coord == Vector2i(3, 3) and spawned.map(func(u): return u.coord).has(Vector2i(3, 2)))
 	chk("enemy star and item", guardian.star == 2 and guardian.items.size() == 1 and guardian.items[0].id == &"chain_vest")
 	chk("enemy stat_scale from wave", is_equal_approx(guardian.stat_scale, 0.6))
-	chk("enemy synergies: Order (Guardian+Knight) +20% HP", is_equal_approx(guardian.bonus_hp, 0.2), "bonus_hp %s" % guardian.bonus_hp)
+	chk("enemy synergies: Order (Guardian+Knight) +15% HP", is_equal_approx(guardian.bonus_hp, 0.15), "bonus_hp %s" % guardian.bonus_hp)
 	chk("enemy health full", is_equal_approx(guardian.health, guardian.max_hp()))
 	clear_enemies()
 

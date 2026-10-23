@@ -94,10 +94,7 @@ func _row(tag: String, n: int, tier: int) -> Control:
 	var row := PanelContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_PASS   # for the tooltip; clicks pass through
 	row.add_theme_stylebox_override("panel", DockKit.flat(DockKit.ROW_ACTIVE if active else Color.TRANSPARENT, 3, Vector4(4, 4, 4, 6)))
-	var parts: PackedStringArray = []
-	for th in thresholds:
-		parts.append(str(th))
-	row.tooltip_text = Tip.wrap("%s\nTiers: %s units" % [Synergies.DEFS[tag]["desc"], " / ".join(parts)])
+	row.tooltip_text = Tip.wrap(Synergies.tooltip(tag, n))
 	row.set_meta("tag", tag)
 	var h := HBoxContainer.new()
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE

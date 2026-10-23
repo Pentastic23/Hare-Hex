@@ -200,27 +200,27 @@ func _run():
 	await get_tree().process_frame
 	chk("clicking a unit adds it to the plan", SaveGame.team_plan() == ["Knight"] and planner.summary_label.text == "1 of %d planned at 1 gold" % at1 and planner.planned_label.text == "1 unit planned", "%s | %s" % [planner.summary_label.text, planner.planned_label.text])
 	chk("planned synergy chips (Order 1/2, not active)", planner.chip_entries([load("res://tres/knight.tres")]).has(["Order", "1/2", false]))
-	planner.tile_for("Cleric").pressed.emit()
+	planner.tile_for("Militia").pressed.emit()
 	await get_tree().process_frame
 	var ents: Array = planner.chip_entries(gm.roster.filter(func(d): return SaveGame.team_plan().has(d.display_name)))
 	chk("planned synergies update (Order 2/3 active, listed first)", ents[0] == ["Order", "2/3", true], str(ents))
-	chk("a planned tile gets the gold outline", (planner.tile_for("Cleric").get_theme_stylebox("normal") as StyleBoxFlat).border_color == HudStyle.GOLD)
+	chk("a planned tile gets the gold outline", (planner.tile_for("Militia").get_theme_stylebox("normal") as StyleBoxFlat).border_color == HudStyle.GOLD)
 	slots[0].show_offer(knight_data)
 	slots[1].show_offer(load("res://tres/thief.tres"))
 	chk("shop: planned unit gets a star and the gold border", slots[0].shown_name() == "Knight" and slots[0].planned and slots[0].star_label.visible and (slots[0].get_theme_stylebox("normal") as StyleBoxFlat).border_color == HudStyle.GOLD)
 	chk("shop: other units unchanged", slots[1].shown_name() == "Thief" and not slots[1].planned and not slots[1].star_label.visible and (slots[1].get_theme_stylebox("normal") as StyleBoxFlat).border_color != HudStyle.GOLD)
 	planner.tile_for("Knight").pressed.emit()
 	await get_tree().process_frame
-	chk("clicking again removes it, and the shop updates", SaveGame.team_plan() == ["Cleric"] and slots[0].shown_name() == "Knight" and not slots[0].planned and not slots[0].star_label.visible)
+	chk("clicking again removes it, and the shop updates", SaveGame.team_plan() == ["Militia"] and slots[0].shown_name() == "Knight" and not slots[0].planned and not slots[0].star_label.visible)
 	await esc()
 	chk("Esc closes the planner without pausing", dock.current == "damage" and not get_tree().paused)
 	await esc()
 	chk("Esc again pauses as usual", get_tree().paused and dock.current == "menu")
 	await esc()
 	SaveGame._loaded = false
-	chk("the plan is saved to disk", SaveGame.team_plan() == ["Cleric"])
+	chk("the plan is saved to disk", SaveGame.team_plan() == ["Militia"])
 	SaveGame.reset_progress()
-	chk("Reset campaign progress keeps the team plan", SaveGame.team_plan() == ["Cleric"])
+	chk("Reset campaign progress keeps the team plan", SaveGame.team_plan() == ["Militia"])
 	await get_tree().process_frame
 	chk("the Planner tab is no longer active once the planner is closed", dock.current != "planner")
 
@@ -237,7 +237,7 @@ func _run():
 	var act: Array = shown.map(func(t): return Synergies.active_tier(t, cnt[t]) >= 0)
 	chk("Synergies tab: a row per tag on the board, active ones first", shown.size() == cnt.keys().filter(func(t): return Synergies.DEFS.has(t)).size() and shown.size() > 0 and not (act.find(false) != -1 and act.rfind(true) > act.find(false)), "%s %s" % [shown, act])
 	chk("the Synergies badge counts active synergies", left.synergy_badge.text == str(act.count(true)) and syn.active_count == act.count(true))
-	chk("tier effect text picks the reached tier", DockKit.effect_text("Order", 1) == "Order units gain 40% max HP" and DockKit.effect_text("Order", 0) == "Order units gain 20% max HP")
+	chk("tier effect text picks the reached tier", DockKit.effect_text("Order", 1) == "Order +25% HP" and DockKit.effect_text("Order", 0) == "Order +15% HP")
 	GameState.me.items.clear()
 	for it in ["longsword", "iron_belt", "longsword"]:
 		GameState.me.items.append(load("res://tres/items/%s.tres" % it))
@@ -326,9 +326,9 @@ func _run():
 	GameState.me.gold = 50
 	GameState.me.level = 3
 	Events.unit_bought.emit(load("res://tres/knight.tres"))
-	Events.unit_bought.emit(load("res://tres/cleric.tres"))
+	Events.unit_bought.emit(load("res://tres/units/militia.tres"))
 	var k: Unit = board.all_player_units().filter(func(x): return x.data.display_name == "Knight")[0]
-	var cl: Unit = board.all_player_units().filter(func(x): return x.data.display_name == "Cleric")[0]
+	var cl: Unit = board.all_player_units().filter(func(x): return x.data.display_name == "Militia")[0]
 	var insp2 = main.get_node("UI/UnitInspector")
 	insp2.shown = k
 	insp2._fill()
@@ -338,12 +338,14 @@ func _run():
 	chk("alone on the board: still base stats", insp2.stats_label.text.begins_with("Health: 650"))
 	board.detach(cl); board.put_on_tile(cl, board.player_order[1])
 	insp2._fill()
-	chk("Knight + Cleric (Order 2): Knight health is 650 x 1.2 = 780", insp2.stats_label.text.begins_with("Health: 780\nDamage: 50"), insp2.stats_label.text.replace("\n", " | "))
+	chk("Knight + Militia (Order 2): Knight health is 650 x 1.15", insp2.stats_label.text.begins_with("Health: %d
+Damage: 50" % roundi(650.0 * 1.15)), insp2.stats_label.text.replace("
+", " | "))
 	chk("the synergy isn't called out in the text", not insp2.stats_label.text.to_lower().contains("synerg") and not insp2.stats_label.text.contains("(+"))
 	var gold_item := load("res://tres/items/iron_belt.tres")
 	k.equip(gold_item)
 	insp2._fill()
-	chk("an item stacks with it: (650 + 150) x 1.2 = 960, item note kept", insp2.stats_label.text.begins_with("Health: 960  (+180 items)"), insp2.stats_label.text.split("\n")[0])
+	chk("an item stacks with it: (650 + 150) x 1.15, item note kept", insp2.stats_label.text.begins_with("Health: %d  (+%d items)" % [roundi(800.0 * 1.15), roundi(150.0 * 1.15)]), insp2.stats_label.text.split("\n")[0])
 	var timed := [false]
 	Events.phase_changed.connect(func(p):
 		if p == Events.Phase.COMBAT:
@@ -357,7 +359,7 @@ func _run():
 	chk("fight: the timer counts down the fight (COMBAT m:ss)", (timer.phase_label.text == "COMBAT" and (timer.time_label.text == "1:00" or timer.time_label.text.begins_with("0:"))) or gm.phase != Events.Phase.COMBAT, "%s %s" % [timer.phase_label.text, timer.time_label.text])
 	if gm.fighting:
 		insp2._fill()
-		chk("during the fight the inspector shows the same real bonuses", insp2.stats_label.text.begins_with("Health: 960"), insp2.stats_label.text.split("\n")[0])
+		chk("during the fight the inspector shows the same real bonuses", insp2.stats_label.text.begins_with("Health: %d" % roundi(800.0 * 1.15)), insp2.stats_label.text.split("\n")[0])
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))

@@ -64,7 +64,7 @@ func _run():
 
 	await start_tutorial()
 	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "Tutorial  1 / 12")
-	chk("tutorial settings: Knights and Clerics only, 5 waves", gm.roster.size() == 2 and GameState.total_rounds() == 5)
+	chk("tutorial settings: Knights and Militia only, 5 waves", gm.roster.size() == 2 and GameState.total_rounds() == 5)
 	tut.next_button.pressed.emit()
 	chk("Next moves to 'Buy a unit'", tut.title_label.text == "Buy a unit")
 	chk("Start fight is hidden before a unit is placed", not tut.fight_button.visible)
@@ -96,13 +96,13 @@ func _run():
 	var knights := board.all_player_units().filter(func(u): return u.data.display_name == "Knight")
 	chk("three Knights merge and the step moves to 'Synergies'", knights.size() == 1 and knights[0].star == 2 and tut.title_label.text == "Synergies")
 
-	Events.unit_bought.emit(U("cleric"))
-	var cleric = board.all_player_units().filter(func(u): return u.data.display_name == "Cleric")[0]
+	Events.unit_bought.emit(load("res://tres/units/militia.tres"))
+	var cleric = board.all_player_units().filter(func(u): return u.data.display_name == "Militia")[0]
 	if knights[0].coord.x < 0:
 		place(knights[0], 0)
 	place(cleric, 1)
 	await poll()
-	chk("Knight + Cleric on the board activates Order: 'Equip an item'", tut.title_label.text == "Equip an item", tut.title_label.text)
+	chk("Knight + Militia on the board activates Order: 'Equip an item'", tut.title_label.text == "Equip an item", tut.title_label.text)
 	chk("the items step hands out an item", GameState.me.items.size() >= 1)
 
 	main.get_node("DragController").equip_item_on(knights[0], GameState.me.items[0])

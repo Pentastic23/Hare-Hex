@@ -10,7 +10,9 @@ extends Node
 # Units per cost the finished roster has.
 const EXPECT := {1: 14, 2: 13, 3: 14, 4: 14, 5: 10}
 # How many of each cost carry a unique (1/1) tag.
-const EXPECT_UNIQUE := {3: 2, 5: 4}
+const EXPECT_UNIQUE := {3: 2, 5: 6}
+const EXPECT_TRAITS := {"origin": 11, "class": 16, "unique": 8}   # 35 in all (docs/synergies-v2.md)
+const EFFECT_KEYS := ["hp", "dmg", "as", "dr", "vamp", "shield", "regen", "ramp", "ramp_max", "crit", "execute", "revive", "burn", "chill", "dodge", "curse", "range", "kill_heal"]
 
 var fails := 0
 
@@ -48,8 +50,7 @@ func _run():
 		labels[lab] = d.display_name
 		if d.max_health <= 0 or d.attack_damage <= 0 or d.attacks_per_second <= 0 or d.attack_range < 1 or d.move_speed <= 0 or d.max_mana <= 0 or d.start_mana > d.max_mana or lab.length() > 3:
 			bad_stats.append(d.display_name)
-		var unique_tags := 0
-		var normal_tags := 0
+		var kinds := {"origin": 0, "class": 0, "unique": 0}
 		for t in d.tags:
 			var key := String(t)
 			if not Synergies.DEFS.has(key):
@@ -58,11 +59,8 @@ func _run():
 			if not holders.has(key):
 				holders[key] = []
 			holders[key].append(d)
-			if Synergies.DEFS[key]["thresholds"] == [1]:
-				unique_tags += 1
-			else:
-				normal_tags += 1
-		if normal_tags != 2 or unique_tags > 1:
+			kinds[Synergies.DEFS[key]["kind"]] += 1
+		if kinds.origin != 1 or kinds.class < 1 or kinds.class > 2 or kinds.unique > 1 or d.tags.size() > 3:
 			bad_shape.append(d.display_name)
 
 	chk("%d units in the roster" % roster.size(), roster.size() > 0)
@@ -72,7 +70,28 @@ func _run():
 	chk("body labels are unique, 3 letters at most", dup_labels.is_empty(), str(dup_labels))
 	chk("stats are sane", bad_stats.is_empty(), str(bad_stats))
 	chk("every tag exists in Synergies.DEFS", bad_tags.is_empty(), str(bad_tags))
-	chk("every unit has one origin and one class, plus at most one unique tag", bad_shape.is_empty(), str(bad_shape))
+	chk("every unit has one origin, one or two classes, at most one unique, at most 3 traits", bad_shape.is_empty(), str(bad_shape))
+
+	var by_kind := {}
+	var bad_defs: Array = []
+	for tag in Synergies.DEFS:
+		var def: Dictionary = Synergies.DEFS[tag]
+		by_kind[def.kind] = int(by_kind.get(def.kind, 0)) + 1
+		var tiers: Array = def.tiers
+		if tiers.size() != (def.thresholds as Array).size() or (def.kind == "unique") != (def.thresholds == [1]):
+			bad_defs.append(tag)
+		for tier in tiers:
+			if str(tier.get("text", "")) == "":
+				bad_defs.append(tag)
+			for part in ["self", "team"]:
+				for k in tier.get(part, {}):
+					if not EFFECT_KEYS.has(k):
+						bad_defs.append("%s:%s" % [tag, k])
+			for other in tier.get("tags", {}):
+				if not Synergies.DEFS.has(other):
+					bad_defs.append("%s->%s" % [tag, other])
+	chk("35 traits: 11 origins, 16 classes, 8 uniques", Synergies.DEFS.size() == 35 and by_kind == EXPECT_TRAITS, str(by_kind))
+	chk("every trait has one tier per threshold, with text and known effects", bad_defs.is_empty(), str(bad_defs))
 
 	var unreachable: Array = []
 	for tag in Synergies.DEFS:

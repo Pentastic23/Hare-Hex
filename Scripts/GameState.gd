@@ -11,7 +11,7 @@ const INTEREST_CAP := 5
 const TOTAL_STAGES := 7
 const FIRST_STAGE_ROUNDS := 3
 const ROUNDS_PER_STAGE := 6
-const XP_TABLE := {1: 2, 2: 2, 3: 6, 4: 10, 5: 20, 6: 36, 7: 56, 8: 80}
+const XP_TABLE := {1: 2, 2: 2, 3: 6, 4: 10, 5: 20, 6: 36, 7: 56, 8: 80, 9: 100}   # XP to go from each level to the next; max level 10
 const SHOP_ODDS := {
 	1: [100, 0, 0, 0, 0],
 	2: [100, 0, 0, 0, 0],
@@ -22,6 +22,7 @@ const SHOP_ODDS := {
 	7: [19, 30, 35, 15, 1],
 	8: [15, 20, 35, 25, 5],
 	9: [10, 15, 30, 30, 15],
+	10: [5, 10, 20, 35, 30],
 }
 
 # Overall round numbers whose PREP start drops a free item: 1-2, 1-3, and the last round of stages 2-6.

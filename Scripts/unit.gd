@@ -21,6 +21,8 @@ var bar_height := BAR_HEIGHT   # where the bars sit; set from the model's height
 var _hide_in := -1.0   # seconds until a dead unit with a model disappears (its death animation plays first)
 var bar_bg: Sprite3D
 var bar_fill: Sprite3D
+var shield_fill: Sprite3D   # white overlay on the health bar: the shield left, as a share of max HP
+var _last_shield := -1.0
 var _last_ratio := -1.0
 var stat_scale := 1.0
 var mana_bg: Sprite3D
@@ -32,6 +34,38 @@ var bonus_as := 0.0
 var bonus_mana := 0.0
 var dmg_reduction := 0.0
 var lifesteal := 0.0
+# Synergy mechanics (docs/synergies-v2.md), set by apply_synergy and cleared with the bonuses above.
+var shield_pct := 0.0   # shield at the start of a fight, share of max HP
+var regen := 0.0        # share of max HP healed per second
+var ramp := 0.0         # attack speed gained per attack
+var ramp_max := 0       # stacks
+var crit_every := 0     # every Nth attack deals double (0 = never)
+var execute := 0.0      # kill a target left below this share of its max HP
+var revive := 0.0       # once per fight, a killing blow leaves this share of max HP
+var burn := 0.0         # attacks burn the target for this share of its max HP per second
+var chill := 0.0        # attacks cut the target's attack speed by this much
+var dodge_every := 0    # every Nth attack against this unit misses (0 = never)
+var curse := 0.0        # attacks make the target take this much more damage
+var range_bonus := 0    # tiles
+var kill_heal := 0.0    # share of max HP healed on a kill
+# Per-fight state of those mechanics (reset in _reset_fight_state). All stepped by the fixed combat
+# tick, so fights stay deterministic.
+var shield := 0.0
+var revived := false
+var ramp_stacks := 0
+var attacks_made := 0
+var attacks_taken := 0
+var burn_dps := 0.0
+var burn_left := 0.0
+var burn_by: Unit
+var chill_on := 0.0
+var chill_left := 0.0
+var curse_on := 0.0
+var curse_left := 0.0
+const BURN_TIME := 3.0
+const CHILL_TIME := 2.0
+const CURSE_TIME := 3.0
+const CHILL_CAP := 0.8
 var damage_dealt := 0.0   # this fight, HP actually removed from enemies (damage meter)
 var damage_taken := 0.0   # this fight, HP lost
 
@@ -117,6 +151,13 @@ func _make_bar():
 	bar_fill.region_enabled = true
 	bar_fill.region_rect = Rect2(0, 0, BAR_PX_W, BAR_PX_H)
 
+	shield_fill = _make_bar_sprite(tex, 2)
+	shield_fill.modulate = Color(1.0, 1.0, 1.0, 0.8)
+	shield_fill.scale = Vector3(1.0, 0.5, 1.0)
+	shield_fill.region_enabled = true
+	shield_fill.region_rect = Rect2(0, 0, 0.01, BAR_PX_H)
+	shield_fill.visible = false
+
 	mana_bg = _make_bar_sprite(tex, 0)
 	mana_bg.modulate = Color(0.1, 0.1, 0.1, 0.85)
 	mana_bg.scale = Vector3(1.06, 1.1, 1.0)
@@ -151,6 +192,7 @@ func _place_bars():
 		return
 	bar_bg.position.y = bar_height
 	bar_fill.position.y = bar_height
+	shield_fill.position.y = bar_height
 	mana_bg.position.y = bar_height - MANA_OFFSET
 	mana_fill.position.y = bar_height - MANA_OFFSET
 
@@ -171,6 +213,13 @@ func _process(delta):
 
 	bar_bg.visible = not dead   # a dying model lies there without bars until it disappears
 	bar_fill.visible = not dead
+	var sh := clampf(shield / max_hp(), 0.0, 1.0) if not dead else 0.0
+	if not is_equal_approx(sh, _last_shield):
+		_last_shield = sh
+		shield_fill.visible = sh > 0.0
+		shield_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * sh, 0.01), BAR_PX_H)
+	var base_col := Color(0.3, 0.85, 0.3) if team == 0 else Color(0.9, 0.25, 0.25)
+	bar_fill.modulate = base_col.lerp(Color(1.0, 0.55, 0.1), 0.6) if burn_left > 0.0 else base_col   # burning: orange tint
 	if item_icons != null:
 		item_icons.visible = not dead
 	var has_mana := data.max_mana > 0.0 and not dead
@@ -245,6 +294,23 @@ func begin_combat():
 	_last_mana_ratio = -1.0
 	damage_dealt = 0.0
 	damage_taken = 0.0
+	_reset_fight_state()
+	shield = shield_pct * max_hp()
+
+# Clears burns, chills, curses, shields, ramp and counters between fights.
+func _reset_fight_state():
+	shield = 0.0
+	revived = false
+	ramp_stacks = 0
+	attacks_made = 0
+	attacks_taken = 0
+	burn_dps = 0.0
+	burn_left = 0.0
+	burn_by = null
+	chill_on = 0.0
+	chill_left = 0.0
+	curse_on = 0.0
+	curse_left = 0.0
 
 # An enemy leaving the board when its fight ends (GameManager frees it). A model still falling, or
 # celebrating because the enemy side won, is left behind as a stand-in that finishes and then
@@ -279,6 +345,7 @@ func end_combat(won := false):
 	if model_view != null:
 		model_view.on_fight_over(celebrate)
 	clear_bonuses()   # synergies are re-applied at the next combat start
+	_reset_fight_state()
 	health = max_hp()
 	target = null
 	_last_ratio = -1.0
@@ -290,6 +357,9 @@ func end_combat(won := false):
 func combat_step(delta: float):
 	if dead or coord.x < 0:
 		return
+	_tick_effects(delta)
+	if dead:
+		return   # burned out
 	if moving:
 		move_progress += delta * data.move_speed
 		if move_progress >= 1.0:
@@ -305,7 +375,7 @@ func combat_step(delta: float):
 		if target == null:
 			return
 
-	var rng := roundi(data.attack_range)
+	var rng := roundi(data.attack_range) + range_bonus
 	if Board.hex_distance(coord, target.coord) <= rng:
 		_face(target)
 		if data.max_mana > 0.0 and mana >= data.max_mana:
@@ -315,12 +385,7 @@ func combat_step(delta: float):
 			cooldown = attack_interval()
 			if model_view != null:
 				model_view.on_attack(cooldown)
-			var dmg := damage()
-			damage_dealt += target.take_damage(dmg)
-			gain_mana(MANA_PER_ATTACK)
-			var steal := lifesteal + item_lifesteal
-			if steal > 0.0:
-				health = minf(health + dmg * steal, max_hp())
+			_attack(target)
 	else:
 		var next := board.next_step(coord, target.coord, rng)
 		if next == Board.NO_STEP:
@@ -332,16 +397,95 @@ func combat_step(delta: float):
 		move_progress = 0.0
 		_face_point(move_to)
 
-# Returns the HP actually removed (after damage reduction, without overkill), for the damage meter.
-func take_damage(amount: float) -> float:
+# One attack on `t`: crits, dodges, damage, omnivamp, then the on-hit effects (burn, chill, curse,
+# execute) and kill heals. Part of the fixed combat tick.
+func _attack(t: Unit):
+	attacks_made += 1
+	gain_mana(MANA_PER_ATTACK)
+	if ramp > 0.0 and ramp_stacks < ramp_max:
+		ramp_stacks += 1
+	if t.dodges_next():
+		t._popup("MISS", Color(0.8, 0.85, 1.0))
+		return
+	var dmg := damage()
+	if crit_every > 0 and attacks_made % crit_every == 0:
+		dmg *= 2.0
+	damage_dealt += t.take_damage(dmg, self, true)
+	var steal := lifesteal + item_lifesteal
+	if steal > 0.0:
+		health = minf(health + dmg * steal, max_hp())
+	if not t.dead:
+		if burn > 0.0:
+			t.apply_burn(burn * t.max_hp(), self)
+		if chill > 0.0:
+			t.apply_chill(chill)
+		if curse > 0.0:
+			t.apply_curse(curse)
+		if execute > 0.0 and t.health < t.max_hp() * execute:
+			damage_dealt += t.take_damage(t.health + t.shield, self, false, true)
+	if t.dead and kill_heal > 0.0:
+		health = minf(health + max_hp() * kill_heal, max_hp())
+
+# Counts an attack aimed at this unit; true when it misses (Trickster: every Nth attack).
+func dodges_next() -> bool:
+	attacks_taken += 1
+	return dodge_every > 0 and attacks_taken % dodge_every == 0
+
+func apply_burn(dps: float, by: Unit):
+	burn_dps = maxf(burn_dps, dps) if burn_left > 0.0 else dps
+	burn_left = BURN_TIME
+	burn_by = by
+
+func apply_chill(amount: float):
+	chill_on = minf(maxf(chill_on, amount), CHILL_CAP)
+	chill_left = CHILL_TIME
+
+func apply_curse(amount: float):
+	curse_on = maxf(curse_on, amount)
+	curse_left = CURSE_TIME
+
+# Regen, burn damage and the chill / curse timers, once per combat tick.
+func _tick_effects(delta: float):
+	if regen > 0.0:
+		health = minf(health + max_hp() * regen * delta, max_hp())
+	if burn_left > 0.0:
+		burn_left -= delta
+		var by: Unit = burn_by if is_instance_valid(burn_by) else null
+		var removed := take_damage(burn_dps * delta, by)
+		if by != null:
+			by.damage_dealt += removed
+	if chill_left > 0.0:
+		chill_left -= delta
+		if chill_left <= 0.0:
+			chill_on = 0.0
+	if curse_left > 0.0:
+		curse_left -= delta
+		if curse_left <= 0.0:
+			curse_on = 0.0
+
+# Returns the damage actually taken (after curse and damage reduction, shield included, without
+# overkill), for the damage meter. by: the attacker (or burner); attack: a hit (gives mana, flinches);
+# pierce: ignores curse and damage reduction (executes). A killing blow is survived once with revive.
+func take_damage(amount: float, by: Unit = null, attack := false, pierce := false) -> float:
 	if dead:
 		return 0.0
-	amount *= 1.0 - minf(dmg_reduction + item_dr, 0.6)
-	var removed := minf(amount, maxf(health, 0.0))
+	if not pierce:
+		amount *= (1.0 + curse_on) * (1.0 - minf(dmg_reduction + item_dr, 0.6))
+	if attack:
+		gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
+	var absorbed := minf(shield, amount)
+	shield -= absorbed
+	amount -= absorbed
+	var removed := absorbed + minf(amount, maxf(health, 0.0))
 	damage_taken += removed
 	health -= amount
-	gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
 	if health <= 0.0:
+		if revive > 0.0 and not revived:
+			revived = true
+			health = max_hp() * revive
+			burn_left = 0.0
+			_popup("REVIVE", Color(0.75, 1.0, 0.75))
+			return removed
 		dead = true
 		board.vacate(self)
 		if model_view != null:
@@ -349,7 +493,7 @@ func take_damage(amount: float) -> float:
 			_hide_in = model_view.death_left() + 0.4
 		else:
 			visible = false
-	elif model_view != null:
+	elif model_view != null and attack:
 		model_view.on_hit()
 	return removed
 
@@ -373,9 +517,32 @@ func clear_bonuses():
 	bonus_mana = 0.0
 	dmg_reduction = 0.0
 	lifesteal = 0.0
+	apply_synergy({})
+
+# Sets this unit's synergy bonuses from Synergies.effects_for (effect keys as in Synergies.DEFS).
+func apply_synergy(fx: Dictionary):
+	bonus_hp = fx.get("hp", 0.0)
+	bonus_dmg = fx.get("dmg", 0.0)
+	bonus_as = fx.get("as", 0.0)
+	dmg_reduction = fx.get("dr", 0.0)
+	lifesteal = fx.get("vamp", 0.0)
+	shield_pct = fx.get("shield", 0.0)
+	regen = fx.get("regen", 0.0)
+	ramp = fx.get("ramp", 0.0)
+	ramp_max = int(fx.get("ramp_max", 0))
+	crit_every = int(fx.get("crit", 0))
+	execute = fx.get("execute", 0.0)
+	revive = fx.get("revive", 0.0)
+	burn = fx.get("burn", 0.0)
+	chill = fx.get("chill", 0.0)
+	dodge_every = int(fx.get("dodge", 0))
+	curse = fx.get("curse", 0.0)
+	range_bonus = int(fx.get("range", 0))
+	kill_heal = fx.get("kill_heal", 0.0)
 
 func attack_interval() -> float:
-	return 1.0 / (data.attacks_per_second * (1.0 + bonus_as + item_as))
+	var speed := 1.0 + bonus_as + item_as + ramp * ramp_stacks
+	return 1.0 / (data.attacks_per_second * speed * (1.0 - chill_on))
 
 func can_equip() -> bool:
 	return items.size() < MAX_ITEMS
@@ -472,15 +639,18 @@ func _cast(target_unit: Unit):
 	_ability().cast(self, target_unit)
 	if model_view != null:
 		model_view.on_cast()
-	_cast_popup()
+	_popup("CAST", Color(0.55, 0.85, 1.0))
 
-func _cast_popup():
+# A word that floats up from the unit and fades ("CAST", "MISS", "REVIVE"). Visual only.
+func _popup(text: String, color: Color):
+	if not is_inside_tree():
+		return
 	var l := Label3D.new()
-	l.text = "CAST"
+	l.text = text
 	l.font_size = 64
 	l.pixel_size = 0.01
 	l.outline_size = 16
-	l.modulate = Color(0.55, 0.85, 1.0)
+	l.modulate = color
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
 	l.position = Vector3(0, bar_height + 0.3, 0)

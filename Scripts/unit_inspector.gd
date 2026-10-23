@@ -85,21 +85,22 @@ func _fill():
 
 	# Stats at the current star with items and synergy bonuses folded in (synergies aren't called out).
 	var b := _synergy_bonuses(u)
-	var hp_mult: float = mult * (1.0 + b.hp)
-	var dmg_mult: float = mult * (1.0 + b.dmg)
+	var hp_mult: float = mult * (1.0 + b.get("hp", 0.0))
+	var dmg_mult: float = mult * (1.0 + b.get("dmg", 0.0))
 	var lines: PackedStringArray = [
 		"Health: %d%s" % [roundi((d.max_health + u.item_hp) * hp_mult), _items_note(u.item_hp, "+%d" % roundi(u.item_hp * hp_mult))],
 		"Damage: %d%s" % [roundi((d.attack_damage + u.item_dmg) * dmg_mult), _items_note(u.item_dmg, "+%d" % roundi(u.item_dmg * dmg_mult))],
-		"Attack speed: %.2f%s" % [d.attacks_per_second * (1.0 + u.item_as + b["as"]), _items_note(u.item_as, "+%d%%" % roundi(u.item_as * 100.0))],
-		"Range: %d" % roundi(d.attack_range),
-		"Mana: %d  (start %d)%s" % [roundi(d.max_mana), roundi(minf(d.start_mana + b.mana + u.item_mana, d.max_mana)), _items_note(u.item_mana, "+%d" % roundi(u.item_mana))],
+		"Attack speed: %.2f%s" % [d.attacks_per_second * (1.0 + u.item_as + b.get("as", 0.0)), _items_note(u.item_as, "+%d%%" % roundi(u.item_as * 100.0))],
+		"Range: %d" % (roundi(d.attack_range) + int(b.get("range", 0))),
+		"Mana: %d  (start %d)%s" % [roundi(d.max_mana), roundi(minf(d.start_mana + u.item_mana, d.max_mana)), _items_note(u.item_mana, "+%d" % roundi(u.item_mana))],
 	]
-	var reduction := minf(b.dr + u.item_dr, 0.6)   # same 60% cap as take_damage()
+	var reduction := minf(b.get("dr", 0.0) + u.item_dr, 0.6)   # same 60% cap as take_damage()
 	if reduction > 0.0:
 		lines.append("Damage reduction: %d%%" % roundi(reduction * 100.0))
-	var steal: float = b.lifesteal + u.item_lifesteal
+	var steal: float = b.get("vamp", 0.0) + u.item_lifesteal
 	if steal > 0.0:
-		lines.append("Lifesteal: %d%%" % roundi(steal * 100.0))
+		lines.append("Omnivamp: %d%%" % roundi(steal * 100.0))
+	lines.append_array(_mechanic_lines(b))
 	lines.append("Cost: %d g" % d.cost)
 	stats_label.text = "\n".join(lines)
 
@@ -111,8 +112,39 @@ func _items_note(value: float, text: String) -> String:
 func _synergy_bonuses(u: Unit) -> Dictionary:
 	var gm = get_tree().get_first_node_in_group("game_manager")
 	if gm != null and gm.fighting:
-		return {"hp": u.bonus_hp, "dmg": u.bonus_dmg, "as": u.bonus_as, "mana": u.bonus_mana, "dr": u.dmg_reduction, "lifesteal": u.lifesteal}
+		return {"hp": u.bonus_hp, "dmg": u.bonus_dmg, "as": u.bonus_as, "dr": u.dmg_reduction, "vamp": u.lifesteal, "shield": u.shield_pct, "regen": u.regen, "ramp": u.ramp, "ramp_max": u.ramp_max, "crit": u.crit_every, "execute": u.execute, "revive": u.revive, "burn": u.burn, "chill": u.chill, "dodge": u.dodge_every, "curse": u.curse, "range": u.range_bonus, "kill_heal": u.kill_heal}
 	if u.team != 0 or u.coord.x < 0 or board == null:
 		return Synergies.preview(null, [])
 	var team: Array = board.all_player_units().filter(func(x): return x.coord.x >= 0)
 	return Synergies.preview(u, team)
+
+# One line per synergy mechanic the unit has (shields, crits, revives...), in the inspector's words.
+func _mechanic_lines(b: Dictionary) -> PackedStringArray:
+	var out: PackedStringArray = []
+	var pct := func(k: String) -> int: return roundi(float(b.get(k, 0.0)) * 100.0)
+	if b.get("shield", 0.0) > 0.0:
+		out.append("Shield: %d%% of max HP" % pct.call("shield"))
+	if b.get("regen", 0.0) > 0.0:
+		out.append("Regen: %s%% of max HP per second" % str(snappedf(float(b.regen) * 100.0, 0.1)))
+	if b.get("ramp", 0.0) > 0.0:
+		out.append("Attack speed +%d%% per attack (max %d)" % [pct.call("ramp"), int(b.get("ramp_max", 0))])
+	if int(b.get("crit", 0)) > 0:
+		out.append("Every %s attack crits" % _nth(int(b.crit)))
+	if b.get("execute", 0.0) > 0.0:
+		out.append("Executes below %d%%" % pct.call("execute"))
+	if b.get("revive", 0.0) > 0.0:
+		out.append("Revives once at %d%% HP" % pct.call("revive"))
+	if b.get("burn", 0.0) > 0.0:
+		out.append("Attacks burn %d%% of max HP per second" % pct.call("burn"))
+	if b.get("chill", 0.0) > 0.0:
+		out.append("Attacks chill %d%%" % pct.call("chill"))
+	if b.get("curse", 0.0) > 0.0:
+		out.append("Attacks curse +%d%% damage taken" % pct.call("curse"))
+	if int(b.get("dodge", 0)) > 0:
+		out.append("Dodges every %s attack" % _nth(int(b.dodge)))
+	if b.get("kill_heal", 0.0) > 0.0:
+		out.append("Heals %d%% of max HP on a kill" % pct.call("kill_heal"))
+	return out
+
+func _nth(n: int) -> String:
+	return {2: "2nd", 3: "3rd"}.get(n, "%dth" % n)
