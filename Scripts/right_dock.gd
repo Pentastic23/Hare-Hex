@@ -17,10 +17,12 @@ const DIM := Color(0.039, 0.043, 0.067, 0.5)   # #0a0b11 at 50%
 const STANDINGS_TOP := 129.0   # where the HP standings sit when no panel is open (hp_standings.gd TOP)
 const STANDINGS_GAP := 8.0
 const STANDINGS_MAX_TOP := 300.0   # never pushed further down: the bench, the sell zone and the inspector are below
+const TUTORIAL_MAX_BOTTOM := 436.0   # the tutorial panel stays above the bench and the SELL tile (default camera)
 
 const DamagePanel := preload("res://Scripts/damage_meter.gd")
 const PlannerPanel := preload("res://Scripts/team_planner.gd")
 const MenuPanel := preload("res://Scripts/pause_menu.gd")
+const TutorialPanel := preload("res://Scripts/tutorial.gd")
 
 var current := ""             # "", "damage", "planner" or "menu"
 var tab_bar: HudPlate
@@ -31,7 +33,6 @@ var planner                   # team_planner.gd
 var menu                      # pause_menu.gd
 var dim: ColorRect
 var _bar_lip: StyleBoxFlat
-var _tutorial_top := INF
 
 func _ready():
 	add_to_group("right_dock")
@@ -82,7 +83,9 @@ func _ready():
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_add_dim.call_deferred()
 
-	_show("damage" if Settings.show_damage_meter else "")
+	# The tutorial starts with the damage panel closed (without changing the saved choice), so its step
+	# panel and the standings both fit above the bench.
+	_show("damage" if Settings.show_damage_meter and not TutorialPanel.is_tutorial_run() else "")
 	minimum_size_changed.connect(func(): _shrink.call_deferred())   # content grew or shrank
 
 # The dim goes under the whole HUD: first child of the UI layer, so it only darkens the board.
@@ -146,37 +149,41 @@ func _show(p: String) -> void:
 		dim.visible = false
 	_shrink.call_deferred()
 
-# A container keeps its size when its content gets smaller; snap back to the content. The HP
-# standings sit just under the box, so a short open panel pushes them down instead of covering them;
-# a tall one (the planner, a full damage list) draws over them.
+# A container keeps its size when its content gets smaller; snap back to the content. Down the right
+# edge, under the box: the tutorial's step panel (tutorial level only), then the HP standings. A short
+# open panel pushes them down instead of covering them; the standings hide under a tall one (the
+# planner, a full damage list), and the tutorial panel never goes below TUTORIAL_MAX_BOTTOM, so it
+# stays clear of the bench and the SELL tile (it then draws under the open panel).
 func _shrink() -> void:
 	reset_size()
 	offset_right = -MARGIN
 	offset_left = -MARGIN - WIDTH
 	offset_top = MARGIN
 	custom_minimum_size.x = WIDTH
+	var y := MARGIN + get_combined_minimum_size().y + 3.0 + STANDINGS_GAP   # just under the box and its lip
+	var tut := get_parent().get_node_or_null("TutorialPanel") as Control
+	if tut != null and tut.visible:
+		if not tut.minimum_size_changed.is_connected(_on_tutorial_resized):
+			tut.minimum_size_changed.connect(_on_tutorial_resized)   # step text changes its height
+		var h := tut.get_combined_minimum_size().y
+		var top := minf(y, TUTORIAL_MAX_BOTTOM - h)
+		tut.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		tut.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		tut.offset_right = -MARGIN
+		tut.offset_left = -MARGIN - tut.get_combined_minimum_size().x
+		tut.offset_top = top
+		tut.offset_bottom = top + h
+		y = top + h + 3.0 + STANDINGS_GAP
 	var standings := get_parent().get_node_or_null("Standings") as Control
 	if standings != null:
-		var bottom := MARGIN + get_combined_minimum_size().y + 3.0 + STANDINGS_GAP
-		standings.offset_top = clampf(bottom, STANDINGS_TOP, STANDINGS_MAX_TOP)
-		standings.visible = bottom <= STANDINGS_MAX_TOP   # under a tall panel (planner, a full damage list) they'd only peek out at the edge
-		_keep_tutorial_below(standings)
+		var max_top := STANDINGS_MAX_TOP
+		if tut != null and tut.visible:   # under the tutorial panel they may go lower, still ending above the bench
+			max_top = maxf(max_top, TUTORIAL_MAX_BOTTOM - standings.get_combined_minimum_size().y)
+		standings.offset_top = clampf(y, STANDINGS_TOP, max_top)
+		standings.visible = y <= max_top   # under a tall panel they'd only peek out at the edge
 
-# The tutorial's step panel sits below the standings; when they move down it moves with them, but
-# never so far that it runs off the bottom of the screen (then it draws over the standings).
-func _keep_tutorial_below(standings: Control) -> void:
-	var tut := get_parent().get_node_or_null("TutorialPanel") as Control
-	if tut == null:
-		return
-	if _tutorial_top == INF:
-		_tutorial_top = tut.offset_top   # as laid out in ui.tscn
-		tut.minimum_size_changed.connect(func(): _shrink.call_deferred())   # step text changes its height
-	var anchor_y := get_viewport_rect().size.y * tut.anchor_top
-	var below := standings.offset_top + standings.get_combined_minimum_size().y + STANDINGS_GAP if standings.visible else 0.0
-	var lowest := get_viewport_rect().size.y - STANDINGS_GAP - tut.get_combined_minimum_size().y - anchor_y
-	var top := clampf(below - anchor_y, _tutorial_top, maxf(lowest, _tutorial_top))
-	tut.offset_bottom += top - tut.offset_top
-	tut.offset_top = top
+func _on_tutorial_resized() -> void:
+	_shrink.call_deferred()
 
 func _input(event):
 	if not event.is_action_pressed("ui_cancel"):

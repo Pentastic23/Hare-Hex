@@ -63,7 +63,11 @@ func _run():
 	Settings._loaded = true
 
 	await start_tutorial()
-	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "Tutorial  1 / 12")
+	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 12")
+	for k in 3:
+		await get_tree().process_frame
+	var tut_rect: Rect2 = tut.get_global_rect()
+	chk("the step panel sits under the right box and ends above the bench and the SELL tile (y 451 at the default camera); damage panel closed", main.get_node("UI/RightDock").current == "" and tut_rect.end.y <= 440.0 and main.get_node("UI/Standings").visible, str(tut_rect))
 	chk("tutorial settings: Knights and Militia only, 5 waves", gm.roster.size() == 2 and GameState.total_rounds() == 5)
 	tut.next_button.pressed.emit()
 	chk("Next moves to 'Buy a unit'", tut.title_label.text == "Buy a unit")

@@ -1,19 +1,19 @@
 # tutorial.gd
-extends PanelContainer
+extends HudPlate
 
 # Step-by-step guide shown only in the tutorial level (CampaignLevel id "tutorial", started from
 # the main menu's Tutorial button). Each step explains one mechanic and moves on by itself once the
 # player has done it (checked a few times a second). Start fight ends prep early, so nobody has to
 # race the prep timer while reading.
+# Styled like the side boxes (a HUD plate with a gold top edge, DockKit text and buttons).
 
 const TUTORIAL_ID := &"tutorial"
 const LEVEL_PATH := "res://tres/campaign/tutorial.tres"
-const GOLD := Color(1.0, 0.85, 0.3)
-
 var step := 0
 var title_label: Label
 var body_label: Label
-var progress_label: Label
+var progress_label: Label   # "3 / 12"
+var progress_bar: DockKit.SegBar
 var next_button: Button
 var fight_button: Button
 var _timer := 0.0
@@ -31,20 +31,34 @@ func _ready():
 	set_process(visible)
 	if not visible:
 		return
-	custom_minimum_size = Vector2(300, 0)
+	setup_plate(10, 12, 12, DockKit.PANEL_FILL)
+	set_edge(HudStyle.EDGE_GOLD)
+	mouse_filter = Control.MOUSE_FILTER_STOP   # the panel itself is solid: clicks on it don't reach the board
+	custom_minimum_size = Vector2(320, 0)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
+	box.add_theme_constant_override("separation", 6)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(box)
-	progress_label = _label(14, Color(0.65, 0.65, 0.7))
-	box.add_child(progress_label)
-	title_label = _label(20, GOLD)
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(head)
+	var caps := HudStyle.caps(11, HudStyle.GOLD)
+	caps.text = "TUTORIAL"
+	caps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(caps)
+	progress_label = HudStyle.number(18, HudStyle.MUTED)
+	head.add_child(progress_label)
+	progress_bar = DockKit.SegBar.new(12, 4.0)
+	progress_bar.color = HudStyle.GOLD
+	box.add_child(progress_bar)
+	title_label = DockKit.text(17, HudStyle.INK)
 	box.add_child(title_label)
-	body_label = _label(15, Color.WHITE)
-	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body_label.custom_minimum_size = Vector2(280, 0)
+	body_label = DockKit.wrapping(13, HudStyle.MUTED, 296)
+	body_label.add_theme_constant_override("line_spacing", 2)
 	box.add_child(body_label)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(row)
 	next_button = _button(row, "Next", func(): _advance())
 	fight_button = _button(row, "Start fight", func():
@@ -65,10 +79,10 @@ func _build_steps():
 		{"title": "Place it on the board", "text": "Drag the unit from the bench onto one of the glowing tiles of your half of the board (the bottom half). Your level decides how many units you can field: see \"Units\" above the shop.", "done": func(): return _board().units_on_board() >= 1},
 		{"title": "Start the fight", "text": "Fights start when the prep timer runs out. In the tutorial you can press Start fight whenever you're ready.", "done": func(): return _gm().phase == Events.Phase.COMBAT},
 		# Waits for Next (enabled once the fight is over), so a quick win doesn't skip the explanation.
-		{"title": "Watch the fight", "text": "Units walk to the nearest enemy and attack. The Damage window (top right) shows who did the most. Losing a fight costs HP (bottom right); winning gives +1 gold.\n\nClick Next once the fight is over.", "next": true, "next_when": func(): return _gm().phase == Events.Phase.PREP and GameState.round_number >= 2},
+		{"title": "Watch the fight", "text": "Units walk to the nearest enemy and attack. The Damage window (top right) shows who did the most. Losing a fight costs HP (the You row, top right); winning gives +1 gold.\n\nClick Next once the fight is over.", "next": true, "next_when": func(): return _gm().phase == Events.Phase.PREP and GameState.round_number >= 2},
 		{"title": "Merge three into a star", "text": "Three copies of the same unit merge into a stronger 2-star unit. Buy Knights until you have three (the shop only sells Knights and Militia here).", "done": func(): return _board().all_player_units().any(func(u): return u.star >= 2)},
 		{"title": "Synergies", "text": "Units share traits like Order or Warrior. With enough different units of one trait on the board, the whole group gets a bonus. Put a Knight and a Militia on the board together to activate Order (see the top left).", "done": func(): return Synergies.active_tier("Order", int(Synergies.count(_board().all_player_units().filter(func(u): return u.coord.x >= 0)).get("Order", 0))) >= 0},
-		{"title": "Equip an item", "text": "Items give stat boosts. Drag the item from the item bar (left) onto one of your units. A unit holds up to 3 items, and items can't be taken off.", "enter": func(): _give_item(), "done": func(): return _board().all_player_units().any(func(u): return not u.items.is_empty())},
+		{"title": "Equip an item", "text": "Items give stat boosts. Drag the item from the Items tab (top left) onto one of your units. A unit holds up to 3 items, and items can't be taken off.", "enter": func(): _give_item(), "done": func(): return _board().all_player_units().any(func(u): return not u.items.is_empty())},
 		{"title": "Sell a unit", "text": "Sell units you don't need for gold: drag one onto the red SELL tile next to the bench, or point at it and press F. You get its cost back, and more for 2-star and 3-star units. Buy a spare unit and sell it now.", "enter": func(): _sold = false, "done": func(): return _sold},
 		{"title": "Lock the shop", "text": "Like these offers but can't afford them yet? Click Lock (next to Reroll) to keep them for the next round. While locked, Reroll is greyed out. Lock the shop now, then click it again to unlock.", "enter": func(): _saw_lock = false, "done": func(): return _saw_lock and not GameState.me.shop_locked},
 		{"title": "Level up", "text": "Buy XP (4 gold, in the shop bar) to level up. Higher levels let you field more units and find stronger ones in the shop.", "enter": func(): _level_at_step = GameState.me.level, "done": func(): return GameState.me.level > _level_at_step},
@@ -91,6 +105,7 @@ func _update_buttons():
 	var s: Dictionary = _steps[step]
 	next_button.disabled = s.has("next_when") and not s.next_when.call()
 	next_button.tooltip_text = Tip.wrap("After the fight.") if next_button.disabled else ""
+	next_button.modulate.a = 0.45 if next_button.disabled else 1.0   # primary buttons look the same when disabled
 	var gm = _gm()
 	fight_button.visible = gm != null and gm.phase == Events.Phase.PREP and step >= 3 and not gm.game_over and not next_button.visible
 
@@ -101,7 +116,9 @@ func _advance():
 func _enter_step(i: int):
 	step = i
 	var s: Dictionary = _steps[i]
-	progress_label.text = "Tutorial  %d / %d" % [i + 1, _steps.size()]
+	progress_label.text = "%d / %d" % [i + 1, _steps.size()]
+	progress_bar.segments = _steps.size()
+	progress_bar.set_ratio(float(i + 1) / _steps.size())
 	title_label.text = s.title
 	body_label.text = s.text
 	next_button.visible = s.get("next", false)
@@ -123,17 +140,10 @@ func _gm():
 func _board() -> Board:
 	return get_tree().get_first_node_in_group("board") as Board
 
-func _label(size: int, color: Color) -> Label:
-	var l := Label.new()
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
-	return l
-
 func _button(parent: Control, text: String, action: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
+	var b := DockKit.primary_button(text)
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(120, 36)
+	b.custom_minimum_size = Vector2(120, 30)
 	b.pressed.connect(action)
 	parent.add_child(b)
 	return b

@@ -157,7 +157,6 @@ offset_top = -60.0
 offset_right = -16.0
 offset_bottom = -20.0
 grow_horizontal = 0
-theme_override_styles/panel = ExtResource("12_qsv74")
 script = ExtResource("20_tutorial")
 
 [node name="RightDock" type="VBoxContainer" parent="."]
