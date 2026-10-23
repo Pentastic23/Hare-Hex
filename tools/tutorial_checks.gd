@@ -63,7 +63,7 @@ func _run():
 	Settings._loaded = true
 
 	await start_tutorial()
-	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 12")
+	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 14")
 	for k in 3:
 		await get_tree().process_frame
 	var tut_rect: Rect2 = tut.get_global_rect()
@@ -106,7 +106,17 @@ func _run():
 		place(knights[0], 0)
 	place(cleric, 1)
 	await poll()
-	chk("Knight + Militia on the board activates Order: 'Equip an item'", tut.title_label.text == "Equip an item", tut.title_label.text)
+	chk("Knight + Militia on the board activates Order: 'Plan your team'", tut.title_label.text == "Plan your team", tut.title_label.text)
+	var dock = main.get_node("UI/RightDock")
+	dock.open_panel("planner")
+	await poll()
+	chk("opening the planner alone doesn't finish the step", tut.title_label.text == "Plan your team")
+	dock.planner.tile_for("Knight").pressed.emit()
+	await poll()
+	chk("planning a unit with the planner still open waits (the planner would cover the next step)", tut.title_label.text == "Plan your team" and SaveGame.team_plan().has("Knight"))
+	dock.close_panel()
+	await poll()
+	chk("closing the planner moves to 'Equip an item'", tut.title_label.text == "Equip an item", tut.title_label.text)
 	chk("the items step hands out an item", GameState.me.items.size() >= 1)
 
 	main.get_node("DragController").equip_item_on(knights[0], GameState.me.items[0])
@@ -126,7 +136,10 @@ func _run():
 	chk("locking alone doesn't finish the step (unlock it too)", tut.title_label.text == "Lock the shop" and GameState.me.shop_locked)
 	shop.lock_button.button_pressed = false
 	await poll()
-	chk("lock then unlock moves to 'Level up', shop left unlocked", tut.title_label.text == "Level up" and not GameState.me.shop_locked)
+	chk("lock then unlock moves to 'Interest', shop left unlocked", tut.title_label.text == "Interest" and not GameState.me.shop_locked and tut.next_button.visible and not tut.next_button.disabled, tut.title_label.text)
+	tut.next_button.pressed.emit()
+	await poll()
+	chk("Next after Interest moves to 'Level up'", tut.title_label.text == "Level up", tut.title_label.text)
 	Events.buy_xp_pressed.emit()
 	Events.buy_xp_pressed.emit()
 	await poll()

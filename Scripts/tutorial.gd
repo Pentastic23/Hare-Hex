@@ -20,6 +20,7 @@ var _timer := 0.0
 var _level_at_step := 1
 var _sold := false       # a unit was sold since the sell step began
 var _saw_lock := false   # the shop was locked since the lock step began
+var _planned := false    # the team plan was changed since the planner step began
 var _steps: Array[Dictionary] = []
 
 static func is_tutorial_run() -> bool:
@@ -69,6 +70,7 @@ func _ready():
 	Events.shop_lock_changed.connect(func(on):
 		if on:
 			_saw_lock = true)
+	Events.team_plan_changed.connect(func(): _planned = true)
 	_build_steps()
 	_enter_step(0)
 
@@ -82,9 +84,12 @@ func _build_steps():
 		{"title": "Watch the fight", "text": "Units walk to the nearest enemy and attack. The Damage window (top right) shows who did the most. Losing a fight costs HP (the You row, top right); winning gives +1 gold.\n\nClick Next once the fight is over.", "next": true, "next_when": func(): return _gm().phase == Events.Phase.PREP and GameState.round_number >= 2},
 		{"title": "Merge three into a star", "text": "Three copies of the same unit merge into a stronger 2-star unit. Buy Knights until you have three (the shop only sells Knights and Militia here).", "done": func(): return _board().all_player_units().any(func(u): return u.star >= 2)},
 		{"title": "Synergies", "text": "Units share traits like Order or Warrior. With enough different units of one trait on the board, the whole group gets a bonus. Put a Knight and a Militia on the board together to activate Order (see the top left).", "done": func(): return Synergies.active_tier("Order", int(Synergies.count(_board().all_player_units().filter(func(u): return u.coord.x >= 0)).get("Order", 0))) >= 0},
+		# Done once a unit is planned and the planner is closed again (it would cover the next step).
+		{"title": "Plan your team", "text": "The team planner helps you aim for a team. Open it with Planner (top right) or press P, and click a unit to add it to your plan: planned units get a star and a gold border in the shop, and the planner shows the synergies your plan would make. Then close it (P or the Planner tab).", "enter": func(): _planned = false, "done": func(): return _planned and not _planner_open()},
 		{"title": "Equip an item", "text": "Items give stat boosts. Drag the item from the Items tab (top left) onto one of your units. A unit holds up to 3 items, and items can't be taken off.", "enter": func(): _give_item(), "done": func(): return _board().all_player_units().any(func(u): return not u.items.is_empty())},
 		{"title": "Sell a unit", "text": "Sell units you don't need for gold: drag one onto the red SELL tile next to the bench, or point at it and press F. You get its cost back, and more for 2-star and 3-star units. Buy a spare unit and sell it now.", "enter": func(): _sold = false, "done": func(): return _sold},
 		{"title": "Lock the shop", "text": "Like these offers but can't afford them yet? Click Lock (next to Reroll) to keep them for the next round. While locked, Reroll is greyed out. Lock the shop now, then click it again to unlock.", "enter": func(): _saw_lock = false, "done": func(): return _saw_lock and not GameState.me.shop_locked},
+		{"title": "Interest", "text": "Saved gold earns interest: +1 gold each round for every 10 you keep, up to +5 at 50. Bank gold when you can instead of spending it all.\n\nHover your gold (bottom left) to see next round's income.", "next": true},
 		{"title": "Level up", "text": "Buy XP (4 gold, in the shop bar) to level up. Higher levels let you field more units and find stronger ones in the shop.", "enter": func(): _level_at_step = GameState.me.level, "done": func(): return GameState.me.level > _level_at_step},
 		{"title": "Win the last wave", "text": "That's everything! Fight through the remaining waves. A level is won by beating its final wave. Press Start fight when you're ready.", "last": true},
 	]
@@ -147,3 +152,7 @@ func _button(parent: Control, text: String, action: Callable) -> Button:
 	b.pressed.connect(action)
 	parent.add_child(b)
 	return b
+
+func _planner_open() -> bool:
+	var dock := get_tree().get_first_node_in_group("right_dock")
+	return dock != null and dock.current == "planner"
