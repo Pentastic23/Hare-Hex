@@ -1,5 +1,9 @@
 # unit_inspector.gd
-extends PanelContainer
+extends HudPlate
+
+# Unit Inspector (right-click a unit): styled like the side boxes. A HUD plate whose top edge is the
+# team colour (blue ally, ember enemy), a portrait well with a cost-coloured edge, the name with gold
+# stars, the team and traits, items and the stats (with items and synergies folded in).
 
 @onready var name_label: Label = $VBoxContainer/NameLabel
 @onready var tags_label: Label = $VBoxContainer/TagsLabel
@@ -8,6 +12,10 @@ extends PanelContainer
 
 var board: Board
 var shown: Unit = null
+var stars_label: Label
+var team_label: Label
+var portrait_slot: Control
+var _portrait_of: UnitData
 
 func _ready():
 	# Bottom right, just above the shop bar, growing up and left, so it stays clear of the HP standings
@@ -19,6 +27,9 @@ func _ready():
 	offset_left = -24
 	offset_bottom = -96
 	offset_top = -96
+	setup_plate(10, 12, 12, DockKit.PANEL_FILL)
+	custom_minimum_size = Vector2(236, 0)
+	_restyle()
 	visible = false
 	board = get_tree().get_first_node_in_group("board") as Board
 
@@ -70,18 +81,30 @@ func _fill():
 	var d := u.data
 	var mult: float = u.stat_scale * Unit.STAR_MULT[u.star]
 
-	name_label.text = "%s  %s" % [d.display_name, "*".repeat(u.star)]
-	name_label.modulate = Color(0.5, 0.9, 0.5) if u.team == 0 else Color(0.95, 0.45, 0.45)
+	name_label.text = d.display_name
+	stars_label.text = "★".repeat(u.star)
+	set_edge(HudStyle.YOU_EDGE if u.team == 0 else HudStyle.ENEMY_EDGE)
+	if _portrait_of != d:
+		_portrait_of = d
+		for c in portrait_slot.get_children():
+			c.queue_free()
+		var p := DockKit.portrait_well(d, 48)
+		(p.get_theme_stylebox("panel") as StyleBoxFlat).border_width_bottom = 3
+		(p.get_theme_stylebox("panel") as StyleBoxFlat).border_color = DockKit.COST_COLORS.get(d.cost, HudStyle.MUTED)
+		portrait_slot.add_child(p)
+	team_label.text = ("ALLY" if u.team == 0 else "ENEMY") + "  ·  %d GOLD" % d.cost
+	team_label.add_theme_color_override("font_color", HudStyle.YOU if u.team == 0 else HudStyle.ENEMY)
 
 	var tags: PackedStringArray = []
 	for t in d.tags:
 		tags.append(String(t))
-	tags_label.text = "%s  |  %s" % ["Ally" if u.team == 0 else "Enemy", ", ".join(tags)]
+	tags_label.text = "  ·  ".join(tags)
 
 	var item_names: PackedStringArray = []
 	for item in u.items:
 		item_names.append(item.display_name)
 	items_label.text = "Items: " + (", ".join(item_names) if not item_names.is_empty() else "none")
+	items_label.add_theme_color_override("font_color", HudStyle.GOLD if not item_names.is_empty() else DockKit.DIM_TEXT)
 
 	# Stats at the current star with items and synergy bonuses folded in (synergies aren't called out).
 	var b := _synergy_bonuses(u)
@@ -148,3 +171,53 @@ func _mechanic_lines(b: Dictionary) -> PackedStringArray:
 
 func _nth(n: int) -> String:
 	return {2: "2nd", 3: "3rd"}.get(n, "%dth" % n)
+
+# Builds the header (portrait, name and stars, team) around the scene's labels and gives every label
+# the HUD fonts and colours. The scene's NameLabel / TagsLabel / ItemsLabel / StatsLabel are kept
+# (tests and _fill use them), just moved into the new layout.
+func _restyle():
+	var box: VBoxContainer = $VBoxContainer
+	box.add_theme_constant_override("separation", 6)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(head)
+	box.move_child(head, 0)
+	portrait_slot = Control.new()
+	portrait_slot.custom_minimum_size = Vector2(48, 48)
+	portrait_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(portrait_slot)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(col)
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 6)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(name_row)
+	_font_style(name_label, 16, HudStyle.INK)
+	name_label.reparent(name_row)
+	stars_label = DockKit.text(14, HudStyle.GOLD)
+	name_row.add_child(stars_label)
+	team_label = HudStyle.caps(10, HudStyle.YOU)
+	col.add_child(team_label)
+	_font_style(tags_label, 12, HudStyle.MUTED)
+	tags_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var line := ColorRect.new()
+	line.color = DockKit.LINE
+	line.custom_minimum_size = Vector2(0, 1)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(line)
+	box.move_child(line, items_label.get_index())
+	_font_style(items_label, 12, HudStyle.GOLD)
+	_font_style(stats_label, 12, HudStyle.INK)
+	stats_label.add_theme_constant_override("line_spacing", 2)
+
+func _font_style(l: Label, size: int, color: Color):
+	l.add_theme_font_override("font", HudStyle.label_font())
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE

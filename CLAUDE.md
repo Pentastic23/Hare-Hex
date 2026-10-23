@@ -82,7 +82,7 @@ UI
  ├─ "End Screen" (ColorRect)      end_screen.gd
  │   └─ CenterContainer/Backing/Margin/VBoxContainer: TitleLabel, DetailLabel, RestartButton (a "Next level" button is added in code, campaign only)
  ├─ LeftDock (PanelContainer, top left, 232 px; 46 px rail when collapsed)   left_dock.gd (class LeftDock): Synergies / Items tabs, built in code; tab contents synergy_panel.gd and item_bar.gd
- ├─ UnitInspector (PanelContainer, panel_style.tres, bottom right above the shop bar, grows up)   unit_inspector.gd
+ ├─ UnitInspector (PanelContainer, bottom right above the shop bar, grows up)   unit_inspector.gd (a HudPlate like the side boxes: team-coloured top edge, portrait with a cost-coloured edge, name and gold stars, ALLY / ENEMY and cost, traits, items, stats; the header is built in code around the scene labels)
  │   └─ VBoxContainer: NameLabel, TagsLabel, ItemsLabel, StatsLabel
  ├─ TutorialPanel (PanelContainer, right side, under the right box and above the standings; placed by right_dock.gd)   tutorial.gd (a HudPlate styled like the side boxes: gold top edge, "TUTORIAL  n / 12" header, segmented progress bar, DockKit title and body, gold Next / Start fight buttons; only visible in the tutorial level; built in code)
  └─ RightDock (VBoxContainer, top right, 236 px, last child)   right_dock.gd (class RightDock, group "right_dock"): tab bar + one panel (damage_meter.gd, team_planner.gd, pause_menu.gd), built in code. Adds the pause dim as the first child of UI at runtime
@@ -304,6 +304,7 @@ Signals in Events: `phase_changed`, `gold_changed`, `shop_rolled`, `unit_bought`
 - Done (2026-10-22, Opus, **not committed yet**): older Async PvP ghosts play again (`SnapshotOpponents.still_playable`; 3 new pvp_checks), the HUD fonts are in `fonts/`, and the unused `hud_buttons.gd`, `gold_label.gd` and `label.gd` are deleted.
 - Done (2026-10-22, Opus, **not committed yet**): the tutorial panel restyled like the side boxes (step text now points at the standings and the Items tab), and all tooltips styled by `tres/ui_theme.tres`. The tutorial panel now sits under the right box (above the standings) and stays clear of the bench and SELL tile; the damage panel starts closed in the tutorial.
 - Done (2026-10-22, Opus, **not committed yet**): two tutorial steps: **Plan your team** (after Synergies: open the planner, plan a unit, close it) and **Interest** (after Lock the shop: +1 per 10 gold saved, up to +5; waits for Next). The tutorial now has 14 steps.
+- Done (2026-10-22, Opus, **not committed yet**): the unit inspector restyled in the HUD / side-box look (team-coloured edge, portrait, gold stars, HUD fonts).
 - Next: the general hand test (Known issues 1), the controller with a real pad, touch on a phone; then abilities (roadmap 1) or mid-level saves (12b).
 - After that: playtest Async PvP (play a few free-play runs first so ghosts exist), then mid-level saves (needs a design: see the handoff in the roadmap), then item combinations. Volume has no effect until there's sound.
 - Ideas for later: `docs/item-ideas.md` (item mechanics brainstorm; resonance/item combinations first).
