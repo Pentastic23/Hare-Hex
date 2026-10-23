@@ -11,7 +11,7 @@ class_name Abilities
 # x1 / x1.8 / x3.2 by star (rounded to 5), and with an enemy's stat_scale; damage also with the
 # caster's damage bonus. An array is the value at 1 / 2 / 3 stars as it is (percentages, seconds).
 # In "text", {a} / {b} show the values: all three stars in the shop, the unit's star in the inspector.
-# Units without an entry still cast the old placeholder (chunks 2-4 of the plan are not built yet).
+# Units without an entry still cast the old placeholder (chunks 3-4 of the plan are not built yet).
 
 const CAST_TIME := 0.5   # seconds a cast locks the caster (the skill clip; no attacks or moves)
 
@@ -61,6 +61,13 @@ const DEFS := {
 	# 5-cost
 	"Dragon": {"name": "Dragonfire Breath", "a": 400, "b": 300, "text": "Breathes fire on the target and the hexes behind it: {a} and a burn. The Dragon gains a {b} shield for 4 s."},
 	"Titan": {"name": "Earthquake", "a": 300, "text": "Stuns every enemy for 1 s; those within 2 hexes also take {a}."},
+	# chunk 2: movement and stealth
+	"Scout": {"name": "Hare's Hop", "a": 40, "text": "Leaps up to 2 hexes to the open hex farthest from enemies; its next 3 attacks deal {a} more damage."},
+	"Nightblade": {"name": "Panther Pounce", "a": 220, "text": "Leaps next to the enemy with the lowest HP within 4 hexes and strikes it for {a}."},
+	"Assassin": {"name": "Shadowstep", "a": 300, "text": "Teleports behind the enemy farthest away and strikes it for {a}."},
+	"Warlord": {"name": "Rhino Charge", "a": 200, "text": "Charges up to 4 hexes towards the farthest enemy, stopping at the first unit in the way. Enemies next to its path take {a} and are stunned for 1 s."},
+	"Nightstalker": {"name": "Moonlit Hunt", "a": 250, "text": "Vanishes for 2 s: it can't be targeted but keeps attacking. Its first attack after it reappears deals {a} more and always crits."},
+	"Seraph": {"name": "Wings of Dawn", "a": 200, "text": "Heals every ally for {a}; the ally with the lowest HP% also can't be targeted for 1.5 s."},
 }
 
 static var enabled := true   # tests turn casts off to check other mechanics on their own
@@ -300,7 +307,112 @@ static func cast(u: Unit, t: Unit) -> float:
 				e.apply_stun(1.0)
 				if Board.hex_distance(u.coord, e.coord) <= 2:
 					hit(u, e, amt(u, "a"))
+		"Scout":
+			var spot := safest_tile(u, 2)
+			u.leap_to(spot)
+			u.empower_hits = 3
+			u.empower_dmg = amt(u, "a") * u.damage_bonus()
+		"Nightblade":
+			var prey: Array[Unit] = []
+			for e in targets(u):
+				if Board.hex_distance(u.coord, e.coord) <= 4:
+					prey.append(e)
+			prey.sort_custom(func(a, b): return a.health < b.health or (a.health == b.health and Board.tile_order(a.coord) < Board.tile_order(b.coord)))
+			_pounce(u, t, prey, true)
+		"Assassin":
+			var prey := targets(u)
+			prey.sort_custom(func(a, b):
+				var da := Board.hex_distance(u.coord, a.coord)
+				var db := Board.hex_distance(u.coord, b.coord)
+				return da > db or (da == db and Board.tile_order(a.coord) < Board.tile_order(b.coord)))
+			_pounce(u, t, prey, false)
+		"Warlord":
+			var goal := farthest_enemy(u)
+			if goal != null:
+				var path: Array[Vector2i] = []
+				var cur := u.coord
+				for i in 4:
+					var next := _from_cube(Board.to_cube(cur) + _direction(cur, goal.coord))
+					if not open_tile(u, next):
+						break
+					path.append(next)
+					cur = next
+				var swept: Array[Vector2i] = path.duplicate()
+				swept.append(u.coord)
+				for e in enemies(u):
+					for c in swept:
+						if Board.hex_distance(c, e.coord) <= 1:
+							hit(u, e, amt(u, "a"))
+							e.apply_stun(1.0)
+							break
+				if not path.is_empty():
+					u.leap_to(path[-1], 0.1 * path.size())
+		"Nightstalker":
+			u.untargetable_left = 2.0
+			u.empower_hits = 1
+			u.empower_dmg = amt(u, "a") * u.damage_bonus()
+			u.empower_crit = true
+			u.empower_after_stealth = true
+		"Seraph":
+			var low := lowest_hp_allies(u, 1)
+			for a in allies(u):
+				a.heal(amt(u, "a"))
+			for a in low:
+				a.untargetable_left = maxf(a.untargetable_left, 1.5)
 	return lock
+
+# Nightblade and Assassin: leap next to the first enemy in `prey` that has an open hex beside it
+# (nearest to the caster, or farthest for a "behind" teleport) and strike it. With nowhere to land,
+# it strikes its own target where it stands.
+static func _pounce(u: Unit, t: Unit, prey: Array[Unit], near_side: bool) -> void:
+	for e in prey:
+		var spots: Array[Vector2i] = []
+		for c in u.board.neighbors(e.coord):
+			if open_tile(u, c):
+				spots.append(c)
+		if spots.is_empty():
+			continue
+		spots.sort_custom(func(a, b):
+			var da := Board.hex_distance(u.coord, a)
+			var db := Board.hex_distance(u.coord, b)
+			if da != db:
+				return da < db if near_side else da > db
+			return Board.tile_order(a) < Board.tile_order(b))
+		u.leap_to(spots[0])
+		u.target = e
+		hit(u, e, amt(u, "a"))
+		return
+	hit(u, t, amt(u, "a"))
+
+# A tile u can land on: on the board, unlocked, and empty (or u's own).
+static func open_tile(u: Unit, c: Vector2i) -> bool:
+	if not u.board.tiles.has(c) or not u.board.is_unlocked(c):
+		return false
+	var occ = u.board.tiles[c].occupant
+	return occ == null or occ == u or not is_instance_valid(occ)
+
+# The open tile within r hexes of u that is farthest from the nearest enemy (ties: stay, then lower tile).
+static func safest_tile(u: Unit, r: int) -> Vector2i:
+	var foes := enemies(u)
+	var best := u.coord
+	var best_d := _gap(u.coord, foes)
+	var cells: Array[Vector2i] = []
+	for c in u.board.tiles:
+		cells.append(c)
+	cells.sort_custom(func(a, b): return Board.tile_order(a) < Board.tile_order(b))
+	for c in cells:
+		if Board.hex_distance(u.coord, c) <= r and open_tile(u, c):
+			var d := _gap(c, foes)
+			if d > best_d:
+				best_d = d
+				best = c
+	return best
+
+static func _gap(c: Vector2i, foes: Array[Unit]) -> int:
+	var d := 99
+	for e in foes:
+		d = mini(d, Board.hex_distance(c, e.coord))
+	return d
 
 # Ability damage: scaled by the caster's damage bonus, reduced like an attack, not an attack (no
 # crit, dodge or on-hit effects, no mana). Omnivamp heals from it. Returns the HP removed.
@@ -339,6 +451,14 @@ static func enemies(u: Unit) -> Array[Unit]:
 			out.append(o)
 	return out
 
+# Enemies that can be picked as a target (not vanished): single-target picks use these; areas hit all.
+static func targets(u: Unit) -> Array[Unit]:
+	var out: Array[Unit] = []
+	for o in enemies(u):
+		if o.untargetable_left <= 0.0:
+			out.append(o)
+	return out
+
 static func allies(u: Unit) -> Array[Unit]:
 	var out: Array[Unit] = []
 	for o in _units(u):
@@ -369,7 +489,7 @@ static func _first(list: Array[Unit], k: int) -> Array[Unit]:
 
 # The k enemies nearest to c (ties: lower tile first).
 static func nearest_enemies(u: Unit, c: Vector2i, k: int) -> Array[Unit]:
-	var list := enemies(u)
+	var list := targets(u)
 	list.sort_custom(func(a, b):
 		var da := Board.hex_distance(c, a.coord)
 		var db := Board.hex_distance(c, b.coord)
@@ -387,7 +507,7 @@ static func lowest_hp_allies(u: Unit, k: int) -> Array[Unit]:
 # The enemy with the least HP left (ties: lower tile).
 static func lowest_hp_enemy(u: Unit) -> Unit:
 	var best: Unit = null
-	for e in enemies(u):
+	for e in targets(u):
 		if best == null or e.health < best.health:
 			best = e
 	return best
@@ -395,7 +515,7 @@ static func lowest_hp_enemy(u: Unit) -> Unit:
 static func farthest_enemy(u: Unit) -> Unit:
 	var best: Unit = null
 	var best_d := -1
-	for e in enemies(u):
+	for e in targets(u):
 		var d := Board.hex_distance(u.coord, e.coord)
 		if d > best_d:
 			best_d = d
@@ -407,7 +527,7 @@ static func cluster(u: Unit) -> Unit:
 	var list := enemies(u)
 	var best: Unit = null
 	var best_n := 0
-	for e in list:
+	for e in targets(u):
 		var n := 0
 		for o in list:
 			if Board.hex_distance(e.coord, o.coord) <= 1:

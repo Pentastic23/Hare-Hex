@@ -80,6 +80,12 @@ var ab_shield_left := 0.0
 var ab_shield_heals := false   # Little Prayer: whatever is left heals when it runs out
 var queued: Array = []    # [seconds left, Callable]: the later hits of multi-hit casts
 var next_attack_stun := 0.0    # Bamboo Calm
+var untargetable_left := 0.0   # can't be picked as a target (attacks, single-target abilities); areas still hit
+var empower_hits := 0     # this many next attacks deal empower_dmg more (Hare's Hop, Moonlit Hunt)
+var empower_dmg := 0.0
+var empower_crit := false # ...and always crit
+var empower_after_stealth := false   # Moonlit Hunt: only once the unit can be targeted again
+var move_rate := 0.0      # steps per second for a leap or charge (0 = its own move_speed)
 var damage_dealt := 0.0   # this fight, HP actually removed from enemies (damage meter)
 var damage_taken := 0.0   # this fight, HP lost
 
@@ -345,6 +351,12 @@ func _reset_fight_state():
 	ab_shield_heals = false
 	queued.clear()
 	next_attack_stun = 0.0
+	untargetable_left = 0.0
+	empower_hits = 0
+	empower_dmg = 0.0
+	empower_crit = false
+	empower_after_stealth = false
+	move_rate = 0.0
 
 # An enemy leaving the board when its fight ends (GameManager frees it). A model still falling, or
 # celebrating because the enemy side won, is left behind as a stand-in that finishes and then
@@ -397,10 +409,11 @@ func combat_step(delta: float):
 	if dead:
 		return   # burned out
 	if moving:
-		move_progress += delta * data.move_speed
+		move_progress += delta * (move_rate if move_rate > 0.0 else data.move_speed)
 		if move_progress >= 1.0:
 			position = move_to
 			moving = false
+			move_rate = 0.0
 		else:
 			position = move_from.lerp(move_to, move_progress)
 		return
@@ -410,6 +423,8 @@ func combat_step(delta: float):
 
 	if taunt_left > 0.0 and is_instance_valid(taunt_by) and not taunt_by.dead and taunt_by.coord.x >= 0:
 		target = taunt_by
+	if is_instance_valid(target) and target.untargetable_left > 0.0:
+		target = null   # it vanished: pick another
 	if not is_instance_valid(target) or target.dead:
 		target = board.nearest_enemy(self)
 		if target == null:
@@ -455,7 +470,12 @@ func _attack(t: Unit, fixed := -1.0):
 		t._popup("MISS", Color(0.8, 0.85, 1.0))
 		return
 	var dmg := fixed if fixed >= 0.0 else damage()
-	if crit_every > 0 and attacks_made % crit_every == 0:
+	var crit := crit_every > 0 and attacks_made % crit_every == 0
+	if empower_hits > 0 and not (empower_after_stealth and untargetable_left > 0.0):
+		empower_hits -= 1
+		dmg += empower_dmg
+		crit = crit or empower_crit
+	if crit:
 		dmg *= 2.0
 	damage_dealt += t.take_damage(dmg, self, true)
 	var steal := omnivamp()
@@ -537,6 +557,19 @@ func heal(amount: float) -> float:
 	health = minf(health + amount, max_hp())
 	return health - before
 
+# Leap, teleport or charge to tile c: the tile is claimed now, and the model flies there in secs
+# (stepped by the combat tick like a normal step, just faster).
+func leap_to(c: Vector2i, secs := 0.25):
+	if c == coord:
+		return
+	board.claim(self, c)
+	moving = true
+	move_from = position
+	move_to = board.grid_to_world(c)
+	move_progress = 0.0
+	move_rate = 1.0 / secs
+	_face_point(move_to)
+
 # Runs fn after secs (the later hits of a multi-hit cast); a delay of 0 runs it now.
 func queue_action(secs: float, fn: Callable):
 	if secs <= 0.0:
@@ -565,6 +598,7 @@ func _tick_effects(delta: float):
 			curse_on = 0.0
 	stun_left = maxf(0.0, stun_left - delta)
 	silence_left = maxf(0.0, silence_left - delta)
+	untargetable_left = maxf(0.0, untargetable_left - delta)
 	cast_lock = maxf(0.0, cast_lock - delta)
 	if taunt_left > 0.0:
 		taunt_left -= delta

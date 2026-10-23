@@ -1,6 +1,6 @@
 # Abilities: one per unit (plan)
 
-Status: **chunk 1 built** (2026-10-23): the toolkit and the 40 units of chunk 1 cast for real (`Scripts/abilities.gd`, `tools/ability_checks`). Chunks 2-4 (25 units) still cast the placeholder, and spell effects (VFX) come later, after the abilities (user decision). Roadmap item 1. If this doc and the code disagree, the code wins.
+Status: **chunks 1 and 2 built** (2026-10-23): 46 units cast for real (`Scripts/abilities.gd`, `tools/ability_checks`). Chunks 3 and 4 (19 units) still cast the placeholder. Spell effects (VFX) come after the abilities, and the bot balance pass waits until all 65 are in (user decisions). Roadmap item 1. If this doc and the code disagree, the code wins.
 
 Every one of the 65 units gets its own ability, themed on its animal, its class and its origin. Today a full mana bar casts a placeholder (`Ability.cast` does nothing and a "CAST" word floats up). This plan says what each cast does, the rules all abilities share, the new combat mechanics they need, and the order to build them in.
 
@@ -113,7 +113,7 @@ Format: **Ability name**, then the effect with values at 1★ / 2★ / 3★. Man
 |---|---|---|---|
 | Berserker (bear) | Wild, Brute, Warrior | 80 (0) | **Bloodrage**: for 5 s, +60 / 75 / 100% attack speed and 30% omnivamp. |
 | Hunter (wolf) | Wild, Ranger | 70 (0) | **Hunter's Mark**: shoots the enemy with the lowest HP for 250 / 450 / 800 and marks it: it takes 30% more damage from everyone for 5 s. |
-| Warlord (rhino) | Order, Warrior, Brute | 80 (10) | **Rhino Charge**: charges in a line towards the target, up to 4 hexes, stopping before a unit it can't pass. Every enemy it passes or stops at takes 200 / 360 / 640 and is stunned for 1 s. |
+| Warlord (rhino) | Order, Warrior, Brute | 80 (10) | **Rhino Charge**: charges up to 4 hexes towards the farthest enemy, stopping before the first unit in the way. Every enemy next to its path takes 200 / 360 / 640 and is stunned for 1 s. (As built: towards the farthest enemy, because the Warlord is melee and its target is already next to it when it casts.) |
 | Duelist (rooster) | Fey, Duelist, Rogue | 60 (0) | **Riposte**: takes a stance for 2 s: attacks against it are parried (no damage) and each is answered with a counter for 80 / 145 / 255. |
 | Nightstalker (coyote) | Shadow, Ranger, Rogue | 60 (0) | **Moonlit Hunt**: vanishes for 2 s (untargetable, keeps attacking); its first attack after reappearing deals +250 / 450 / 800 and always crits. |
 | Lich (crocodile) | Undead, Warlock, Caster | 80 (20) | **Death Roll**: seizes the target: stunned for 1.5 s while taking 350 / 630 / 1120 over that time (channelled). The Lich heals for 30% of it. |
@@ -154,7 +154,7 @@ Format: **Ability name**, then the effect with values at 1★ / 2★ / 3★. Man
 ## Build order (each chunk tested, like synergies v2 and items v2)
 
 1. **Toolkit and simple casts (40 units), built 2026-10-23:** the ability data format, cast time, the name popup, ability damage, direct heal, flat shields, timed buffs and debuffs, stun, silence, blind and taunt; areas, lines, clusters and multi-target picks. That covers every unit not listed in the later chunks. Checks: one per mechanic, plus a fight full of casts resolved twice (deterministic).
-2. **Movement and stealth (6):** leap, teleport and dash with tile claiming, untargetable. Scout, Nightblade, Assassin, Warlord, Nightstalker, Seraph.
+2. **Movement and stealth (6), built 2026-10-23:** leap, teleport and dash with tile claiming, untargetable. Scout, Nightblade, Assassin, Warlord, Nightstalker, Seraph.
 3. **Summons and zones (6):** temporary units, persistent areas, thorns. Necromancer, Demonologist, Beastmaster, Plague Doctor, Druid, Runesmith.
 4. **Special rules (13):** mana grant and burn, link, parry, delayed damage, root, charm, raise, the Thief's gold, eruptions and refunds. Minstrel, Zen Master, Paladin, Duelist, Archdemon, Treant, Faerie Queen, Deathlord, Thief, Magma Guard, Reaper, Phoenix, Frost Queen.
 5. **UI and balance:** ability text in the inspector, shop and planner tooltips (`Tip.wrap`, checked by `tooltip_checks`); a combat speed check; a bot retune of every campaign level's `enemy_stat_mult` (casts make both sides stronger, but waves are hand-built, so expect the clear rates to move).
@@ -198,3 +198,16 @@ A charmed unit must be obvious at a glance for the whole time it is charmed:
   - Bards' and Skalds' buffs don't stack with a second cast of the same ability; it refreshes instead.
 - **UI:** the cast popup shows the ability's name. The unit inspector has an ABILITY line and the text at the unit's star. Shop cards and planner tiles list the ability with all three stars in their tooltip. A tall inspector (an ability, three items and resonances) can reach the HP standings at 648 px, so the standings fade out while it covers them. The duplicate "Cost" line left the inspector's stats (the header already shows the cost).
 - **Balance so far:** the ghosts' balance hash includes `Abilities.DEFS`, so older ghosts play as "older balance". Chapter 1's boss level (a 2-star Dragon with two Mages) got much harder, so its `enemy_stat_mult` went from 1.46 to 1.1. The bot then completes about 40-50% of chapter 1 runs (was 58% before abilities); chapters 2 and 3 were 4/12 and 5/12 with the old values. The full retune waits for the other chunks (chunk 5).
+
+## Chunk 2 as built (2026-10-23)
+
+- **Units casting:** Scout, Nightblade, Assassin, Warlord, Nightstalker, Seraph.
+- **Mechanics in `unit.gd`:**
+  - `leap_to(tile, secs)`: the tile is claimed at once, and the model flies there over 0.25 s (the Warlord's charge takes 0.1 s per hex), stepped by the combat tick.
+  - `untargetable_left`: the unit can't be picked by attacks (`Board.nearest_enemy`) or single-target abilities (`Abilities.targets`). Areas still hit it.
+  - Empowered attacks (`empower_hits`, `empower_dmg`, `empower_crit`, `empower_after_stealth`).
+- **Choices made while building:**
+  - Landing spots are open, unlocked hexes. The Nightblade lands on the side nearest itself, the Assassin on the far side ("behind"). If no enemy on its list has an open hex beside it, it strikes its own target where it stands.
+  - The Scout only leaps if a hex within 2 is farther from the nearest enemy than where it stands.
+  - The Warlord charges towards the farthest enemy, not its target (see its entry). Enemies within 1 hex of any hex of its path, its starting hex included, are hit.
+  - A vanished unit's attackers drop it and pick another target. If every enemy has vanished, they wait.

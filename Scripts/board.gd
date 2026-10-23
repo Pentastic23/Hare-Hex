@@ -65,7 +65,7 @@ func nearest_enemy(u: Unit) -> Unit:
 	var best_d := 9999
 	for n in $Units.get_children():
 		var o := n as Unit
-		if o == null or o.team == u.team or o.dead or o.coord.x < 0 or o.is_queued_for_deletion():
+		if o == null or o.team == u.team or o.dead or o.coord.x < 0 or o.is_queued_for_deletion() or o.untargetable_left > 0.0:
 			continue
 		var d := hex_distance(u.coord, o.coord)
 		# Ties go to the lower tile (row, then column), so node order never decides a target.

@@ -91,7 +91,7 @@ func _run():
 		elif Abilities.text(names[n]).contains("{") or Abilities.text(names[n], 2).contains("{"):
 			unfilled.append(n)
 	chk("every ability belongs to a unit in the roster", unknown.is_empty(), ", ".join(unknown))
-	chk("chunk 1: 40 units have an ability", Abilities.DEFS.size() == 40, str(Abilities.DEFS.size()))
+	chk("chunks 1 and 2: 46 units have an ability", Abilities.DEFS.size() == 46, str(Abilities.DEFS.size()))
 	chk("every text has its numbers filled in", unfilled.is_empty(), ", ".join(unfilled))
 	chk("shop text shows all three stars, the inspector one", Abilities.text(UD("cleric")).contains("110 / 200 / 350") and Abilities.text(UD("cleric"), 2).contains("for 200 each"), Abilities.text(UD("cleric")))
 	chk("per-star arrays stay as written", Abilities.text(UD("bard"), 3).contains("50%"))
@@ -229,6 +229,74 @@ func _run():
 	chk("and locks the Lich while it rolls", li.cast_lock == 0.0 and prey.stun_left == 0.0)
 	clear_units()
 
+	print("--- chunk 2: leaps, charges and stealth")
+	var sc := place("scout", Vector2i(3, 4))
+	var near_foe := place("knight", Vector2i(3, 3), 1)
+	var gap0 := Board.hex_distance(sc.coord, near_foe.coord)
+	sc._cast(near_foe)
+	chk("Hare's Hop leaps away from the enemy (the tile is claimed at once)", Board.hex_distance(sc.coord, near_foe.coord) > gap0 and board.tiles[sc.coord].occupant == sc and board.tiles[Vector2i(3, 4)].occupant == null, str(sc.coord))
+	chk("and the model flies there", sc.moving and is_equal_approx(sc.move_rate, 4.0))
+	steps([sc], 0.3)
+	chk("landing on the new tile", not sc.moving and sc.position.is_equal_approx(board.grid_to_world(sc.coord)))
+	var nh := near_foe.health
+	sc._attack(near_foe)
+	chk("its next attacks deal 40 more", is_equal_approx(nh - near_foe.health, sc.damage() + 40.0) and sc.empower_hits == 2, str(nh - near_foe.health))
+	clear_units()
+
+	var nb := place("nightblade", Vector2i(3, 6))
+	var tank := place("guardian", Vector2i(3, 3), 1)
+	var weak := place("thief", Vector2i(1, 2), 1)
+	var too_far := place("thief", Vector2i(6, 0), 1)
+	weak.health = 100.0
+	too_far.health = 50.0
+	nb._cast(tank)
+	chk("Panther Pounce: next to the weakest enemy within 4 hexes", Board.hex_distance(nb.coord, weak.coord) == 1 and weak.dead and too_far.health == 50.0, str(nb.coord))
+	chk("and it keeps fighting that enemy's side", nb.target == weak)
+	clear_units()
+
+	var asn := place("assassin", Vector2i(3, 4))
+	var front := place("guardian", Vector2i(3, 3), 1)
+	var backline := place("mage", Vector2i(4, 0), 1)
+	asn._cast(front)
+	chk("Shadowstep: behind the farthest enemy", Board.hex_distance(asn.coord, backline.coord) == 1 and asn.coord.y < backline.coord.y + 1 and backline.health < backline.max_hp(), str(asn.coord))
+	clear_units()
+
+	var wl := place("warlord", Vector2i(3, 6))
+	var goal := place("mage", Vector2i(3, 0), 1)
+	var side := place("thief", Vector2i(4, 4), 1)
+	var aside := place("thief", Vector2i(0, 1), 1)
+	var start := wl.coord
+	wl._cast(goal)
+	chk("Rhino Charge: up to 4 hexes towards the farthest enemy", Board.hex_distance(start, wl.coord) == 4 and Board.hex_distance(wl.coord, goal.coord) < Board.hex_distance(start, goal.coord), str(wl.coord))
+	chk("enemies next to the path are hit and stunned, others not", side.stun_left == 1.0 and side.health < side.max_hp() and aside.stun_left == 0.0)
+	clear_units()
+
+	var ns := place("nightstalker", Vector2i(3, 5))
+	var hunter := place("knight", Vector2i(3, 3), 1)
+	var bait := place("militia", Vector2i(0, 4))
+	ns._cast(hunter)
+	chk("Moonlit Hunt: it can't be targeted for 2 s", board.nearest_enemy(hunter) == bait and Abilities.targets(hunter).size() == 1)
+	var h0 := hunter.health
+	ns._attack(hunter)
+	chk("its attacks while hidden are normal ones", is_equal_approx(h0 - hunter.health, ns.damage()))
+	timers([ns], 2.05)
+	chk("then it can be targeted again", board.nearest_enemy(hunter) == ns)
+	var h1 := hunter.health
+	ns._attack(hunter)
+	chk("its first attack after reappearing deals 250 more and crits", is_equal_approx(h1 - hunter.health, (ns.damage() + 250.0) * 2.0) and ns.empower_hits == 0, str(h1 - hunter.health))
+	clear_units()
+
+	var se := place("seraph", Vector2i(3, 6))
+	var hurt2 := place("knight", Vector2i(3, 4))
+	var ok_ally := place("militia", Vector2i(4, 4))
+	var foe2 := place("thief", Vector2i(3, 3), 1)
+	hurt2.health = 100.0
+	ok_ally.health = 500.0
+	se._cast(foe2)
+	chk("Wings of Dawn heals everyone", is_equal_approx(hurt2.health, 300.0) and is_equal_approx(ok_ally.health, 600.0))
+	chk("and hides the weakest ally for 1.5 s", hurt2.untargetable_left == 1.5 and ok_ally.untargetable_left == 0.0 and board.nearest_enemy(foe2) != hurt2)
+	clear_units()
+
 	print("--- in the inspector")
 	var dr := place("dragon", Vector2i(3, 5), 0, 2)
 	var its: Array[ItemData] = []
@@ -247,7 +315,7 @@ func _run():
 	insp._yield_standings()
 	chk("the inspector names the ability and shows it at the unit's star", insp.ability_head.text == "ABILITY  ·  DRAGONFIRE BREATH" and insp.ability_text.text.contains("720"), insp.ability_text.text)
 	chk("a tall inspector fades the HP standings out instead of covering them", standings.modulate.a == (0.0 if overlaps else 1.0), "inspector top %d, standings end %d" % [insp.get_global_rect().position.y, standings.get_global_rect().end.y])
-	var no_ab := place("scout", Vector2i(0, 7))
+	var no_ab := place("thief", Vector2i(0, 7))
 	insp.shown = no_ab
 	insp._fill()
 	chk("a unit without an ability yet shows no ability lines", not insp.ability_head.visible)
@@ -288,7 +356,8 @@ func _run():
 
 # Casters on both sides: stuns, taunts, buffs, shields, channels, areas.
 func _cast_fight():
-	var mine := [["frost_giant", 2], ["bard", 1], ["lich", 1], ["mage", 1], ["militia", 2], ["initiate", 1], ["cleric", 1]]
+	GameState.me.level = 9
+	var mine := [["frost_giant", 2], ["bard", 1], ["lich", 1], ["mage", 1], ["militia", 2], ["initiate", 1], ["cleric", 1], ["warlord", 1], ["nightstalker", 1]]
 	for i in mine.size():
 		var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
 		board.get_node("Units").add_child(u)
@@ -297,7 +366,7 @@ func _cast_fight():
 		board.put_on_tile(u, board.player_order[i])
 	var wave := EnemyBoard.new()
 	wave.display_name = "Casters"
-	for e in [["guardian", Vector2i(3, 3), 2], ["titan", Vector2i(4, 3), 1], ["ice_mage", Vector2i(3, 1), 2], ["skald", Vector2i(2, 3), 1], ["shadowfist", Vector2i(4, 2), 2], ["dragon", Vector2i(3, 0), 1], ["acolyte", Vector2i(5, 1), 2]]:
+	for e in [["guardian", Vector2i(3, 3), 2], ["titan", Vector2i(4, 3), 1], ["ice_mage", Vector2i(3, 1), 2], ["skald", Vector2i(2, 3), 1], ["shadowfist", Vector2i(4, 2), 2], ["dragon", Vector2i(3, 0), 1], ["acolyte", Vector2i(5, 1), 2], ["assassin", Vector2i(1, 3), 1], ["seraph", Vector2i(1, 0), 1], ["scout", Vector2i(6, 1), 1]]:
 		var bu := BoardUnit.new()
 		bu.unit = UD(e[0])
 		bu.coord = e[1]
