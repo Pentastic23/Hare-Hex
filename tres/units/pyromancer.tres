@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="UnitData" format=3]
 
 [ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_ud"]
+[ext_resource type="PackedScene" path="res://scenes/models/pyromancer.tscn" id="2_model"]
 
 [resource]
 script = ExtResource("1_ud")
@@ -15,4 +16,5 @@ attacks_per_second = 0.7
 move_speed = 1.5
 cost = 3
 tags = Array[StringName]([&"Ember", &"Caster", &"Inferno"])
+model = ExtResource("2_model")
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

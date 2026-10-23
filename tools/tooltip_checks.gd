@@ -123,7 +123,7 @@ func _run():
 	for it in ["iron_belt", "longsword", "quick_bow", "mana_charm", "chain_vest", "blood_fang"]:
 		GameState.me.items.append(load("res://tres/items/%s.tres" % it))
 	Events.items_changed.emit()
-	main.get_node("UI/TeamPlanner").open()
+	main.get_node("UI/RightDock").open_panel("planner")
 	main.get_node("UI/ShopPanel").lock_button.button_pressed = true   # Reroll gets its "unlock first" tooltip
 	main.get_node("Game Manager").roll_shop()
 	await frames(8)   # the synergy list refreshes a few times a second

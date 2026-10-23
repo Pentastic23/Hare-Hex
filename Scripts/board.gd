@@ -406,7 +406,7 @@ func _build_sell_zone():
 		mat.albedo_color = Color(0.7, 0.2, 0.2)
 		m.material_override = mat
 	var l := Label3D.new()
-	l.text = "SELL\n(F)"
+	l.text = "SELL" if OS.has_feature("mobile") else "SELL\n(F)"   # no F key on a phone: drag a unit here
 	l.font_size = 64
 	l.pixel_size = 0.01
 	l.outline_size = 16

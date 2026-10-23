@@ -13,7 +13,7 @@ var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
 @export var unit_pool: Array[UnitData] = []
 # TEMPORARY while the unit models are tested: only units with a model (UnitData.model) are used, in
 # the shop, the planner and free-play enemies. Turn off (or delete) once every unit has a model.
-@export var only_units_with_models := true
+@export var only_units_with_models := false
 @export var item_roster: Array[ItemData] = []   # items that can drop; also resolves ids when loading saves
 @export_range(0.0, 1.0) var enemy_variation_chance := 0.3   # 30% of rounds get +1 or -1
 const REROLL_COST := 2

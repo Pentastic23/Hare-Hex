@@ -1,98 +1,109 @@
 # team_planner.gd
-extends PanelContainer
+extends VBoxContainer
 
-# Team planner (Plan button or P): pick the units you're aiming for. Planned units are
-# highlighted in the shop (shop_slot.gd), the panel previews the planned team's synergies, and
-# units you already own are marked. The plan is saved (SaveGame.team_plan) by unit name.
+# The Planner panel of the right box (right_dock.gd; DOCKS_SPEC "Planner panel"; P toggles it):
+# pick the units you're aiming for. Cost tabs 1-5 above a 5-column grid of that cost's units
+# (portrait, a cost-colour strip, "x2" when owned, a gold outline and check when planned), the
+# count planned at that cost, and the planned team's synergies as chips. Planned units are
+# highlighted in the shop (shop_slot.gd). The plan is saved (SaveGame.team_plan) by unit name.
 
-const GOLD := Color(1.0, 0.85, 0.3)
-const GREY := Color(0.65, 0.65, 0.7)
+const COLUMNS := 5
+const GAP := 4
+const INNER_WIDTH := 216.0   # the right box (236) minus its 10 px padding each side
 
+var cost := 1                 # the cost tab shown
+var cost_tabs: Array[Button] = []
 var grid: GridContainer
-var synergy_label: Label
 var summary_label: Label
-var _style_on: StyleBoxFlat
-var _style_off: StyleBoxFlat
+var planned_label: Label      # "9 units planned"
+var chips: HFlowContainer     # planned synergies
+var _tile_side := 40.0
 
 func _ready():
 	add_to_group("team_planner")
-	visible = false
-	set_anchors_preset(Control.PRESET_CENTER)
-	grow_horizontal = Control.GROW_DIRECTION_BOTH
-	grow_vertical = Control.GROW_DIRECTION_BOTH
-	_style_on = _style(Color(0.25, 0.22, 0.1), GOLD)
-	_style_off = _style(Color(0.15, 0.16, 0.2), Color(0.3, 0.3, 0.35))
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	add_child(box)
-	var title := Label.new()
-	title.text = "Team planner"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", GOLD)
-	box.add_child(title)
-	var hint := Label.new()
-	hint.text = "Pick the units you're aiming for. They get a star in the shop."
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_color_override("font_color", GREY)
-	box.add_child(hint)
-	var grid_scroll := ScrollContainer.new()   # 65 units: the grid scrolls
-	grid_scroll.custom_minimum_size = Vector2(0, 300)
-	grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	box.add_child(grid_scroll)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_theme_constant_override("separation", 8)
+	var tabs := HBoxContainer.new()
+	tabs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tabs.add_theme_constant_override("separation", 3)
+	add_child(tabs)
+	for c in range(1, 6):
+		var content := HBoxContainer.new()
+		content.alignment = BoxContainer.ALIGNMENT_CENTER
+		content.add_theme_constant_override("separation", 4)
+		var sw := ColorRect.new()
+		sw.color = DockKit.COST_COLORS[c]
+		sw.custom_minimum_size = Vector2(7, 7)
+		sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		sw.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(sw)
+		content.add_child(DockKit.tab_label(str(c), 12))
+		var b := DockKit.tab(content, 26)
+		b.tooltip_text = Tip.wrap("%d-gold units" % c)
+		b.pressed.connect(show_cost.bind(c))
+		tabs.add_child(b)
+		cost_tabs.append(b)
 	grid = GridContainer.new()
-	grid.columns = 7
-	grid.add_theme_constant_override("h_separation", 6)
-	grid.add_theme_constant_override("v_separation", 6)
-	grid_scroll.add_child(grid)
-	summary_label = Label.new()
-	summary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(summary_label)
-	synergy_label = Label.new()
-	synergy_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	synergy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	synergy_label.custom_minimum_size = Vector2(820, 0)
-	box.add_child(synergy_label)
-	var buttons := HBoxContainer.new()
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override("separation", 12)
-	box.add_child(buttons)
-	var clear := Button.new()
-	clear.text = "Clear plan"
-	clear.custom_minimum_size = Vector2(140, 40)
-	clear.pressed.connect(func(): _set_plan([]))
-	buttons.add_child(clear)
-	var close_button := Button.new()
-	close_button.text = "Close (P)"
-	close_button.custom_minimum_size = Vector2(140, 40)
-	close_button.pressed.connect(close)
-	buttons.add_child(close_button)
+	grid.columns = COLUMNS
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.add_theme_constant_override("h_separation", GAP)
+	grid.add_theme_constant_override("v_separation", GAP)
+	add_child(grid)
+	summary_label = DockKit.text(12)
+	add_child(summary_label)
+	var div := ColorRect.new()
+	div.color = DockKit.LINE
+	div.custom_minimum_size = Vector2(0, 1)
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(div)
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(head)
+	var caps := HudStyle.caps(10, HudStyle.MUTED)
+	caps.text = "PLANNED SYNERGIES"
+	caps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(caps)
+	planned_label = DockKit.text(10, HudStyle.MUTED)
+	head.add_child(planned_label)
+	chips = HFlowContainer.new()
+	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chips.add_theme_constant_override("h_separation", 4)
+	chips.add_theme_constant_override("v_separation", 4)
+	add_child(chips)
 	# keep the "owned" counts current while the panel is open
 	for s in [Events.unit_bought, Events.unit_sold, Events.phase_changed]:
 		s.connect(func(_a = null, _b = null, _c = null):
-			if visible:
+			if is_visible_in_tree():
 				_rebuild.call_deferred())
 
-func _unhandled_input(event):
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_P and not get_tree().paused:
-		toggle()
-		get_viewport().set_input_as_handled()
+func _dock():
+	return get_tree().get_first_node_in_group("right_dock")
 
-func toggle():
-	if visible:
-		close()
-	else:
-		open()
-
+# Kept for other scripts and checks: the right box decides what is open.
 func open():
-	_rebuild()
-	visible = true
+	var d = _dock()
+	if d != null:
+		d.open_panel("planner")
 
 func close():
-	visible = false
+	var d = _dock()
+	if d != null and d.current == "planner":
+		d.close_panel()
 
-# The units the shop can offer this run (a campaign level may limit them), cheapest first.
+func toggle():
+	var d = _dock()
+	if d != null:
+		d.toggle_panel("planner")
+
+func is_open() -> bool:
+	var d = _dock()
+	return d != null and d.current == "planner"
+
+func show_cost(c: int) -> void:
+	cost = c
+	_rebuild()
+
+# The units the shop can offer this run (a campaign level may limit them).
 func _roster() -> Array:
 	var gm := get_tree().get_first_node_in_group("game_manager")
 	var list: Array = gm.roster.duplicate() if gm != null else []
@@ -112,7 +123,7 @@ func _set_plan(names: Array):
 	Events.team_plan_changed.emit()
 	_rebuild()
 
-func _toggle_unit(unit_name: String):
+func toggle_unit(unit_name: String):
 	var plan: Array = SaveGame.team_plan().duplicate()
 	if plan.has(unit_name):
 		plan.erase(unit_name)
@@ -120,51 +131,133 @@ func _toggle_unit(unit_name: String):
 		plan.append(unit_name)
 	_set_plan(plan)
 
+func clear_plan():
+	_set_plan([])
+
 func _rebuild():
+	for i in cost_tabs.size():
+		var on := i + 1 == cost
+		DockKit.set_tab_active(cost_tabs[i], on, DockKit.SELECTED)
+		var s := DockKit.flat(DockKit.SELECTED if on else DockKit.WELL)
+		if on:
+			s.border_width_top = 2
+			s.border_color = DockKit.COST_COLORS[i + 1]
+		cost_tabs[i].add_theme_stylebox_override("normal", s)
+		cost_tabs[i].add_theme_stylebox_override("hover", s if on else DockKit.flat(DockKit.WELL.lightened(0.06)))
+		cost_tabs[i].add_theme_stylebox_override("pressed", s)
 	for c in grid.get_children():
+		grid.remove_child(c)
 		c.queue_free()
 	var plan: Array = SaveGame.team_plan()
 	var owned := _owned_counts()
-	var planned_data := []
-	for d in _roster():
-		var on := plan.has(d.display_name)
+	var roster := _roster()
+	_tile_side = floorf((INNER_WIDTH - GAP * (COLUMNS - 1)) / COLUMNS)
+	var at_cost := roster.filter(func(d): return d.cost == cost)
+	var planned_here := 0
+	for d in at_cost:
+		var on: bool = plan.has(d.display_name)
 		if on:
-			planned_data.append(d)
-		var b := Button.new()
-		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(112, 56)
-		var tags: PackedStringArray = []
-		for t in d.tags:
-			tags.append(String(t))
-		var have := int(owned.get(d.display_name, 0))
-		b.text = "%s%s\n%dg  %s" % ["* " if on else "", d.display_name, d.cost, ("owned x%d" % have) if have > 0 else ""]
-		b.tooltip_text = Tip.wrap("%s (%d gold)\n%s\nClick to %s the plan." % [d.display_name, d.cost, ", ".join(tags), "remove from" if on else "add to"])
-		b.add_theme_font_size_override("font_size", 14)
-		for state in ["normal", "hover", "pressed"]:
-			b.add_theme_stylebox_override(state, _style_on if on else _style_off)
-		b.add_theme_color_override("font_color", GOLD if on else Color.WHITE)
-		b.pressed.connect(_toggle_unit.bind(d.display_name))
-		grid.add_child(b)
-	var have_count := planned_data.filter(func(d): return owned.has(d.display_name)).size()
-	summary_label.text = "Planned: %d units (%d owned)" % [planned_data.size(), have_count] if not planned_data.is_empty() else "No units planned yet."
-	synergy_label.text = _synergy_text(planned_data)
+			planned_here += 1
+		grid.add_child(_tile(d, on, int(owned.get(d.display_name, 0))))
+	summary_label.text = "%d of %d planned at %d gold" % [planned_here, at_cost.size(), cost]
+	var planned_data := roster.filter(func(d): return plan.has(d.display_name))
+	planned_label.text = "%d unit%s planned" % [planned_data.size(), "" if planned_data.size() == 1 else "s"]
+	for c in chips.get_children():
+		chips.remove_child(c)
+		c.queue_free()
+	for e in chip_entries(planned_data):
+		var active: bool = e[2]
+		chips.add_child(DockKit.chip(e[0] + " " + e[1], DockKit.CHIP_ACTIVE if active else DockKit.WELL, HudStyle.GOLD if active else HudStyle.MUTED, 11, DockKit.GOLD_EDGE if active else Color.TRANSPARENT))
+	if planned_data.is_empty():
+		var l := DockKit.wrapping(11, HudStyle.MUTED, 180)
+		l.text = "Click units to plan a team. Planned units get a star in the shop."
+		chips.add_child(l)
 
-func _synergy_text(datas: Array) -> String:
-	if datas.is_empty():
-		return ""
+# [tag, "count/threshold", active] for the planned team, most units first. The threshold is the next
+# one not reached yet, or the top tier once it's maxed (as before).
+func chip_entries(datas: Array) -> Array:
 	var counts := Synergies.count_data(datas)
 	var tags: Array = counts.keys().filter(func(t): return Synergies.DEFS.has(t))
-	tags.sort_custom(func(a, b): return counts[a] > counts[b] or (counts[a] == counts[b] and a < b))
-	var parts: PackedStringArray = []
+	tags.sort_custom(func(a, b):
+		var aa := Synergies.active_tier(a, counts[a]) >= 0
+		var ab := Synergies.active_tier(b, counts[b]) >= 0
+		if aa != ab:
+			return aa
+		return counts[a] > counts[b] or (counts[a] == counts[b] and a < b))
+	var out: Array = []
 	for t in tags:
 		var n: int = counts[t]
-		parts.append("%s %d/%d%s" % [t, n, Synergies.next_threshold(t, n), " (active)" if Synergies.active_tier(t, n) >= 0 else ""])
-	return "Planned synergies: " + ",  ".join(parts)
+		out.append([t, "%d/%d" % [n, Synergies.next_threshold(t, n)], Synergies.active_tier(t, n) >= 0])
+	return out
 
-func _style(bg: Color, border: Color) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.border_color = border
-	s.set_border_width_all(2)
-	s.set_corner_radius_all(6)
-	return s
+func _tile(d: UnitData, planned: bool, have: int) -> Button:
+	var side := _tile_side
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(side, side)
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.set_meta("unit", d.display_name)
+	var tags: PackedStringArray = []
+	for t in d.tags:
+		tags.append(String(t))
+	b.tooltip_text = Tip.wrap("%s (%d gold)\n%s\nClick to %s the plan." % [d.display_name, d.cost, ", ".join(tags), "remove from" if planned else "add to"])
+	var s := DockKit.flat(DockKit.WELL)
+	s.set_border_width_all(2 if planned else 1)
+	s.border_color = HudStyle.GOLD if planned else DockKit.LINE
+	var h := s.duplicate() as StyleBoxFlat
+	h.bg_color = DockKit.WELL.lightened(0.06)
+	b.add_theme_stylebox_override("normal", s)
+	b.add_theme_stylebox_override("hover", h)
+	b.add_theme_stylebox_override("pressed", h)
+	b.pressed.connect(toggle_unit.bind(d.display_name))
+	var tex := DockKit.portrait(d)
+	if tex != null:
+		var r := TextureRect.new()
+		r.texture = tex
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		r.position = Vector2(2, 2)
+		r.size = Vector2(side - 4, side - 7)
+		b.add_child(r)
+	else:
+		var l := HudStyle.number(18, HudStyle.MUTED)
+		l.text = d.label()
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.position = Vector2.ZERO
+		l.size = Vector2(side, side - 3)
+		b.add_child(l)
+	var strip := ColorRect.new()
+	strip.color = DockKit.COST_COLORS.get(d.cost, HudStyle.NEUTRAL)
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	strip.position = Vector2(1, side - 4)
+	strip.size = Vector2(side - 2, 3)
+	b.add_child(strip)
+	if planned:
+		var check := ColorRect.new()
+		check.color = HudStyle.GOLD
+		check.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		check.position = Vector2(side - 12, 2)
+		check.size = Vector2(10, 10)
+		b.add_child(check)
+		var tick := DockKit.PixelIcon.new("check", DockKit.DARK_TEXT, 10)
+		tick.position = check.position
+		tick.size = check.size
+		b.add_child(tick)
+	if have > 0:
+		var x := HudStyle.number(14, HudStyle.INK)
+		x.text = "×%d" % have
+		x.add_theme_color_override("font_outline_color", DockKit.WELL)
+		x.add_theme_constant_override("outline_size", 4)
+		x.position = Vector2(3, 0)
+		b.add_child(x)
+	return b
+
+# For checks: the tile for a unit name in the current cost tab, or null.
+func tile_for(unit_name: String) -> Button:
+	for c in grid.get_children():
+		if not c.is_queued_for_deletion() and c.get_meta("unit", "") == unit_name:
+			return c
+	return null

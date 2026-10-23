@@ -85,6 +85,11 @@ func _place():
 	position = aim()
 	cam.position = Vector3(0.0, 0.0, distance * _zoom_now)
 
+# Back to the default zoom and no pan.
+func reset_view() -> void:
+	zoom = 1.0
+	pan = Vector3.ZERO
+
 func zoom_by(notches: float) -> void:
 	zoom = clampf(zoom + notches * ZOOM_STEP, ZOOM_MIN, ZOOM_MAX)
 
@@ -101,11 +106,13 @@ func _unhandled_input(event):
 		elif event.button_index == MOUSE_BUTTON_MIDDLE or (event.button_index == MOUSE_BUTTON_LEFT and not _drag_busy()):
 			panning = true
 			_pan_from = event.position
-	elif event is InputEventKey and event.pressed and not get_tree().paused:
-		if event.keycode == KEY_EQUAL or event.keycode == KEY_KP_ADD:
+	elif event is InputEventKey and event.pressed and not get_tree().paused:   # keys: main menu > Keybinds
+		if Keybinds.pressed(event, "zoom_in"):
 			zoom_by(-1.0)
-		elif event.keycode == KEY_MINUS or event.keycode == KEY_KP_SUBTRACT:
+		elif Keybinds.pressed(event, "zoom_out"):
 			zoom_by(1.0)
+		elif Keybinds.pressed(event, "reset_view"):
+			reset_view()
 
 # Motion and release are watched in _input so a drag keeps going over HUD panels.
 func _input(event):

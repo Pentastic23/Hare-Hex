@@ -106,7 +106,7 @@ class Driver extends Node:
 
 		# Esc pauses, Esc resumes
 		await esc()
-		var pm = scene().get_node("UI/PauseMenu")
+		var pm = scene().get_node("UI/RightDock").menu
 		chk("Esc pauses and shows the pause menu", get_tree().paused and pm.visible)
 		var round_before := GameState.round_number
 		await wait(1.0)

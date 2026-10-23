@@ -18,7 +18,7 @@ func _on_phase_changed(p: int):
 	_cancel_drag()
 
 func _input(event):
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F:
+	if Keybinds.pressed(event, "sell_unit"):   # F by default (main menu > Keybinds)
 		_sell_with_key()
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:

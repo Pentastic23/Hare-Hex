@@ -1,5 +1,6 @@
 # hud_checks.gd
-# Dev tool, not part of the game: headless checks for the shop lock, damage meter and team planner.
+# Dev tool, not part of the game: headless checks for the shop lock, the side boxes (damage, planner,
+# menu, synergies, items), the top bar and the camera.
 # Run from the project folder:
 #   Godot_v4.7.2-stable_win64.exe --headless --path . res://tools/hud_checks.tscn --fixed-fps 60
 # Prints PASS/FAIL per check and RESULT at the end. Uses a throwaway save file.
@@ -52,10 +53,13 @@ func _run():
 	SaveGame.reset_progress()
 	SaveGame.set_team_plan([])
 	Settings.path = "user://hud_test_settings.cfg"   # never touch the player's settings
+	Keybinds.path = "user://hud_checks_keybinds.cfg"   # default binds, whatever the player has set
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Keybinds.path))
+	Keybinds.load_binds()
 	Settings._loaded = true
 	Settings.show_damage_meter = true
-	Settings.show_synergies = true
-	Settings.show_items = true
+	Settings.dock_collapsed = false
+	Settings.dock_tab = "synergies"
 	GameState.run_level = null
 	GameState.run_carry = {}
 	main = load("res://scenes/main.tscn").instantiate()
@@ -120,7 +124,7 @@ func _run():
 	chk("no overkill: only the 30 HP left count", is_equal_approx(removed, 30.0) and u.dead)
 	u.free()
 
-	print("--- damage meter")
+	print("--- damage panel (right box)")
 	GameState.me.gold = 50
 	for n in ["knight", "archer"]:
 		Events.unit_bought.emit(load("res://tres/%s.tres" % n))
@@ -131,108 +135,137 @@ func _run():
 			board.detach(p)
 			board.put_on_tile(p, board.player_order[c])
 			c += 1
-	var meter = main.get_node("UI/DamageMeter")
+	var dock = main.get_node("UI/RightDock")
+	var meter = dock.damage
+	chk("the right box opens on the damage panel (remembered as on)", dock.current == "damage" and meter.visible and dock.panel.visible)
 	await wait_phase(Events.Phase.COMBAT)
 	await get_tree().create_timer(0.6).timeout
-	chk("meter shows during combat with one row per unit that fights", meter.visible and meter.header.text.begins_with("Damage dealt  (") and meter.rows.get_child_count() == gm.snapshot.size(), "%s, %d rows, %d fighting" % [meter.header.text, meter.rows.get_child_count(), gm.snapshot.size()])
+	chk("damage panel shows during combat with one row per unit that fights", meter.is_visible_in_tree() and meter.caption.text == "THIS FIGHT · DAMAGE DEALT" and meter.rows.get_child_count() == gm.snapshot.size(), "%s, %d rows, %d fighting" % [meter.caption.text, meter.rows.get_child_count(), gm.snapshot.size()])
 	await wait_phase(Events.Phase.PREP)
 	await get_tree().process_frame
 	var fought: Array = gm.snapshot.keys()
 	var total_dealt := 0.0
 	for p in fought:
 		total_dealt += p.damage_dealt
-	chk("after the fight: 'last fight', numbers kept", meter.visible and meter.header.text.contains("last fight") and total_dealt > 0.0, "%s, dealt %d" % [meter.header.text, total_dealt])
-	var first_row: HBoxContainer = meter.rows.get_child(0)
+	chk("after the fight: 'last fight', numbers kept, total shown", meter.caption.text.begins_with("LAST FIGHT") and total_dealt > 0.0 and meter.total_label.text == str(roundi(total_dealt)), "%s, dealt %d, total %s" % [meter.caption.text, total_dealt, meter.total_label.text])
+	var first_row: Control = meter.rows.get_child(0)
 	var top_unit: Unit = fought.reduce(func(a, b): return a if a.damage_dealt >= b.damage_dealt else b)
-	chk("rows sorted, top row is the top damage dealer", (first_row.get_child(0) as Label).text.begins_with(top_unit.data.display_name) and (first_row.get_child(2) as Label).text == str(roundi(top_unit.damage_dealt)))
-	meter.header.pressed.emit()
+	chk("rows sorted, top row is the top damage dealer", first_row.get_meta("unit") == top_unit)
+	meter.taken_button.pressed.emit()
 	await get_tree().process_frame
-	chk("header switches to damage taken", meter.show_taken and meter.header.text.begins_with("Damage taken"))
-	meter.header.pressed.emit()
+	chk("Taken switches the view", meter.show_taken and meter.caption.text.ends_with("DAMAGE TAKEN"))
+	meter.dealt_button.pressed.emit()
+	chk("Dealt switches back", not meter.show_taken)
 
-	print("--- top-right bar and layout")
-	var bar = main.get_node("UI/TopRightBar")
-	var planner = main.get_node("UI/TeamPlanner")
+	print("--- right box: tabs and layout")
+	var planner = dock.planner
 	var standings: Control = main.get_node("UI/Standings")
-	chk("bar has Damage, Planner and Menu", bar.damage_button.text == "Damage" and bar.planner_button.text == "Planner" and bar.menu_button.text == "Menu")
-	chk("button bar sits above the meter", bar.get_global_rect().end.y <= meter.get_global_rect().position.y, "%s / %s" % [bar.get_global_rect(), meter.get_global_rect()])
-	# HUD spec: standings 210 px wide at the right edge, top at y = 129; the meter overlays them while open.
+	chk("tabs: Damage, Planner, Menu", dock.tabs.has("damage") and dock.tabs.has("planner") and dock.tabs.has("menu"))
+	var drect: Rect2 = dock.get_global_rect()
+	chk("the right box sits top right, 236 px wide", is_equal_approx(drect.size.x, 236.0) and is_equal_approx(drect.end.x, 1142.0) and is_equal_approx(drect.position.y, 10.0), str(drect))
 	var srect: Rect2 = standings.get_global_rect()
-	chk("HP standings sit at the right edge under the button bar", is_equal_approx(srect.position.y, 129.0) and is_equal_approx(srect.size.x, 210.0) and is_equal_approx(srect.end.x, 1150.0) and srect.position.y >= bar.get_global_rect().end.y, str(srect))
-	chk("the damage meter draws over the standings (it comes later in the tree)", meter.get_index() > standings.get_index())
+	chk("HP standings: 210 px wide at the right edge, below the right box", is_equal_approx(srect.size.x, 210.0) and is_equal_approx(srect.end.x, 1150.0) and srect.position.y >= 129.0, str(srect))
 	chk("standings show your HP", standings.you_row() != null and standings.you_row().hp_lbl.text == str(GameState.me.player_hp) and standings.opponent_row() != null)
 	var insp_layout = main.get_node("UI/UnitInspector")
 	chk("the unit inspector sits bottom right, clear of the standings", insp_layout.anchor_top == 1.0 and insp_layout.anchor_left == 1.0 and insp_layout.offset_bottom == -96)
-	bar.damage_button.button_pressed = false
+	dock.tabs["damage"].pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	Settings._loaded = false
 	Settings.load_settings()
-	chk("Damage button hides the meter, and it's remembered", not meter.visible and not Settings.show_damage_meter)
-	bar.damage_button.button_pressed = true
-	chk("Damage button shows it again", meter.visible and Settings.show_damage_meter)
-	bar.planner_button.button_pressed = true
-	chk("Planner button opens the team planner", planner.visible)
-	bar.planner_button.button_pressed = false
-	chk("Planner button closes it", not planner.visible)
-	bar.menu_button.pressed.emit()
+	chk("clicking the open Damage tab closes it, and it's remembered", dock.current == "" and not dock.panel.visible and not Settings.show_damage_meter)
+	chk("with no panel open the standings move back up to y = 129", is_equal_approx(standings.get_global_rect().position.y, 129.0), str(standings.get_global_rect()))
+	dock.tabs["damage"].pressed.emit()
+	chk("clicking it again opens it", dock.current == "damage" and Settings.show_damage_meter)
+	dock.tabs["planner"].pressed.emit()
+	chk("Planner tab opens the planner and closes the damage panel", dock.current == "planner" and planner.visible and not meter.visible)
+	dock.tabs["planner"].pressed.emit()
+	chk("clicking it again closes it, and the damage panel comes back", dock.current == "damage" and not planner.visible and meter.visible)
+	dock.tabs["menu"].pressed.emit()
 	await get_tree().process_frame
-	chk("Menu button opens the pause menu", get_tree().paused and main.get_node("UI/PauseMenu").visible)
+	chk("Menu tab opens the menu, pauses and dims the board", get_tree().paused and dock.current == "menu" and dock.menu.visible and dock.dim.visible)
+	chk("the dim sits under the whole HUD", dock.dim.get_index() == 0)
 	await esc()
+	chk("Esc resumes and the damage panel comes back", not get_tree().paused and dock.current == "damage" and not dock.dim.visible)
 
 	print("--- team planner")
 	await key(KEY_P)
 	await get_tree().process_frame
-	chk("P opens the planner with every unit the shop can offer", planner.visible and planner.grid.get_child_count() == gm.roster.size(), "%d buttons" % planner.grid.get_child_count())
-	chk("Planner button lights up when P opens it", bar.planner_button.button_pressed)
-	var btn_for := func(unit_name: String) -> Button:
-		for b in planner.grid.get_children():
-			if not b.is_queued_for_deletion() and (b.text.begins_with(unit_name) or b.text.begins_with("* " + unit_name)):
-				return b
-		return null
-	btn_for.call("Knight").pressed.emit()
+	var at1: int = gm.roster.filter(func(d): return d.cost == 1).size()
+	chk("P opens the planner on the 1-gold tab with every 1-gold unit", dock.current == "planner" and planner.cost == 1 and planner.grid.get_child_count() == at1, "%d tiles, %d units" % [planner.grid.get_child_count(), at1])
+	planner.show_cost(5)
+	chk("cost tabs switch the grid", planner.grid.get_children().all(func(t): return gm.roster.filter(func(d): return d.display_name == t.get_meta("unit"))[0].cost == 5))
+	planner.show_cost(1)
+	planner.tile_for("Knight").pressed.emit()
 	await get_tree().process_frame
-	chk("clicking a unit adds it to the plan", SaveGame.team_plan() == ["Knight"] and planner.synergy_label.text.contains("Order 1/2") and planner.summary_label.text.contains("1 units (1 owned)"), "%s | %s" % [planner.summary_label.text, planner.synergy_label.text])
-	btn_for.call("Cleric").pressed.emit()
+	chk("clicking a unit adds it to the plan", SaveGame.team_plan() == ["Knight"] and planner.summary_label.text == "1 of %d planned at 1 gold" % at1 and planner.planned_label.text == "1 unit planned", "%s | %s" % [planner.summary_label.text, planner.planned_label.text])
+	chk("planned synergy chips (Order 1/2, not active)", planner.chip_entries([load("res://tres/knight.tres")]).has(["Order", "1/2", false]))
+	planner.tile_for("Cleric").pressed.emit()
 	await get_tree().process_frame
-	chk("planned synergies update (Order 2/3 active)", planner.synergy_label.text.contains("Order 2/3 (active)"), planner.synergy_label.text)
+	var ents: Array = planner.chip_entries(gm.roster.filter(func(d): return SaveGame.team_plan().has(d.display_name)))
+	chk("planned synergies update (Order 2/3 active, listed first)", ents[0] == ["Order", "2/3", true], str(ents))
+	chk("a planned tile gets the gold outline", (planner.tile_for("Cleric").get_theme_stylebox("normal") as StyleBoxFlat).border_color == HudStyle.GOLD)
 	slots[0].show_offer(knight_data)
 	slots[1].show_offer(load("res://tres/thief.tres"))
-	chk("shop: planned unit gets a star and the gold border", slots[0].text.begins_with("* Knight") and slots[0].has_theme_stylebox_override("normal"))
-	chk("shop: other units unchanged", slots[1].text.begins_with("Thief") and not slots[1].has_theme_stylebox_override("normal"))
-	btn_for.call("Knight").pressed.emit()
+	chk("shop: planned unit gets a star and the gold border", slots[0].shown_name() == "Knight" and slots[0].planned and slots[0].star_label.visible and (slots[0].get_theme_stylebox("normal") as StyleBoxFlat).border_color == HudStyle.GOLD)
+	chk("shop: other units unchanged", slots[1].shown_name() == "Thief" and not slots[1].planned and not slots[1].star_label.visible and (slots[1].get_theme_stylebox("normal") as StyleBoxFlat).border_color != HudStyle.GOLD)
+	planner.tile_for("Knight").pressed.emit()
 	await get_tree().process_frame
-	chk("clicking again removes it, and the shop updates", SaveGame.team_plan() == ["Cleric"] and slots[0].text.begins_with("Knight") and not slots[0].has_theme_stylebox_override("normal"))
+	chk("clicking again removes it, and the shop updates", SaveGame.team_plan() == ["Cleric"] and slots[0].shown_name() == "Knight" and not slots[0].planned and not slots[0].star_label.visible)
 	await esc()
-	chk("Esc closes the planner without pausing", not planner.visible and not get_tree().paused)
+	chk("Esc closes the planner without pausing", dock.current == "damage" and not get_tree().paused)
 	await esc()
-	chk("Esc again pauses as usual", get_tree().paused)
+	chk("Esc again pauses as usual", get_tree().paused and dock.current == "menu")
 	await esc()
 	SaveGame._loaded = false
 	chk("the plan is saved to disk", SaveGame.team_plan() == ["Cleric"])
 	SaveGame.reset_progress()
 	chk("Reset campaign progress keeps the team plan", SaveGame.team_plan() == ["Cleric"])
 	await get_tree().process_frame
-	chk("Planner button goes dark once the planner is closed", not bar.planner_button.button_pressed)
+	chk("the Planner tab is no longer active once the planner is closed", dock.current != "planner")
 
-	print("--- fold-out lists")
-	var syn = main.get_node("UI/SynergyBox/SynergyPanel")
+	print("--- left box (synergies / items)")
+	var left = main.get_node("UI/LeftDock")
+	var lrect: Rect2 = left.get_global_rect()
+	chk("left box at the top left, 232 px wide", is_equal_approx(lrect.position.x, 10.0) and is_equal_approx(lrect.position.y, 10.0) and is_equal_approx(lrect.size.x, 232.0), str(lrect))
+	var syn = left.synergies
 	syn._last_sig = ""
 	syn._refresh()
-	chk("synergy list starts open", syn.list.visible and syn.header.text == "Synergies  [-]" and syn.list.get_child_count() > 0)
-	syn.header.pressed.emit()
-	chk("clicking the header folds it and shows the active count", not syn.list.visible and syn.header.text.begins_with("Synergies (") and syn.header.text.ends_with("active)  [+]") and not Settings.show_synergies, syn.header.text)
-	syn.header.pressed.emit()
-	chk("clicking again unfolds it", syn.list.visible and Settings.show_synergies)
-	var ib = main.get_node("UI/ItemBar")
+	left._update_badges()
+	var cnt: Dictionary = syn.counts()
+	var shown: Array = syn.shown_tags()
+	var act: Array = shown.map(func(t): return Synergies.active_tier(t, cnt[t]) >= 0)
+	chk("Synergies tab: a row per tag on the board, active ones first", shown.size() == cnt.keys().filter(func(t): return Synergies.DEFS.has(t)).size() and shown.size() > 0 and not (act.find(false) != -1 and act.rfind(true) > act.find(false)), "%s %s" % [shown, act])
+	chk("the Synergies badge counts active synergies", left.synergy_badge.text == str(act.count(true)) and syn.active_count == act.count(true))
+	chk("tier effect text picks the reached tier", DockKit.effect_text("Order", 1) == "Order units gain 40% max HP" and DockKit.effect_text("Order", 0) == "Order units gain 20% max HP")
 	GameState.me.items.clear()
-	GameState.me.items.append(load("res://tres/items/longsword.tres"))
-	GameState.me.items.append(load("res://tres/items/iron_belt.tres"))
+	for it in ["longsword", "iron_belt", "longsword"]:
+		GameState.me.items.append(load("res://tres/items/%s.tres" % it))
 	Events.items_changed.emit()
 	await get_tree().process_frame
-	chk("item bar starts open with its grid", ib.visible and ib.grid.visible and ib.header.text == "Items  [-]")
-	ib.header.pressed.emit()
-	chk("clicking the header folds it and shows the item count", not ib.grid.visible and ib.header.text == "Items (2)  [+]" and not Settings.show_items, ib.header.text)
-	ib.header.pressed.emit()
-	chk("clicking again unfolds it", ib.grid.visible and Settings.show_items)
+	left._update_badges()
+	chk("the Items badge counts items, duplicates included", left.items_badge.text == "3")
+	left.items_tab.pressed.emit()
+	chk("Items tab: one row per item type", left.items.visible and not syn.visible and left.items.list.get_child_count() == 2 and Settings.dock_tab == "items")
+	var dragged := [-1]
+	Events.item_drag_started.connect(func(i): dragged[0] = i, CONNECT_ONE_SHOT)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	left.items.list.get_child(1).gui_input.emit(press)
+	chk("pressing an item row starts dragging that item", dragged[0] == 1, str(dragged[0]))
+	Events.item_drag_ended.emit()
+	left.collapse_button.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Settings._loaded = false
+	Settings.load_settings()
+	chk("collapse folds it to a 46 px rail, remembered", left.collapsed and left.rail.is_visible_in_tree() and not left.open_box.visible and is_equal_approx(left.get_global_rect().size.x, 46.0) and Settings.dock_collapsed, str(left.get_global_rect()))
+	chk("the rail buttons carry the badges", left.rail_items_badge.text == "3" and left.rail_synergy_badge.text == str(syn.active_count))
+	left.rail_synergies.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	chk("a rail button expands the box on its tab", not left.collapsed and left.tab == "synergies" and syn.visible and is_equal_approx(left.get_global_rect().size.x, 232.0) and not Settings.dock_collapsed)
 
 	print("--- timer label and inspector (fresh scene, 3 s prep)")
 	main.free()

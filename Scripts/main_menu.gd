@@ -4,7 +4,7 @@ extends Control
 # The first screen: title, Continue (saved chapter run), then two sections:
 #   SINGLE PLAYER: Tutorial, Campaign (chapters and levels), Free Play
 #   PVP: Async PvP (ghost opponents, playable) and Live PvP (coming later: opens an info panel)
-# and Settings / Quit. Built in code; menu.tscn is just this script on a full-screen Control.
+# and Settings / Keybinds / Quit. Built in code; menu.tscn is just this script on a full-screen Control.
 
 const TITLE := "AZTactics"
 const MAIN_SCENE := "res://scenes/main.tscn"
@@ -22,6 +22,12 @@ var continue_button: Button
 var tutorial_button: Button
 var campaign_panel: PanelContainer
 var settings_panel: PanelContainer
+var keybinds_panel: PanelContainer   # keyboard and controller binds (keybinds.gd)
+var keybinds_grid: GridContainer
+var keybinds_hint: Label
+var keybinds_tab := "keyboard"       # or "controller"
+var keybinds_tabs := {}
+var _listening := ""                 # id of the action waiting for a key / button, or ""
 var info_panel: PanelContainer   # "coming soon" description for the PvP modes
 var confirm: ConfirmationDialog
 var _confirm_action: Callable
@@ -67,12 +73,17 @@ func _ready():
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
 	main_box.add_child(row)
-	_button(row, "Settings", func(): _show_panel(settings_panel)).custom_minimum_size = Vector2(156, 44)
+	_button(row, "Settings", func(): _show_panel(settings_panel)).custom_minimum_size = Vector2(150, 44)
+	_button(row, "Keybinds", func():
+		_stop_listening()
+		_fill_keybinds()
+		_show_panel(keybinds_panel)).custom_minimum_size = Vector2(150, 44)
 	if OS.get_name() != "Web":
-		_button(row, "Quit", func(): get_tree().quit()).custom_minimum_size = Vector2(156, 44)
+		_button(row, "Quit", func(): get_tree().quit()).custom_minimum_size = Vector2(150, 44)
 
 	campaign_panel = _build_campaign_panel()
 	settings_panel = _build_settings_panel()
+	keybinds_panel = _build_keybinds_panel()
 	info_panel = _build_info_panel()
 	confirm = ConfirmationDialog.new()
 	confirm.confirmed.connect(func(): _confirm_action.call())
@@ -126,12 +137,13 @@ func _start_chapter(chapter: CampaignChapter):
 
 func _show_panel(panel: Control):
 	main_box.get_parent().visible = panel == null
-	for p in [campaign_panel, settings_panel, info_panel]:
+	_stop_listening()
+	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel]:
 		p.get_parent().visible = panel == p
 	_refresh()
 
 func _panel_open() -> bool:
-	return [campaign_panel, settings_panel, info_panel].any(func(p): return p.get_parent().visible)
+	return [campaign_panel, settings_panel, keybinds_panel, info_panel].any(func(p): return p.get_parent().visible)
 
 func _refresh():
 	var saved := _saved_level()
@@ -271,6 +283,117 @@ func _build_settings_panel() -> PanelContainer:
 				_refresh()))
 	_button(box, "Back", func(): _show_panel(null))
 	return panel
+
+# --- keybinds -----------------------------------------------------------------------------------
+
+func _build_keybinds_panel() -> PanelContainer:
+	var panel := _panel()
+	panel.custom_minimum_size = Vector2(620, 0)
+	var box := panel.get_child(0) as VBoxContainer
+	box.add_child(_label("Keybinds", 40, GOLD))
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 8)
+	box.add_child(tabs)
+	var group := ButtonGroup.new()
+	for t in [["keyboard", "Keyboard & mouse"], ["controller", "Controller"]]:
+		var b := Button.new()
+		b.text = t[1]
+		b.toggle_mode = true
+		b.button_group = group
+		b.button_pressed = t[0] == keybinds_tab
+		b.custom_minimum_size = Vector2(200, 40)
+		b.add_theme_font_size_override("font_size", 18)
+		b.pressed.connect(func():
+			_stop_listening()
+			keybinds_tab = t[0]
+			_fill_keybinds())
+		tabs.add_child(b)
+		keybinds_tabs[t[0]] = b
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, 330)
+	box.add_child(scroll)
+	keybinds_grid = GridContainer.new()
+	keybinds_grid.columns = 2
+	keybinds_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	keybinds_grid.add_theme_constant_override("h_separation", 16)
+	keybinds_grid.add_theme_constant_override("v_separation", 6)
+	scroll.add_child(keybinds_grid)
+	keybinds_hint = _label("", 14, GREY)
+	box.add_child(keybinds_hint)
+	_button(box, "Reset to defaults", func():
+		_ask("Put every keyboard and controller bind back to the default?", func():
+			Keybinds.reset_defaults()
+			_fill_keybinds()))
+	_button(box, "Back", func(): _show_panel(null))
+	return panel
+
+func _fill_keybinds():
+	Keybinds.ensure()
+	for c in keybinds_grid.get_children():
+		keybinds_grid.remove_child(c)
+		c.queue_free()
+	var kb := keybinds_tab == "keyboard"
+	keybinds_tabs["keyboard"].set_pressed_no_signal(kb)
+	keybinds_tabs["controller"].set_pressed_no_signal(not kb)
+	for id in (Keybinds.KEY_ORDER if kb else Keybinds.PAD_ORDER):
+		var label: String = Keybinds.KEYS[id][0] if kb else Keybinds.PAD[id][0]
+		var name_l := _label(label, 17, Color.WHITE)
+		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		keybinds_grid.add_child(name_l)
+		var b := Button.new()
+		b.name = id
+		b.custom_minimum_size = Vector2(190, 34)
+		b.add_theme_font_size_override("font_size", 17)
+		if _listening == id:
+			b.text = "Press a key..." if kb else "Press a button..."
+			b.modulate = GOLD
+		else:
+			b.text = Keybinds.key_name(Keybinds.keys[id]) if kb else Keybinds.pad_name(Keybinds.pad[id])
+		b.pressed.connect(_listen.bind(id))
+		keybinds_grid.add_child(b)
+	for f in (Keybinds.FIXED_KEYS if kb else Keybinds.FIXED_PAD):
+		var name_l := _label(f[1], 17, GREY)
+		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		keybinds_grid.add_child(name_l)
+		var fixed := _label(f[0], 17, GREY)
+		fixed.custom_minimum_size = Vector2(190, 34)
+		fixed.tooltip_text = Tip.wrap("Fixed: can't be changed.")
+		fixed.mouse_filter = Control.MOUSE_FILTER_STOP
+		keybinds_grid.add_child(fixed)
+	if _listening != "":
+		keybinds_hint.text = ("Press the new key. Esc cancels." if kb else "Press the new button on your controller. Esc cancels.")
+	else:
+		keybinds_hint.text = "Click a bind to change it. A key or button already in use swaps over." if kb \
+			else "Click a bind to change it, then press a controller button (not the D-pad). Used ones swap over."
+
+func _listen(id: String):
+	_listening = id
+	if keybinds_tab == "controller":
+		Keybinds.pad_capture = func(b: int):
+			if Keybinds.set_pad(id, b as JoyButton):
+				_stop_listening()
+				_fill_keybinds()
+	else:
+		Keybinds.pad_capture = Callable()
+	_fill_keybinds()
+
+func _stop_listening():
+	_listening = ""
+	Keybinds.pad_capture = Callable()
+
+# While a keyboard bind waits for a key, the next key press is the new bind (Esc cancels).
+func _input(event):
+	if _listening == "" or not event is InputEventKey or not event.pressed or event.echo:
+		return
+	get_viewport().set_input_as_handled()
+	if keybinds_tab == "keyboard" and event.keycode != KEY_ESCAPE:
+		var k: Key = event.keycode if event.keycode != KEY_NONE else event.physical_keycode
+		Keybinds.set_key(_listening, k)
+	_stop_listening()
+	_fill_keybinds()
 
 func _ask(text: String, on_yes: Callable):
 	confirm.dialog_text = text

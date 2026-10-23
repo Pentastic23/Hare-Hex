@@ -1168,5 +1168,6440 @@
    "victory": 1.2
   },
   "height": 1.75
+ },
+ {
+  "cls": "Militia",
+  "tier": 1,
+  "file": "militia_badger_1star",
+  "voxels": 2640,
+  "tris": 2374,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Militia",
+  "tier": 2,
+  "file": "militia_badger_2star",
+  "voxels": 3009,
+  "tris": 2430,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Militia",
+  "tier": 3,
+  "file": "militia_badger_3star",
+  "voxels": 3051,
+  "tris": 2568,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Militia",
+  "tier": 4,
+  "file": "militia_badger_4star",
+  "voxels": 3103,
+  "tris": 3008,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Scout",
+  "tier": 1,
+  "file": "scout_hare_1star",
+  "voxels": 2790,
+  "tris": 2480,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Scout",
+  "tier": 2,
+  "file": "scout_hare_2star",
+  "voxels": 2794,
+  "tris": 2480,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Scout",
+  "tier": 3,
+  "file": "scout_hare_3star",
+  "voxels": 2802,
+  "tris": 2574,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Scout",
+  "tier": 4,
+  "file": "scout_hare_4star",
+  "voxels": 2850,
+  "tris": 3102,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.85
+ },
+ {
+  "cls": "Acolyte",
+  "tier": 1,
+  "file": "acolyte_mouse_1star",
+  "voxels": 2636,
+  "tris": 2280,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Acolyte",
+  "tier": 2,
+  "file": "acolyte_mouse_2star",
+  "voxels": 2908,
+  "tris": 2316,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Acolyte",
+  "tier": 3,
+  "file": "acolyte_mouse_3star",
+  "voxels": 2950,
+  "tris": 2476,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Acolyte",
+  "tier": 4,
+  "file": "acolyte_mouse_4star",
+  "voxels": 2998,
+  "tris": 2916,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Apprentice",
+  "tier": 1,
+  "file": "apprentice_frog_1star",
+  "voxels": 2620,
+  "tris": 2020,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Apprentice",
+  "tier": 2,
+  "file": "apprentice_frog_2star",
+  "voxels": 2620,
+  "tris": 2020,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Apprentice",
+  "tier": 3,
+  "file": "apprentice_frog_3star",
+  "voxels": 2623,
+  "tris": 2064,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Apprentice",
+  "tier": 4,
+  "file": "apprentice_frog_4star",
+  "voxels": 2673,
+  "tris": 2594,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Skeleton",
+  "tier": 1,
+  "file": "skeleton_rat_1star",
+  "voxels": 2260,
+  "tris": 2276,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Skeleton",
+  "tier": 2,
+  "file": "skeleton_rat_2star",
+  "voxels": 2536,
+  "tris": 2304,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Skeleton",
+  "tier": 3,
+  "file": "skeleton_rat_3star",
+  "voxels": 2580,
+  "tris": 2484,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Skeleton",
+  "tier": 4,
+  "file": "skeleton_rat_4star",
+  "voxels": 2632,
+  "tris": 2936,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Imp",
+  "tier": 1,
+  "file": "imp_bat_1star",
+  "voxels": 2488,
+  "tris": 2638,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Imp",
+  "tier": 2,
+  "file": "imp_bat_2star",
+  "voxels": 2490,
+  "tris": 2638,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Imp",
+  "tier": 3,
+  "file": "imp_bat_3star",
+  "voxels": 2549,
+  "tris": 2786,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Imp",
+  "tier": 4,
+  "file": "imp_bat_4star",
+  "voxels": 2598,
+  "tris": 3290,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Sprite",
+  "tier": 1,
+  "file": "sprite_squirrel_1star",
+  "voxels": 2931,
+  "tris": 2694,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Sprite",
+  "tier": 2,
+  "file": "sprite_squirrel_2star",
+  "voxels": 2942,
+  "tris": 2718,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Sprite",
+  "tier": 3,
+  "file": "sprite_squirrel_3star",
+  "voxels": 2950,
+  "tris": 2806,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Sprite",
+  "tier": 4,
+  "file": "sprite_squirrel_4star",
+  "voxels": 3002,
+  "tris": 3288,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Firebrand",
+  "tier": 1,
+  "file": "firebrand_redpanda_1star",
+  "voxels": 2433,
+  "tris": 2544,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Firebrand",
+  "tier": 2,
+  "file": "firebrand_redpanda_2star",
+  "voxels": 2695,
+  "tris": 2596,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Firebrand",
+  "tier": 3,
+  "file": "firebrand_redpanda_3star",
+  "voxels": 2737,
+  "tris": 2734,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Firebrand",
+  "tier": 4,
+  "file": "firebrand_redpanda_4star",
+  "voxels": 2788,
+  "tris": 3112,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Frostling",
+  "tier": 1,
+  "file": "frostling_penguin_1star",
+  "voxels": 2682,
+  "tris": 2472,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Frostling",
+  "tier": 2,
+  "file": "frostling_penguin_2star",
+  "voxels": 2682,
+  "tris": 2472,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Frostling",
+  "tier": 3,
+  "file": "frostling_penguin_3star",
+  "voxels": 2778,
+  "tris": 2576,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Frostling",
+  "tier": 4,
+  "file": "frostling_penguin_4star",
+  "voxels": 2829,
+  "tris": 3108,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Miner",
+  "tier": 1,
+  "file": "miner_mole_1star",
+  "voxels": 2701,
+  "tris": 2430,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Miner",
+  "tier": 2,
+  "file": "miner_mole_2star",
+  "voxels": 2832,
+  "tris": 2412,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Miner",
+  "tier": 3,
+  "file": "miner_mole_3star",
+  "voxels": 2833,
+  "tris": 2424,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Miner",
+  "tier": 4,
+  "file": "miner_mole_4star",
+  "voxels": 2885,
+  "tris": 2902,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Initiate",
+  "tier": 1,
+  "file": "initiate_monkey_1star",
+  "voxels": 2170,
+  "tris": 2358,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Initiate",
+  "tier": 2,
+  "file": "initiate_monkey_2star",
+  "voxels": 2170,
+  "tris": 2358,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Initiate",
+  "tier": 3,
+  "file": "initiate_monkey_3star",
+  "voxels": 2178,
+  "tris": 2466,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Initiate",
+  "tier": 4,
+  "file": "initiate_monkey_4star",
+  "voxels": 2230,
+  "tris": 2882,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Bard",
+  "tier": 1,
+  "file": "bard_robin_1star",
+  "voxels": 2598,
+  "tris": 2280,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Bard",
+  "tier": 2,
+  "file": "bard_robin_2star",
+  "voxels": 2598,
+  "tris": 2280,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Bard",
+  "tier": 3,
+  "file": "bard_robin_3star",
+  "voxels": 2598,
+  "tris": 2288,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Bard",
+  "tier": 4,
+  "file": "bard_robin_4star",
+  "voxels": 2646,
+  "tris": 2914,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Alchemist",
+  "tier": 1,
+  "file": "alchemist_beaver_1star",
+  "voxels": 2188,
+  "tris": 2058,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Alchemist",
+  "tier": 2,
+  "file": "alchemist_beaver_2star",
+  "voxels": 2188,
+  "tris": 2058,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Alchemist",
+  "tier": 3,
+  "file": "alchemist_beaver_3star",
+  "voxels": 2230,
+  "tris": 2218,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Alchemist",
+  "tier": 4,
+  "file": "alchemist_beaver_4star",
+  "voxels": 2281,
+  "tris": 2684,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Necromancer",
+  "tier": 1,
+  "file": "necromancer_raven_1star",
+  "voxels": 3088,
+  "tris": 2308,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Necromancer",
+  "tier": 2,
+  "file": "necromancer_raven_2star",
+  "voxels": 3343,
+  "tris": 2302,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Necromancer",
+  "tier": 3,
+  "file": "necromancer_raven_3star",
+  "voxels": 3373,
+  "tris": 2446,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Necromancer",
+  "tier": 4,
+  "file": "necromancer_raven_4star",
+  "voxels": 3421,
+  "tris": 3058,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Ghoul",
+  "tier": 1,
+  "file": "ghoul_hyena_1star",
+  "voxels": 2647,
+  "tris": 2636,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Ghoul",
+  "tier": 2,
+  "file": "ghoul_hyena_2star",
+  "voxels": 2653,
+  "tris": 2636,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Ghoul",
+  "tier": 3,
+  "file": "ghoul_hyena_3star",
+  "voxels": 2692,
+  "tris": 2832,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Ghoul",
+  "tier": 4,
+  "file": "ghoul_hyena_4star",
+  "voxels": 2745,
+  "tris": 3416,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Sparkcaller",
+  "tier": 1,
+  "file": "sparkcaller_salamander_1star",
+  "voxels": 2618,
+  "tris": 2404,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Sparkcaller",
+  "tier": 2,
+  "file": "sparkcaller_salamander_2star",
+  "voxels": 2620,
+  "tris": 2404,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Sparkcaller",
+  "tier": 3,
+  "file": "sparkcaller_salamander_3star",
+  "voxels": 2662,
+  "tris": 2558,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Sparkcaller",
+  "tier": 4,
+  "file": "sparkcaller_salamander_4star",
+  "voxels": 2715,
+  "tris": 3010,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Frost Archer",
+  "tier": 1,
+  "file": "frostarcher_lynx_1star",
+  "voxels": 2752,
+  "tris": 2616,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Frost Archer",
+  "tier": 2,
+  "file": "frostarcher_lynx_2star",
+  "voxels": 2756,
+  "tris": 2616,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Frost Archer",
+  "tier": 3,
+  "file": "frostarcher_lynx_3star",
+  "voxels": 2851,
+  "tris": 2718,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Frost Archer",
+  "tier": 4,
+  "file": "frostarcher_lynx_4star",
+  "voxels": 2899,
+  "tris": 3168,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Ironbeard",
+  "tier": 1,
+  "file": "ironbeard_goat_1star",
+  "voxels": 2780,
+  "tris": 2718,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Ironbeard",
+  "tier": 2,
+  "file": "ironbeard_goat_2star",
+  "voxels": 3191,
+  "tris": 2776,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Ironbeard",
+  "tier": 3,
+  "file": "ironbeard_goat_3star",
+  "voxels": 3229,
+  "tris": 2842,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Ironbeard",
+  "tier": 4,
+  "file": "ironbeard_goat_4star",
+  "voxels": 3278,
+  "tris": 3174,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Druid",
+  "tier": 1,
+  "file": "druid_stag_1star",
+  "voxels": 2708,
+  "tris": 2532,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Druid",
+  "tier": 2,
+  "file": "druid_stag_2star",
+  "voxels": 2968,
+  "tris": 2564,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Druid",
+  "tier": 3,
+  "file": "druid_stag_3star",
+  "voxels": 2976,
+  "tris": 2628,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Druid",
+  "tier": 4,
+  "file": "druid_stag_4star",
+  "voxels": 3029,
+  "tris": 3176,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.9
+ },
+ {
+  "cls": "Monk",
+  "tier": 1,
+  "file": "monk_panda_1star",
+  "voxels": 2131,
+  "tris": 2040,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Monk",
+  "tier": 2,
+  "file": "monk_panda_2star",
+  "voxels": 2131,
+  "tris": 2040,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Monk",
+  "tier": 3,
+  "file": "monk_panda_3star",
+  "voxels": 2173,
+  "tris": 2200,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Monk",
+  "tier": 4,
+  "file": "monk_panda_4star",
+  "voxels": 2221,
+  "tris": 2478,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Cultist",
+  "tier": 1,
+  "file": "cultist_ferret_1star",
+  "voxels": 3084,
+  "tris": 2384,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Cultist",
+  "tier": 2,
+  "file": "cultist_ferret_2star",
+  "voxels": 3345,
+  "tris": 2410,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Cultist",
+  "tier": 3,
+  "file": "cultist_ferret_3star",
+  "voxels": 3390,
+  "tris": 2512,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Cultist",
+  "tier": 4,
+  "file": "cultist_ferret_4star",
+  "voxels": 3435,
+  "tris": 3074,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Nightblade",
+  "tier": 1,
+  "file": "nightblade_panther_1star",
+  "voxels": 2341,
+  "tris": 2414,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Nightblade",
+  "tier": 2,
+  "file": "nightblade_panther_2star",
+  "voxels": 2611,
+  "tris": 2422,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Nightblade",
+  "tier": 3,
+  "file": "nightblade_panther_3star",
+  "voxels": 2611,
+  "tris": 2416,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Nightblade",
+  "tier": 4,
+  "file": "nightblade_panther_4star",
+  "voxels": 2664,
+  "tris": 2846,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Pyromancer",
+  "tier": 1,
+  "file": "pyromancer_meerkat_1star",
+  "voxels": 3223,
+  "tris": 2644,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Pyromancer",
+  "tier": 2,
+  "file": "pyromancer_meerkat_2star",
+  "voxels": 3281,
+  "tris": 2702,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.9
+ },
+ {
+  "cls": "Pyromancer",
+  "tier": 3,
+  "file": "pyromancer_meerkat_3star",
+  "voxels": 3281,
+  "tris": 2702,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.9
+ },
+ {
+  "cls": "Pyromancer",
+  "tier": 4,
+  "file": "pyromancer_meerkat_4star",
+  "voxels": 3331,
+  "tris": 3270,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 2.05
+ },
+ {
+  "cls": "Paladin",
+  "tier": 1,
+  "file": "paladin_retriever_1star",
+  "voxels": 2840,
+  "tris": 2784,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Paladin",
+  "tier": 2,
+  "file": "paladin_retriever_2star",
+  "voxels": 3108,
+  "tris": 2764,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Paladin",
+  "tier": 3,
+  "file": "paladin_retriever_3star",
+  "voxels": 3150,
+  "tris": 2902,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Paladin",
+  "tier": 4,
+  "file": "paladin_retriever_4star",
+  "voxels": 3199,
+  "tris": 3340,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Ice Mage",
+  "tier": 1,
+  "file": "icemage_walrus_1star",
+  "voxels": 3353,
+  "tris": 2670,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Ice Mage",
+  "tier": 2,
+  "file": "icemage_walrus_2star",
+  "voxels": 3410,
+  "tris": 2742,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.9
+ },
+ {
+  "cls": "Ice Mage",
+  "tier": 3,
+  "file": "icemage_walrus_3star",
+  "voxels": 3410,
+  "tris": 2742,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.9
+ },
+ {
+  "cls": "Ice Mage",
+  "tier": 4,
+  "file": "icemage_walrus_4star",
+  "voxels": 3456,
+  "tris": 3280,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 2.05
+ },
+ {
+  "cls": "Dryad",
+  "tier": 1,
+  "file": "dryad_koala_1star",
+  "voxels": 2662,
+  "tris": 2244,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Dryad",
+  "tier": 2,
+  "file": "dryad_koala_2star",
+  "voxels": 2938,
+  "tris": 2288,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Dryad",
+  "tier": 3,
+  "file": "dryad_koala_3star",
+  "voxels": 2946,
+  "tris": 2384,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Dryad",
+  "tier": 4,
+  "file": "dryad_koala_4star",
+  "voxels": 2996,
+  "tris": 2934,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Minstrel",
+  "tier": 1,
+  "file": "minstrel_otter_1star",
+  "voxels": 2552,
+  "tris": 2330,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Minstrel",
+  "tier": 2,
+  "file": "minstrel_otter_2star",
+  "voxels": 2552,
+  "tris": 2330,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Minstrel",
+  "tier": 3,
+  "file": "minstrel_otter_3star",
+  "voxels": 2552,
+  "tris": 2334,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Minstrel",
+  "tier": 4,
+  "file": "minstrel_otter_4star",
+  "voxels": 2601,
+  "tris": 2854,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Skald",
+  "tier": 1,
+  "file": "skald_boar_1star",
+  "voxels": 2554,
+  "tris": 2506,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Skald",
+  "tier": 2,
+  "file": "skald_boar_2star",
+  "voxels": 2556,
+  "tris": 2510,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Skald",
+  "tier": 3,
+  "file": "skald_boar_3star",
+  "voxels": 2557,
+  "tris": 2522,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Skald",
+  "tier": 4,
+  "file": "skald_boar_4star",
+  "voxels": 2607,
+  "tris": 2948,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Plague Doctor",
+  "tier": 1,
+  "file": "plaguedoctor_vulture_1star",
+  "voxels": 2952,
+  "tris": 1948,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Plague Doctor",
+  "tier": 2,
+  "file": "plaguedoctor_vulture_2star",
+  "voxels": 2952,
+  "tris": 1948,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Plague Doctor",
+  "tier": 3,
+  "file": "plaguedoctor_vulture_3star",
+  "voxels": 2952,
+  "tris": 1948,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Plague Doctor",
+  "tier": 4,
+  "file": "plaguedoctor_vulture_4star",
+  "voxels": 2999,
+  "tris": 2520,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Runesmith",
+  "tier": 1,
+  "file": "runesmith_armadillo_1star",
+  "voxels": 2950,
+  "tris": 2784,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Runesmith",
+  "tier": 2,
+  "file": "runesmith_armadillo_2star",
+  "voxels": 2955,
+  "tris": 2828,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Runesmith",
+  "tier": 3,
+  "file": "runesmith_armadillo_3star",
+  "voxels": 2997,
+  "tris": 2988,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Runesmith",
+  "tier": 4,
+  "file": "runesmith_armadillo_4star",
+  "voxels": 3045,
+  "tris": 3426,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Shadowfist",
+  "tier": 1,
+  "file": "shadowfist_skunk_1star",
+  "voxels": 2339,
+  "tris": 2504,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Shadowfist",
+  "tier": 2,
+  "file": "shadowfist_skunk_2star",
+  "voxels": 2339,
+  "tris": 2504,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Shadowfist",
+  "tier": 3,
+  "file": "shadowfist_skunk_3star",
+  "voxels": 2339,
+  "tris": 2514,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Shadowfist",
+  "tier": 4,
+  "file": "shadowfist_skunk_4star",
+  "voxels": 2391,
+  "tris": 2952,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Sunmonk",
+  "tier": 1,
+  "file": "sunmonk_tiger_1star",
+  "voxels": 2217,
+  "tris": 2486,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Sunmonk",
+  "tier": 2,
+  "file": "sunmonk_tiger_2star",
+  "voxels": 2217,
+  "tris": 2486,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Sunmonk",
+  "tier": 3,
+  "file": "sunmonk_tiger_3star",
+  "voxels": 2259,
+  "tris": 2646,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Sunmonk",
+  "tier": 4,
+  "file": "sunmonk_tiger_4star",
+  "voxels": 2310,
+  "tris": 3076,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Demonologist",
+  "tier": 1,
+  "file": "demonologist_lemur_1star",
+  "voxels": 3143,
+  "tris": 2478,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Demonologist",
+  "tier": 2,
+  "file": "demonologist_lemur_2star",
+  "voxels": 3406,
+  "tris": 2506,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Demonologist",
+  "tier": 3,
+  "file": "demonologist_lemur_3star",
+  "voxels": 3451,
+  "tris": 2612,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Demonologist",
+  "tier": 4,
+  "file": "demonologist_lemur_4star",
+  "voxels": 3497,
+  "tris": 3184,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Winter Knight",
+  "tier": 1,
+  "file": "winterknight_polarbear_1star",
+  "voxels": 2497,
+  "tris": 2340,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Winter Knight",
+  "tier": 2,
+  "file": "winterknight_polarbear_2star",
+  "voxels": 2800,
+  "tris": 2388,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Winter Knight",
+  "tier": 3,
+  "file": "winterknight_polarbear_3star",
+  "voxels": 2800,
+  "tris": 2374,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Winter Knight",
+  "tier": 4,
+  "file": "winterknight_polarbear_4star",
+  "voxels": 2848,
+  "tris": 2744,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Warlord",
+  "tier": 1,
+  "file": "warlord_rhino_1star",
+  "voxels": 2729,
+  "tris": 2382,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Warlord",
+  "tier": 2,
+  "file": "warlord_rhino_2star",
+  "voxels": 2732,
+  "tris": 2382,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Warlord",
+  "tier": 3,
+  "file": "warlord_rhino_3star",
+  "voxels": 2774,
+  "tris": 2522,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Warlord",
+  "tier": 4,
+  "file": "warlord_rhino_4star",
+  "voxels": 2822,
+  "tris": 2922,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Duelist",
+  "tier": 1,
+  "file": "duelist_rooster_1star",
+  "voxels": 2645,
+  "tris": 2528,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Duelist",
+  "tier": 2,
+  "file": "duelist_rooster_2star",
+  "voxels": 2651,
+  "tris": 2528,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Duelist",
+  "tier": 3,
+  "file": "duelist_rooster_3star",
+  "voxels": 2659,
+  "tris": 2654,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Duelist",
+  "tier": 4,
+  "file": "duelist_rooster_4star",
+  "voxels": 2707,
+  "tris": 3226,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Nightstalker",
+  "tier": 1,
+  "file": "nightstalker_coyote_1star",
+  "voxels": 2933,
+  "tris": 2858,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Nightstalker",
+  "tier": 2,
+  "file": "nightstalker_coyote_2star",
+  "voxels": 2937,
+  "tris": 2858,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Nightstalker",
+  "tier": 3,
+  "file": "nightstalker_coyote_3star",
+  "voxels": 2937,
+  "tris": 2864,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Nightstalker",
+  "tier": 4,
+  "file": "nightstalker_coyote_4star",
+  "voxels": 2989,
+  "tris": 3436,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Lich",
+  "tier": 1,
+  "file": "lich_crocodile_1star",
+  "voxels": 3148,
+  "tris": 2452,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Lich",
+  "tier": 2,
+  "file": "lich_crocodile_2star",
+  "voxels": 3150,
+  "tris": 2452,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Lich",
+  "tier": 3,
+  "file": "lich_crocodile_3star",
+  "voxels": 3150,
+  "tris": 2464,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Lich",
+  "tier": 4,
+  "file": "lich_crocodile_4star",
+  "voxels": 3199,
+  "tris": 3020,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Magma Guard",
+  "tier": 1,
+  "file": "magmaguard_hippo_1star",
+  "voxels": 3072,
+  "tris": 2600,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Magma Guard",
+  "tier": 2,
+  "file": "magmaguard_hippo_2star",
+  "voxels": 3428,
+  "tris": 2686,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Magma Guard",
+  "tier": 3,
+  "file": "magmaguard_hippo_3star",
+  "voxels": 3470,
+  "tris": 2802,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Magma Guard",
+  "tier": 4,
+  "file": "magmaguard_hippo_4star",
+  "voxels": 3522,
+  "tris": 3226,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Frost Giant",
+  "tier": 1,
+  "file": "frostgiant_mammoth_1star",
+  "voxels": 3160,
+  "tris": 2562,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Frost Giant",
+  "tier": 2,
+  "file": "frostgiant_mammoth_2star",
+  "voxels": 3532,
+  "tris": 2630,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Frost Giant",
+  "tier": 3,
+  "file": "frostgiant_mammoth_3star",
+  "voxels": 3628,
+  "tris": 2694,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Frost Giant",
+  "tier": 4,
+  "file": "frostgiant_mammoth_4star",
+  "voxels": 3680,
+  "tris": 3196,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.85
+ },
+ {
+  "cls": "Dwarf Gunner",
+  "tier": 1,
+  "file": "dwarfgunner_hedgehog_1star",
+  "voxels": 3071,
+  "tris": 3440,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Dwarf Gunner",
+  "tier": 2,
+  "file": "dwarfgunner_hedgehog_2star",
+  "voxels": 3072,
+  "tris": 3440,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Dwarf Gunner",
+  "tier": 3,
+  "file": "dwarfgunner_hedgehog_3star",
+  "voxels": 3114,
+  "tris": 3600,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Dwarf Gunner",
+  "tier": 4,
+  "file": "dwarfgunner_hedgehog_4star",
+  "voxels": 3166,
+  "tris": 4124,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Archmage",
+  "tier": 1,
+  "file": "archmage_peacock_1star",
+  "voxels": 2916,
+  "tris": 2824,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Archmage",
+  "tier": 2,
+  "file": "archmage_peacock_2star",
+  "voxels": 2927,
+  "tris": 2882,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Archmage",
+  "tier": 3,
+  "file": "archmage_peacock_3star",
+  "voxels": 2930,
+  "tris": 2908,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Archmage",
+  "tier": 4,
+  "file": "archmage_peacock_4star",
+  "voxels": 2983,
+  "tris": 3498,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Herald",
+  "tier": 1,
+  "file": "herald_eagle_1star",
+  "voxels": 2416,
+  "tris": 1942,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Herald",
+  "tier": 2,
+  "file": "herald_eagle_2star",
+  "voxels": 2416,
+  "tris": 1942,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Herald",
+  "tier": 3,
+  "file": "herald_eagle_3star",
+  "voxels": 2458,
+  "tris": 2102,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Herald",
+  "tier": 4,
+  "file": "herald_eagle_4star",
+  "voxels": 2505,
+  "tris": 2422,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Hellknight",
+  "tier": 1,
+  "file": "hellknight_bull_1star",
+  "voxels": 2494,
+  "tris": 2478,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Hellknight",
+  "tier": 2,
+  "file": "hellknight_bull_2star",
+  "voxels": 2770,
+  "tris": 2518,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Hellknight",
+  "tier": 3,
+  "file": "hellknight_bull_3star",
+  "voxels": 2829,
+  "tris": 2646,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Hellknight",
+  "tier": 4,
+  "file": "hellknight_bull_4star",
+  "voxels": 2880,
+  "tris": 3136,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Beastmaster",
+  "tier": 1,
+  "file": "beastmaster_gorilla_1star",
+  "voxels": 2542,
+  "tris": 2080,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Beastmaster",
+  "tier": 2,
+  "file": "beastmaster_gorilla_2star",
+  "voxels": 2810,
+  "tris": 2124,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Beastmaster",
+  "tier": 3,
+  "file": "beastmaster_gorilla_3star",
+  "voxels": 2818,
+  "tris": 2226,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.35
+ },
+ {
+  "cls": "Beastmaster",
+  "tier": 4,
+  "file": "beastmaster_gorilla_4star",
+  "voxels": 2870,
+  "tris": 2788,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Zen Master",
+  "tier": 1,
+  "file": "zenmaster_crane_1star",
+  "voxels": 2167,
+  "tris": 2140,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Zen Master",
+  "tier": 2,
+  "file": "zenmaster_crane_2star",
+  "voxels": 2167,
+  "tris": 2140,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Zen Master",
+  "tier": 3,
+  "file": "zenmaster_crane_3star",
+  "voxels": 2170,
+  "tris": 2180,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Zen Master",
+  "tier": 4,
+  "file": "zenmaster_crane_4star",
+  "voxels": 2217,
+  "tris": 2554,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Seraph",
+  "tier": 1,
+  "file": "seraph_pegasus_1star",
+  "voxels": 3050,
+  "tris": 2866,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Seraph",
+  "tier": 2,
+  "file": "seraph_pegasus_2star",
+  "voxels": 3052,
+  "tris": 2866,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Seraph",
+  "tier": 3,
+  "file": "seraph_pegasus_3star",
+  "voxels": 3089,
+  "tris": 3038,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Seraph",
+  "tier": 4,
+  "file": "seraph_pegasus_4star",
+  "voxels": 3141,
+  "tris": 3360,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Deathlord",
+  "tier": 1,
+  "file": "deathlord_jackal_1star",
+  "voxels": 2620,
+  "tris": 2540,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Deathlord",
+  "tier": 2,
+  "file": "deathlord_jackal_2star",
+  "voxels": 2894,
+  "tris": 2578,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Deathlord",
+  "tier": 3,
+  "file": "deathlord_jackal_3star",
+  "voxels": 2938,
+  "tris": 2722,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Deathlord",
+  "tier": 4,
+  "file": "deathlord_jackal_4star",
+  "voxels": 2991,
+  "tris": 3224,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Titan",
+  "tier": 1,
+  "file": "titan_elephant_1star",
+  "voxels": 3198,
+  "tris": 2686,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Titan",
+  "tier": 2,
+  "file": "titan_elephant_2star",
+  "voxels": 3570,
+  "tris": 2658,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.3
+ },
+ {
+  "cls": "Titan",
+  "tier": 3,
+  "file": "titan_elephant_3star",
+  "voxels": 3612,
+  "tris": 2774,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Titan",
+  "tier": 4,
+  "file": "titan_elephant_4star",
+  "voxels": 3664,
+  "tris": 3214,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Phoenix",
+  "tier": 1,
+  "file": "phoenix_firebird_1star",
+  "voxels": 2381,
+  "tris": 2760,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Phoenix",
+  "tier": 2,
+  "file": "phoenix_firebird_2star",
+  "voxels": 2381,
+  "tris": 2760,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Phoenix",
+  "tier": 3,
+  "file": "phoenix_firebird_3star",
+  "voxels": 2415,
+  "tris": 2864,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Phoenix",
+  "tier": 4,
+  "file": "phoenix_firebird_4star",
+  "voxels": 2463,
+  "tris": 3278,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.7
+ },
+ {
+  "cls": "Archdemon",
+  "tier": 1,
+  "file": "archdemon_ram_1star",
+  "voxels": 2912,
+  "tris": 2816,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.4
+ },
+ {
+  "cls": "Archdemon",
+  "tier": 2,
+  "file": "archdemon_ram_2star",
+  "voxels": 2914,
+  "tris": 2816,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.5
+ },
+ {
+  "cls": "Archdemon",
+  "tier": 3,
+  "file": "archdemon_ram_3star",
+  "voxels": 2973,
+  "tris": 2964,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Archdemon",
+  "tier": 4,
+  "file": "archdemon_ram_4star",
+  "voxels": 3022,
+  "tris": 3410,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Frost Queen",
+  "tier": 1,
+  "file": "frostqueen_ermine_1star",
+  "voxels": 3023,
+  "tris": 2608,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.45
+ },
+ {
+  "cls": "Frost Queen",
+  "tier": 2,
+  "file": "frostqueen_ermine_2star",
+  "voxels": 3027,
+  "tris": 2580,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.55
+ },
+ {
+  "cls": "Frost Queen",
+  "tier": 3,
+  "file": "frostqueen_ermine_3star",
+  "voxels": 3123,
+  "tris": 2684,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Frost Queen",
+  "tier": 4,
+  "file": "frostqueen_ermine_4star",
+  "voxels": 3174,
+  "tris": 2834,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Faerie Queen",
+  "tier": 1,
+  "file": "faeriequeen_moth_1star",
+  "voxels": 2606,
+  "tris": 2498,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Faerie Queen",
+  "tier": 2,
+  "file": "faeriequeen_moth_2star",
+  "voxels": 2606,
+  "tris": 2498,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Faerie Queen",
+  "tier": 3,
+  "file": "faeriequeen_moth_3star",
+  "voxels": 2614,
+  "tris": 2586,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.65
+ },
+ {
+  "cls": "Faerie Queen",
+  "tier": 4,
+  "file": "faeriequeen_moth_4star",
+  "voxels": 2664,
+  "tris": 3020,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.8
+ },
+ {
+  "cls": "Reaper",
+  "tier": 1,
+  "file": "reaper_mantis_1star",
+  "voxels": 2117,
+  "tris": 2476,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Reaper",
+  "tier": 2,
+  "file": "reaper_mantis_2star",
+  "voxels": 2117,
+  "tris": 2476,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Reaper",
+  "tier": 3,
+  "file": "reaper_mantis_3star",
+  "voxels": 2117,
+  "tris": 2464,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.6
+ },
+ {
+  "cls": "Reaper",
+  "tier": 4,
+  "file": "reaper_mantis_4star",
+  "voxels": 2166,
+  "tris": 2924,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.75
+ },
+ {
+  "cls": "Treant",
+  "tier": 1,
+  "file": "treant_moose_1star",
+  "voxels": 3020,
+  "tris": 3078,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.85
+ },
+ {
+  "cls": "Treant",
+  "tier": 2,
+  "file": "treant_moose_2star",
+  "voxels": 3438,
+  "tris": 3156,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.85
+ },
+ {
+  "cls": "Treant",
+  "tier": 3,
+  "file": "treant_moose_3star",
+  "voxels": 3446,
+  "tris": 3238,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 1.85
+ },
+ {
+  "cls": "Treant",
+  "tier": 4,
+  "file": "treant_moose_4star",
+  "voxels": 3491,
+  "tris": 3890,
+  "bones": [
+   "root",
+   "body",
+   "head",
+   "arm_r",
+   "arm_l",
+   "leg_r",
+   "leg_l",
+   "tail",
+   "aura",
+   "weapon_r",
+   "weapon_l"
+  ],
+  "clips": {
+   "idle": 1.6,
+   "walk": 0.8,
+   "hit": 0.45,
+   "death": 1.2,
+   "victory": 1.4,
+   "attack": 0.9,
+   "skill": 1.3
+  },
+  "height": 2.0
  }
 ]

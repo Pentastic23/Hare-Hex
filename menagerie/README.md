@@ -1,7 +1,8 @@
 # Menagerie: unit models and HUD design (not integrated yet)
 
 Assets made in a separate chat for AZTactics, dropped here as files only. Nothing in the game
-uses them yet, and no existing file was changed. This folder has a `.gdignore`, so Godot ignores
+uses them yet, and no existing file was changed. **All 65 units now have a model** (65 units x 4
+star levels = 260 models). This folder has a `.gdignore`, so Godot ignores
 it completely (no imports, no .import files) until you are ready.
 
 **To integrate:** move `models/glb/` somewhere Godot sees it (for example `res://models/units/`),
@@ -13,12 +14,17 @@ or delete `menagerie/.gdignore`. Then follow the notes below. The HUD is a desig
 ```
 menagerie/
   README.md            this file
-  roster_tiers.png     all 40 models at a glance (10 units x 1-4 stars)
-  models/glb/          40 rigged, animated glTF models: <unit>_<n>star.glb
+  roster_all_65.png    every unit at 1 star, in roster order
+  roster_tiers.png     the first 10 units at 1-4 stars
+  roster_tiers_new55.png  the other 55 units at 1-4 stars
+  models/glb/          260 rigged, animated glTF models: <unit>_<n>star.glb
   models/vox/          the same models as MagicaVoxel files (static, for editing)
   models/previews/     a 3/4-view PNG of each (shop or roster portraits)
   hud/HUD_SPEC.md      timer, round tracker and HP standings design to build
   hud/hud_*.png        reference renders of that HUD
+  hud/DOCKS_SPEC.md    left box (synergies / items) and right box (damage / planner / menu) design
+  hud/items/           64 px voxel icons for the 6 items, named by item id
+  hud/portraits/       96 px portraits of all 65 units
   source/              the Python generator (build.py) and units.json metadata
 ```
 
@@ -37,7 +43,71 @@ menagerie/
 | Berserker | berserker_bear | Bear |
 | Dragon | dragon | Red dragon |
 
-These match the original 10 units in `tres/*.tres`. The other 55 units have no models yet.
+The other 55 units (`tres/units/*.tres`):
+
+| UnitData (display_name) | File base | Animal |
+|---|---|---|
+| Militia | militia_badger | Badger |
+| Scout | scout_hare | Hare |
+| Acolyte | acolyte_mouse | Mouse |
+| Apprentice | apprentice_frog | Frog |
+| Skeleton | skeleton_rat | Skeletal rat |
+| Imp | imp_bat | Bat |
+| Sprite | sprite_squirrel | Fairy squirrel |
+| Firebrand | firebrand_redpanda | Red panda |
+| Frostling | frostling_penguin | Penguin |
+| Miner | miner_mole | Mole |
+| Initiate | initiate_monkey | Monkey |
+| Bard | bard_robin | Robin |
+| Alchemist | alchemist_beaver | Beaver |
+| Necromancer | necromancer_raven | Raven |
+| Ghoul | ghoul_hyena | Undead hyena |
+| Sparkcaller | sparkcaller_salamander | Fire salamander |
+| Frost Archer | frostarcher_lynx | Snow lynx |
+| Ironbeard | ironbeard_goat | Mountain goat |
+| Druid | druid_stag | Stag |
+| Monk | monk_panda | Panda |
+| Cultist | cultist_ferret | Ferret |
+| Nightblade | nightblade_panther | Black panther |
+| Pyromancer | pyromancer_meerkat | Meerkat |
+| Paladin | paladin_retriever | Golden retriever |
+| Ice Mage | icemage_walrus | Walrus |
+| Dryad | dryad_koala | Koala |
+| Minstrel | minstrel_otter | Otter |
+| Skald | skald_boar | Boar |
+| Plague Doctor | plaguedoctor_vulture | Vulture |
+| Runesmith | runesmith_armadillo | Armadillo |
+| Shadowfist | shadowfist_skunk | Skunk |
+| Sunmonk | sunmonk_tiger | Tiger |
+| Demonologist | demonologist_lemur | Lemur |
+| Winter Knight | winterknight_polarbear | Polar bear |
+| Warlord | warlord_rhino | Rhino |
+| Duelist | duelist_rooster | Rooster |
+| Nightstalker | nightstalker_coyote | Coyote |
+| Lich | lich_crocodile | Crocodile |
+| Magma Guard | magmaguard_hippo | Hippo |
+| Frost Giant | frostgiant_mammoth | Mammoth |
+| Dwarf Gunner | dwarfgunner_hedgehog | Hedgehog |
+| Archmage | archmage_peacock | Peacock |
+| Herald | herald_eagle | Eagle |
+| Hellknight | hellknight_bull | Bull |
+| Beastmaster | beastmaster_gorilla | Gorilla |
+| Zen Master | zenmaster_crane | Crane |
+| Seraph | seraph_pegasus | Pegasus |
+| Deathlord | deathlord_jackal | Jackal |
+| Titan | titan_elephant | Elephant |
+| Phoenix | phoenix_firebird | Phoenix |
+| Archdemon | archdemon_ram | Demon ram |
+| Frost Queen | frostqueen_ermine | Ermine |
+| Faerie Queen | faeriequeen_moth | Luna moth |
+| Reaper | reaper_mantis | Mantis |
+| Treant | treant_moose | Moose |
+
+Every model uses the same skeleton, clip names and scale. Each unit's gear matches its class (for
+example, Protectors carry a shield, Rangers a bow, Casters a staff, Monks fight bare-handed) and its
+colours match its origin. At 3 stars, the topper depends on the origin: gold crown (Order, Dwarven,
+Ember), dark iron crown (Infernal), bone crown (Undead), ice spikes (Frost), and circlets for Wild,
+Fey, Shadow and Arcane.
 
 **Tiers:** `_1star`, `_2star` and `_3star` match the game's star levels (better gear and colours at
 each). `_4star` is a secret "astral" form: a star-flecked spirit with a halo and orbiting motes
@@ -129,10 +199,11 @@ Found by reading the code; nothing was changed.
 
 ## Regenerating
 
-`source/build.py` rebuilds everything (Python 3 with numpy and Pillow):
+The generator in `source/` rebuilds everything (Python 3 with numpy and Pillow):
 
-    UNIFORM_SCALE=1 python3 build.py out
+    UNIFORM_SCALE=1 python3 build.py out        # the first 10 (units.py)
+    UNIFORM_SCALE=1 python3 build_new.py out    # the other 55 (units2.py, built from the parts in kit.py)
 
-`UNIFORM_SCALE=1` gives these same-size files. Without it, each star level is baked
-progressively bigger (1.0 / 1.12 / 1.24 / 1.32), for engines that don't scale by star.
+`UNIFORM_SCALE=1` gives these same-size files. Without it, each star level is baked progressively
+bigger (1.0 / 1.12 / 1.24 / 1.32), for engines that don't scale by star.
 `units.py` holds the models and tier upgrades, and `anims.py` holds the clips.
