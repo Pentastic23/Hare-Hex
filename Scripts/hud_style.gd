@@ -58,7 +58,8 @@ static func number(size: int, color := INK) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", number_font())
 	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_color", Settings.text_color(color))
+	Settings.contrast(l, Settings.text_color(color))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
@@ -70,7 +71,8 @@ static func caps(size := 11, color := MUTED) -> Label:
 	v.spacing_glyph = 2
 	l.add_theme_font_override("font", v)
 	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_color", Settings.text_color(color))
+	Settings.contrast(l, Settings.text_color(color))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
@@ -79,6 +81,7 @@ static func name_label(color := INK) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", label_font())
 	l.add_theme_font_size_override("font_size", 12)
-	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_color", Settings.text_color(color))
+	Settings.contrast(l, Settings.text_color(color))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l

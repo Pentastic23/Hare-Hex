@@ -91,7 +91,7 @@ func reset_view() -> void:
 	pan = Vector3.ZERO
 
 func zoom_by(notches: float) -> void:
-	zoom = clampf(zoom + notches * ZOOM_STEP, ZOOM_MIN, ZOOM_MAX)
+	zoom = clampf(zoom + notches * ZOOM_STEP * Settings.zoom_sens, ZOOM_MIN, ZOOM_MAX)
 
 func _ground(screen: Vector2) -> Variant:
 	return Plane(Vector3.UP, 0).intersects_ray(cam.project_ray_origin(screen), cam.project_ray_normal(screen))
@@ -130,7 +130,7 @@ func drag(from: Vector2, to: Vector2) -> void:
 	var b = _ground(to)
 	if a == null or b == null:
 		return
-	pan -= Vector3(b.x - a.x, 0.0, b.z - a.z)
+	pan -= Vector3((b.x - a.x) * Settings.pan_sens_x, 0.0, (b.z - a.z) * Settings.pan_sens_y)   # Settings > Controls
 	_place()
 
 # True while the left button is moving a unit or an item instead of the view.
@@ -141,7 +141,7 @@ func _drag_busy() -> bool:
 func _process(delta):
 	if is_equal_approx(_zoom_now, zoom):
 		return
-	_zoom_now = lerpf(_zoom_now, zoom, minf(1.0, delta * ZOOM_SPEED))
+	_zoom_now = zoom if Settings.reduce_motion else lerpf(_zoom_now, zoom, minf(1.0, delta * ZOOM_SPEED))   # Reduce motion: no easing
 	if absf(_zoom_now - zoom) < 0.001:
 		_zoom_now = zoom
 	_place()

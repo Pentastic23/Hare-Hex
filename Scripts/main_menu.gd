@@ -28,6 +28,11 @@ var keybinds_hint: Label
 var keybinds_tab := "keyboard"       # or "controller"
 var keybinds_tabs := {}
 var _listening := ""                 # id of the action waiting for a key / button, or ""
+var settings_body: VBoxContainer       # rows of the open Settings tab
+var settings_tabs := {}
+var settings_tab := "display"         # display, graphics, controls, accessibility, audio
+var _built_contrast := false           # Settings.high_contrast when the menu was built
+static var _reopen_settings := ""      # after a rebuild (high-contrast text), reopen Settings on this tab
 var info_panel: PanelContainer   # "coming soon" description for the PvP modes
 var confirm: ConfirmationDialog
 var _confirm_action: Callable
@@ -92,6 +97,12 @@ func _ready():
 	add_child(confirm)
 	_style_dialog(confirm)
 	_refresh()
+	_built_contrast = Settings.high_contrast
+	if _reopen_settings != "":
+		settings_tab = _reopen_settings
+		_reopen_settings = ""
+		_fill_settings()
+		_show_panel(settings_panel)
 
 func _unhandled_input(event):
 	if event.is_action_pressed("ui_cancel") and _panel_open():
@@ -254,52 +265,282 @@ func _fill_campaign_list():
 
 func _build_settings_panel() -> PanelContainer:
 	var panel := _panel()
+	panel.custom_minimum_size = Vector2(660, 0)
 	var box := panel.get_child(0) as VBoxContainer
 	box.add_child(_heading("Settings"))
-
-	var fs := _check("Fullscreen", Settings.fullscreen)
-	fs.toggled.connect(func(on):
-		Settings.fullscreen = on
-		Settings.apply()
-		Settings.save_settings())
-	box.add_child(fs)
-
-	var vs := _check("VSync", Settings.vsync)
-	vs.toggled.connect(func(on):
-		Settings.vsync = on
-		Settings.apply()
-		Settings.save_settings())
-	box.add_child(vs)
-
-	var vol_label := _label("Volume: %d%%" % roundi(Settings.master_volume * 100), 15, HudStyle.INK)
-	vol_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	box.add_child(vol_label)
-	var vol := HSlider.new()
-	vol.min_value = 0.0
-	vol.max_value = 1.0
-	vol.step = 0.05
-	vol.value = Settings.master_volume
-	vol.custom_minimum_size = Vector2(320, 24)
-	var track := DockKit.flat(HudStyle.TRACK, 2, Vector4(3, 0, 3, 0))
-	vol.add_theme_stylebox_override("slider", track)
-	vol.add_theme_stylebox_override("grabber_area", DockKit.flat(HudStyle.GOLD, 2, Vector4(3, 0, 3, 0)))
-	vol.add_theme_stylebox_override("grabber_area_highlight", DockKit.flat(HudStyle.GOLD.lightened(0.12), 2, Vector4(3, 0, 3, 0)))
-	vol.value_changed.connect(func(v):
-		Settings.master_volume = v
-		vol_label.text = "Volume: %d%%" % roundi(v * 100)
-		Settings.apply())
-	vol.drag_ended.connect(func(_changed): Settings.save_settings())
-	box.add_child(vol)
-	box.add_child(_label("(No sound in the game yet.)", 12, GREY))
-
-	box.add_child(_spacer(8))
-	_button(box, "Reset campaign progress", func():
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 6)
+	box.add_child(tabs)
+	var group := ButtonGroup.new()
+	for t in [["display", "Display"], ["graphics", "Graphics"], ["controls", "Controls"], ["accessibility", "Accessibility"], ["audio", "Audio"]]:
+		var b := _toggle_tab(t[1], group, t[0] == settings_tab)
+		b.custom_minimum_size = Vector2(118, 34)
+		b.pressed.connect(func():
+			settings_tab = t[0]
+			_fill_settings())
+		tabs.add_child(b)
+		settings_tabs[t[0]] = b
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, 320)
+	box.add_child(scroll)
+	settings_body = VBoxContainer.new()
+	settings_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings_body.add_theme_constant_override("separation", 8)
+	scroll.add_child(settings_body)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	box.add_child(row)
+	_button(row, "Reset settings", func():
+		_ask("Put every setting back to its default?", func():
+			Settings.reset_options()
+			_settings_changed())).custom_minimum_size = Vector2(240, 42)
+	_button(row, "Reset campaign progress", func():
 		_ask("Erase all campaign progress, unlocks and your current run? This can't be undone.",
 			func():
 				SaveGame.reset_progress()
-				_refresh()))
+				_refresh())).custom_minimum_size = Vector2(240, 42)
 	_button(box, "Back", func(): _show_panel(null))
+	_fill_settings()
 	return panel
+
+# Rebuilds the open settings tab from the current values (after a change that affects other rows,
+# e.g. a preset or the display mode, it runs again).
+func _fill_settings() -> void:
+	if settings_body == null:
+		return
+	for c in settings_body.get_children():
+		settings_body.remove_child(c)
+		c.queue_free()
+	for k in settings_tabs:
+		settings_tabs[k].set_pressed_no_signal(k == settings_tab)
+	match settings_tab:
+		"display":
+			_setting_option("display_mode", "Display mode", ["Windowed", "Borderless fullscreen", "Exclusive fullscreen"],
+				Settings.DISPLAY_MODES.find(Settings.display_mode), func(i):
+					Settings.display_mode = Settings.DISPLAY_MODES[i]
+					_settings_changed(true),
+				"Borderless keeps the game from minimising when you switch windows; exclusive can lower input lag.")
+			var screen := Settings.WINDOW_SIZES[0] as Vector2i
+			if DisplayServer.get_name() != "headless":
+				screen = DisplayServer.screen_get_size()
+			if Settings.display_mode == "windowed":
+				var sizes: Array = Settings.WINDOW_SIZES.filter(func(s): return s.x <= screen.x and s.y <= screen.y)
+				if not sizes.has(screen) and DisplayServer.get_name() != "headless":
+					sizes.append(screen)   # the monitor's own size, if it isn't one of the presets
+				sizes.sort_custom(func(a, b): return a.x < b.x)
+				var names: Array = sizes.map(func(s): return "%d x %d%s" % [s.x, s.y, "  (native)" if s == screen else ""])
+				_setting_option("resolution", "Resolution", names, maxi(sizes.find(Settings.window_size), 0), func(i):
+					Settings.window_size = sizes[i]
+					_settings_changed())
+			else:
+				var r := _setting_option("resolution", "Resolution", ["Native  (%d x %d)" % [screen.x, screen.y]], 0, func(_i): pass,
+					"Fullscreen uses your monitor's own resolution.")
+				r.disabled = true
+			_setting_info("Refresh rate", "%d Hz" % Settings.monitor_hz(), "Your monitor's rate (set it in your operating system). Cap the frame rate to match it below.")
+			_setting_option("vsync", "VSync", ["Off", "On", "Adaptive"], Settings.VSYNC_MODES.find(Settings.vsync_mode), func(i):
+				Settings.vsync_mode = Settings.VSYNC_MODES[i]
+				_settings_changed(),
+				"On stops screen tearing. Adaptive turns it off when the frame rate drops, to avoid stutter; it works with G-Sync and FreeSync.")
+			var caps: Array = Settings.FPS_CAPS.map(func(c): return "Off" if c == 0 else ("Match monitor  (%d)" % Settings.monitor_hz() if c == -1 else str(c)))
+			_setting_option("fps_cap", "Frame rate cap", caps, Settings.FPS_CAPS.find(Settings.fps_cap), func(i):
+				Settings.fps_cap = Settings.FPS_CAPS[i]
+				_settings_changed(),
+				"A cap at your monitor's refresh rate keeps the GPU cooler and quieter.")
+		"graphics":
+			var presets := ["Low", "Medium", "High", "Ultra"]
+			var sel := Settings.PRESETS.find(Settings.graphics_preset)
+			if sel < 0:
+				presets.append("Custom")
+				sel = presets.size() - 1
+			_setting_option("preset", "Preset", presets, sel, func(i):
+				if i < Settings.PRESETS.size():
+					Settings.set_preset(Settings.PRESETS[i])
+					_settings_changed(true))
+			var scale_names := ["Off  (100%)", "Ultra quality  (85%)", "Quality  (77%)", "Balanced  (67%)", "Performance  (50%)"]
+			var scale_i: int = maxi(Settings.RENDER_SCALES.find(Settings.render_scale), 0)
+			_setting_option("render_scale", "Upscaling", scale_names, scale_i, func(i):
+				Settings.render_scale = Settings.RENDER_SCALES[i]
+				_custom_graphics(),
+				"Draws the board at a lower resolution and scales it up: faster, a little softer. DLSS and XeSS aren't available in Godot, and FSR needs the Forward+ renderer, so this is plain scaling.")
+			_setting_option("msaa", "Anti-aliasing", ["Off", "MSAA 2x", "MSAA 4x", "MSAA 8x"], Settings.MSAA_LEVELS.find(Settings.msaa), func(i):
+				Settings.msaa = Settings.MSAA_LEVELS[i]
+				_custom_graphics(),
+				"Smooths the jagged edges of units and tiles.")
+			_setting_option("shadows", "Shadows", ["Off", "Low", "High"], Settings.SHADOW_LEVELS.find(Settings.shadows), func(i):
+				Settings.shadows = Settings.SHADOW_LEVELS[i]
+				_custom_graphics(),
+				"Shadows under units. Takes effect from the next run.")
+		"controls":
+			_setting_slider("pointer_sens_x", "Controller pointer, horizontal", Settings.pointer_sens_x, func(v): Settings.pointer_sens_x = v)
+			_setting_slider("pointer_sens_y", "Controller pointer, vertical", Settings.pointer_sens_y, func(v): Settings.pointer_sens_y = v)
+			_setting_slider("pan_sens_x", "Camera pan, horizontal", Settings.pan_sens_x, func(v): Settings.pan_sens_x = v)
+			_setting_slider("pan_sens_y", "Camera pan, vertical", Settings.pan_sens_y, func(v): Settings.pan_sens_y = v)
+			_setting_slider("zoom_sens", "Zoom speed", Settings.zoom_sens, func(v): Settings.zoom_sens = v)
+			var note := _label("Camera pan covers dragging with the mouse and the right stick. The mouse pointer itself follows your operating system's speed.", 12, GREY)
+			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			note.custom_minimum_size = Vector2(560, 0)
+			settings_body.add_child(note)
+			var kb := _button(settings_body, "Key and button binds", func():
+				_stop_listening()
+				_fill_keybinds()
+				_show_panel(keybinds_panel))
+			kb.custom_minimum_size = Vector2(280, 40)
+		"accessibility":
+			_setting_option("colorblind", "Colour-blind filter", ["Off", "Protanopia  (red-weak)", "Deuteranopia  (green-weak)", "Tritanopia  (blue-weak)"],
+				Settings.COLORBLIND_MODES.find(Settings.colorblind), func(i):
+					Settings.colorblind = Settings.COLORBLIND_MODES[i]
+					_settings_changed(),
+				"Shifts colours so team rings, health bars and HP rows stay easy to tell apart.")
+			_setting_check("high_contrast", "High-contrast text", Settings.high_contrast, func(on):
+				Settings.high_contrast = on
+				_settings_changed(true),
+				"Brighter grey text and a dark outline around all text.")
+			_setting_check("reduce_motion", "Reduce motion", Settings.reduce_motion, func(on):
+				Settings.reduce_motion = on
+				_settings_changed(),
+				"No camera zoom easing, no tile pop-in, and combat words fade in place instead of floating. (The camera has no head-bob.)")
+			var note := _label("Subtitles: the game has no speech or sound yet, so there is nothing to subtitle.", 12, GREY)
+			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			note.custom_minimum_size = Vector2(560, 0)
+			settings_body.add_child(note)
+			var rebind := _button(settings_body, "Key and button binds", func():
+				_stop_listening()
+				_fill_keybinds()
+				_show_panel(keybinds_panel))
+			rebind.custom_minimum_size = Vector2(280, 40)
+		"audio":
+			var vol := _setting_slider("volume", "Volume", Settings.master_volume, func(v): Settings.master_volume = v, 0.0, 1.0, 0.05, true)
+			vol.tooltip_text = Tip.wrap("No sound in the game yet.")
+
+# Saves and applies after a change; `rebuild` refreshes the tab (rows that depend on the change).
+func _settings_changed(rebuild := false) -> void:
+	Settings.apply()
+	Settings.save_settings()
+	if rebuild:
+		_fill_settings.call_deferred()
+		if Settings.high_contrast != _built_contrast:   # helpers pick text colours when labels are made
+			_built_contrast = Settings.high_contrast
+			_rebuild_menu.call_deferred()
+
+# A single graphics option changed by hand: the preset becomes Custom.
+func _custom_graphics() -> void:
+	Settings.graphics_preset = "custom"
+	for p in Settings.PRESETS:
+		var v: Dictionary = Settings.PRESET_VALUES[p]
+		if is_equal_approx(v.render_scale, Settings.render_scale) and v.msaa == Settings.msaa and v.shadows == Settings.shadows:
+			Settings.graphics_preset = p   # it happens to match a preset again
+	_settings_changed(true)
+
+# Rebuilds the whole menu (new text colours after High-contrast text changes), back on Settings.
+func _rebuild_menu() -> void:
+	_reopen_settings = settings_tab
+	get_tree().reload_current_scene()
+
+func _setting_row(id: String, text: String, control: Control, hint := "") -> void:
+	var row := HBoxContainer.new()
+	row.name = "Row_" + id
+	row.add_theme_constant_override("separation", 12)
+	var l := _label(text, 14, HudStyle.INK)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if hint != "":
+		l.tooltip_text = Tip.wrap(hint)
+		l.mouse_filter = Control.MOUSE_FILTER_STOP
+		control.tooltip_text = Tip.wrap(hint)
+	row.add_child(l)
+	control.name = id
+	control.custom_minimum_size.x = maxf(control.custom_minimum_size.x, 260)
+	row.add_child(control)
+	settings_body.add_child(row)
+
+# A dropdown in the slate button style; `on_pick` gets the chosen index.
+func _setting_option(id: String, text: String, items: Array, selected: int, on_pick: Callable, hint := "") -> OptionButton:
+	var o := OptionButton.new()
+	var look := DockKit.secondary_button("")
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		var sb := look.get_theme_stylebox(state).duplicate() as StyleBox
+		sb.content_margin_left = 12   # room inside the box (the arrow sits on the right)
+		sb.content_margin_right = 12
+		o.add_theme_stylebox_override(state, sb)
+	look.free()
+	o.add_theme_font_override("font", HudStyle.label_font())
+	o.add_theme_font_size_override("font_size", 14)
+	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
+		o.add_theme_color_override(k, HudStyle.INK)
+	o.add_theme_color_override("font_disabled_color", DockKit.DIM_TEXT)
+	o.custom_minimum_size = Vector2(260, 34)
+	o.focus_mode = Control.FOCUS_NONE
+	for item in items:
+		o.add_item(str(item))
+	o.select(clampi(selected, 0, items.size() - 1))
+	o.item_selected.connect(on_pick)
+	_setting_row(id, text, o, hint)
+	return o
+
+# A slider with its value next to it (multipliers as "1.25x", the volume as a percentage).
+func _setting_slider(id: String, text: String, value: float, on_change: Callable, lo := Settings.SENS_MIN, hi := Settings.SENS_MAX, step := 0.05, percent := false) -> HSlider:
+	var wrap := HBoxContainer.new()
+	wrap.add_theme_constant_override("separation", 10)
+	var s := HSlider.new()
+	s.name = "Slider"
+	s.min_value = lo
+	s.max_value = hi
+	s.step = step
+	s.value = value
+	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	s.custom_minimum_size = Vector2(190, 20)
+	s.focus_mode = Control.FOCUS_NONE
+	s.add_theme_stylebox_override("slider", DockKit.flat(HudStyle.TRACK, 2, Vector4(3, 0, 3, 0)))
+	s.add_theme_stylebox_override("grabber_area", DockKit.flat(GOLD, 2, Vector4(3, 0, 3, 0)))
+	s.add_theme_stylebox_override("grabber_area_highlight", DockKit.flat(GOLD.lightened(0.12), 2, Vector4(3, 0, 3, 0)))
+	wrap.add_child(s)
+	var v := HudStyle.number(18, HudStyle.INK)
+	v.custom_minimum_size = Vector2(56, 0)
+	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var fmt := func(x: float) -> String: return "%d%%" % roundi(x * 100.0) if percent else "%.2fx" % x
+	v.text = fmt.call(value)
+	wrap.add_child(v)
+	s.value_changed.connect(func(x):
+		on_change.call(x)
+		v.text = fmt.call(x)
+		Settings.apply())
+	s.drag_ended.connect(func(_changed): Settings.save_settings())
+	_setting_row(id, text, wrap)
+	return s
+
+func _setting_check(id: String, text: String, on: bool, on_toggle: Callable, hint := "") -> CheckBox:
+	var c := _check("", on)
+	c.toggled.connect(on_toggle)
+	_setting_row(id, text, c, hint)
+	return c
+
+# A read-only value (the monitor's refresh rate).
+func _setting_info(text: String, value: String, hint := "") -> void:
+	var v := _label(value, 14, GREY)
+	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.custom_minimum_size = Vector2(260, 34)
+	v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_setting_row("info_" + text.to_lower().replace(" ", "_"), text, v, hint)
+
+# A tab button for a two-or-more-way choice (Settings and Keybinds): slate, lit with a gold top
+# edge while selected.
+func _toggle_tab(text: String, group: ButtonGroup, pressed: bool) -> Button:
+	var b := DockKit.secondary_button(text)
+	b.toggle_mode = true
+	b.button_group = group
+	b.button_pressed = pressed
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 14)
+	var on := DockKit.flat(DockKit.SELECTED)
+	on.border_width_top = 2
+	on.border_color = GOLD
+	b.add_theme_stylebox_override("pressed", on)
+	b.add_theme_stylebox_override("hover_pressed", on)
+	return b
 
 # --- keybinds -----------------------------------------------------------------------------------
 
@@ -527,6 +768,10 @@ func _check(text: String, on: bool) -> CheckBox:
 	c.text = text
 	c.button_pressed = on
 	c.focus_mode = Control.FOCUS_NONE
+	c.add_theme_icon_override("unchecked", _check_icon(false))
+	c.add_theme_icon_override("checked", _check_icon(true))
+	c.add_theme_icon_override("unchecked_disabled", _check_icon(false))
+	c.add_theme_icon_override("checked_disabled", _check_icon(true))
 	c.add_theme_font_override("font", HudStyle.label_font())
 	c.add_theme_font_size_override("font_size", 15)
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
@@ -574,3 +819,28 @@ func _style_dialog(d: ConfirmationDialog) -> void:
 	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		ok.add_theme_color_override(k, DockKit.DARK_TEXT)
 	gold.free()
+
+# A 20 px check box icon in the HUD look: a dark well with a slate edge, gold with a dark check
+# mark when ticked (drawn pixel by pixel so it stays crisp).
+static var _check_icons := {}
+
+func _check_icon(on: bool) -> Texture2D:
+	if _check_icons.has(on):
+		return _check_icons[on]
+	var n := 20
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var fill: Color = GOLD if on else DockKit.WELL
+	var edge: Color = DockKit.GOLD_LIP if on else HudStyle.EDGE
+	for y in range(1, n - 1):
+		for x in range(1, n - 1):
+			var border := x <= 2 or y <= 2 or x >= n - 3 or y >= n - 3
+			img.set_pixel(x, y, edge if border else fill)
+	if on:   # a chunky check mark
+		var pts := [Vector2i(5, 10), Vector2i(6, 11), Vector2i(7, 12), Vector2i(8, 13), Vector2i(9, 12), Vector2i(10, 11), Vector2i(11, 10), Vector2i(12, 9), Vector2i(13, 8), Vector2i(14, 7)]
+		for p in pts:
+			for dy in 2:
+				img.set_pixel(p.x, p.y + dy - 1, DockKit.DARK_TEXT)
+	var tex := ImageTexture.create_from_image(img)
+	_check_icons[on] = tex
+	return tex

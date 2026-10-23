@@ -66,6 +66,7 @@ func _process(delta):
 		return
 	var v := _stick(JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y)
 	var move: Vector2 = v * v.length() * SPEED * delta   # squared: slow near the centre, fast at the edge
+	move *= Vector2(Settings.pointer_sens_x, Settings.pointer_sens_y)   # Settings > Controls
 	var d := Vector2(
 		float(Input.is_joy_button_pressed(device, JOY_BUTTON_DPAD_RIGHT)) - float(Input.is_joy_button_pressed(device, JOY_BUTTON_DPAD_LEFT)),
 		float(Input.is_joy_button_pressed(device, JOY_BUTTON_DPAD_DOWN)) - float(Input.is_joy_button_pressed(device, JOY_BUTTON_DPAD_UP)))
@@ -80,7 +81,7 @@ func _process(delta):
 			rig.drag(c, c - pan * pan.length() * PAN_SPEED * delta)   # stick right: look further right
 		var z := Input.get_joy_axis(device, JOY_AXIS_TRIGGER_LEFT) - Input.get_joy_axis(device, JOY_AXIS_TRIGGER_RIGHT)
 		if absf(z) > DEADZONE:
-			rig.zoom = clampf(rig.zoom + z * ZOOM_SPEED * delta, rig.ZOOM_MIN, rig.ZOOM_MAX)
+			rig.zoom = clampf(rig.zoom + z * ZOOM_SPEED * Settings.zoom_sens * delta, rig.ZOOM_MIN, rig.ZOOM_MAX)
 
 func _stick(ax: JoyAxis, ay: JoyAxis) -> Vector2:
 	var v := Vector2(Input.get_joy_axis(device, ax), Input.get_joy_axis(device, ay))

@@ -36,7 +36,8 @@ static func text(size: int, color := HudStyle.INK) -> Label:
 	var l := Label.new()
 	l.add_theme_font_override("font", HudStyle.label_font())
 	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_color", Settings.text_color(color))
+	Settings.contrast(l, Settings.text_color(color))
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
@@ -196,7 +197,10 @@ static func badge() -> Label:
 static func set_badge(l: Label, n: int, active: bool) -> void:
 	l.text = str(n)
 	l.add_theme_stylebox_override("normal", flat(HudStyle.GOLD if active else BADGE_OFF, 8, Vector4(0, 4, 0, 4)))
-	l.add_theme_color_override("font_color", DARK_TEXT if active else HudStyle.MUTED)
+	var fg: Color = DARK_TEXT if active else Settings.text_color(HudStyle.MUTED)
+	l.add_theme_color_override("font_color", fg)
+	l.remove_theme_constant_override("outline_size")   # high contrast: outline only light text (Settings.contrast)
+	Settings.contrast(l, fg)
 
 # A small chip: tier numbers in the synergy list, planned synergies in the planner.
 static func chip(label: String, bg: Color, fg: Color, size := 11, outline := Color.TRANSPARENT) -> Label:

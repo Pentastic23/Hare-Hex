@@ -177,16 +177,37 @@ class Driver extends Node:
 		await to_menu()
 		press("Settings")
 		await get_tree().process_frame
-		var vs: CheckBox = null
-		for c in scene().find_children("*", "CheckBox", true, false):
-			if c.text == "VSync":
-				vs = c
-		var before := Settings.vsync
-		vs.button_pressed = not before
+		var vs: OptionButton = scene().settings_panel.find_child("vsync", true, false)
+		var before := Settings.vsync_mode
+		var pick := 0 if before != "off" else 1
+		vs.select(pick)
+		vs.item_selected.emit(pick)
 		Settings._loaded = false
-		Settings.vsync = before   # forget the in-memory value, read it back from disk
+		Settings.vsync_mode = before   # forget the in-memory value, read it back from disk
 		Settings.load_settings()
-		chk("settings: VSync change saved to disk", Settings.vsync == (not before))
+		chk("settings: VSync change saved to disk", Settings.vsync_mode == Settings.VSYNC_MODES[pick], Settings.vsync_mode)
+		var tab_names := ["display", "graphics", "controls", "accessibility", "audio"]
+		var all_tabs := true
+		for tn in tab_names:
+			scene().settings_tabs[tn].pressed.emit()
+			await get_tree().process_frame
+			all_tabs = all_tabs and scene().settings_body.get_child_count() > 0
+		chk("settings: every tab has rows", all_tabs)
+		scene().settings_tabs["graphics"].pressed.emit()
+		await get_tree().process_frame
+		var preset: OptionButton = scene().settings_body.find_child("preset", true, false)
+		preset.select(0)
+		preset.item_selected.emit(0)
+		chk("settings: the Low preset sets render scale, anti-aliasing and shadows", Settings.graphics_preset == "low" and is_equal_approx(Settings.render_scale, 0.67) and Settings.msaa == 0 and Settings.shadows == "off" and is_equal_approx(get_tree().root.scaling_3d_scale, 0.67))
+		await get_tree().process_frame
+		var aa: OptionButton = scene().settings_body.find_child("msaa", true, false)
+		aa.select(3)
+		aa.item_selected.emit(3)
+		chk("settings: changing one graphics option makes the preset Custom", Settings.graphics_preset == "custom" and Settings.msaa == 8 and get_tree().root.msaa_3d == Viewport.MSAA_8X)
+		var settings_h: float = scene().settings_panel.get_combined_minimum_size().y
+		chk("the Settings screen fits a 648 px window", settings_h <= 620, "height %d" % settings_h)
+		Settings.set_preset("high")
+		Settings.apply()
 		press("Reset campaign progress")
 		await get_tree().process_frame
 		scene().confirm.confirmed.emit()

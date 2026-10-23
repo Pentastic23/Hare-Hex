@@ -11,7 +11,7 @@ func set_unlocked(v: bool, animate := true):
 			return
 		unlocked = true
 		visible = true
-		if animate:
+		if animate and not Settings.reduce_motion:   # Reduce motion: tiles appear without the pop
 			scale = Vector3.ONE * 0.01
 			var t := create_tween()
 			t.tween_property(self, "scale", Vector3.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

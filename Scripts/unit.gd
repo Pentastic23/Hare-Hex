@@ -656,6 +656,7 @@ func _popup(text: String, color: Color):
 	l.position = Vector3(0, bar_height + 0.3, 0)
 	add_child(l)
 	var t := create_tween()
-	t.tween_property(l, "position:y", bar_height + 0.9, 0.6)
+	if not Settings.reduce_motion:   # Reduce motion: the word fades in place instead of floating up
+		t.tween_property(l, "position:y", bar_height + 0.9, 0.6)
 	t.parallel().tween_property(l, "modulate:a", 0.0, 0.6)
 	t.tween_callback(l.queue_free)

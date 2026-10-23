@@ -96,6 +96,8 @@ func _enter(p: int):
 			
 func _ready():
 	add_to_group("game_manager")   # shop_slot.gd finds us by group; the node name has a space
+	Settings.ensure_loaded()
+	Settings.apply_light(get_node_or_null("../DirectionalLight3D") as DirectionalLight3D)   # shadows (Settings > Graphics)
 	_begin_run()
 	Events.unit_bought.connect(_on_unit_bought)
 	Events.unit_sold.connect(_on_unit_sold)

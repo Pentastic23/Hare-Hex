@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=3 format=3]
+[gd_resource type="Theme" load_steps=5 format=3]
 
 [ext_resource type="FontFile" path="res://fonts/AtkinsonHyperlegible-Bold.ttf" id="1_font"]
 
@@ -19,9 +19,42 @@ shadow_color = Color(0, 0, 0, 0.35)
 shadow_size = 4
 shadow_offset = Vector2(0, 2)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_menu"]
+content_margin_left = 6.0
+content_margin_top = 6.0
+content_margin_right = 6.0
+content_margin_bottom = 6.0
+bg_color = Color(0.125, 0.141, 0.204, 0.98)
+border_width_top = 2
+border_color = Color(0.239, 0.271, 0.4, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 6
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_menu_hover"]
+content_margin_left = 6.0
+content_margin_right = 6.0
+bg_color = Color(0.173, 0.196, 0.286, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
 [resource]
 TooltipLabel/colors/font_color = Color(0.925, 0.902, 0.839, 1)
 TooltipLabel/colors/font_shadow_color = Color(0, 0, 0, 0)
 TooltipLabel/font_sizes/font_size = 13
 TooltipLabel/fonts/font = ExtResource("1_font")
 TooltipPanel/styles/panel = SubResource("StyleBoxFlat_tip")
+PopupMenu/colors/font_color = Color(0.925, 0.902, 0.839, 1)
+PopupMenu/colors/font_hover_color = Color(0.949, 0.757, 0.306, 1)
+PopupMenu/colors/font_disabled_color = Color(0.42, 0.447, 0.565, 1)
+PopupMenu/constants/v_separation = 8
+PopupMenu/font_sizes/font_size = 14
+PopupMenu/fonts/font = ExtResource("1_font")
+PopupMenu/styles/hover = SubResource("StyleBoxFlat_menu_hover")
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_menu")
