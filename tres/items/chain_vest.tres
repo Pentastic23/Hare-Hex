@@ -9,3 +9,4 @@ display_name = "Chain Vest"
 description = "+10% damage reduction"
 color = Color(0.65, 0.65, 0.7, 1)
 damage_reduction = 0.1
+element = &"Guard"

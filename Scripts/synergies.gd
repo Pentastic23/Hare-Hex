@@ -206,7 +206,32 @@ static func count(units: Array) -> Dictionary:
 		var u := x as Unit
 		if u != null and u.data != null:
 			datas.append(u.data)
-	return count_data(datas)
+	var counts := count_data(datas)
+	# Synergy benders (Twin Sigil / Twin Crest): the holder counts once more for its origin / first
+	# class. Once per unit name, like the counting itself; unique traits are never doubled.
+	var doubled := {}
+	for x in units:
+		var u := x as Unit
+		if u == null or u.data == null:
+			continue
+		for it in u.items:
+			if it.kind != &"bender":
+				continue
+			var tag := bent_tag(u.data, it.counts_twice)
+			var k := "%s|%s" % [u.data.display_name, tag]
+			if tag != "" and not doubled.has(k):
+				doubled[k] = true
+				counts[tag] = int(counts.get(tag, 0)) + 1
+	return counts
+
+# The tag a bender doubles on a unit: its origin, or its first class ("" if none).
+static func bent_tag(d: UnitData, part: StringName) -> String:
+	var want := "origin" if part == &"origin" else "class"
+	for t in d.tags:
+		var key := String(t)
+		if DEFS.has(key) and DEFS[key]["kind"] == want:
+			return key
+	return ""
 
 # Same counting for UnitData (the team planner counts a planned team, not units on the board).
 static func count_data(datas: Array) -> Dictionary:
@@ -281,6 +306,9 @@ static func effects_for(units: Array) -> Dictionary:
 				for other in tier["tags"]:
 					if unit.data.tags.has(StringName(other)):
 						_merge(out[u], tier["tags"][other])
+	# Items: their own effects and resonances (items v2), on top of the traits.
+	for u in out:
+		_merge(out[u], Resonance.unit_effects((u as Unit).items))
 	return out
 
 static func _merge(into: Dictionary, fx: Dictionary) -> void:

@@ -9,3 +9,4 @@ display_name = "Iron Belt"
 description = "+150 max HP"
 color = Color(0.75, 0.3, 0.3, 1)
 hp = 150.0
+element = &"Vigor"

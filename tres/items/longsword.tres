@@ -9,3 +9,4 @@ display_name = "Longsword"
 description = "+15 attack damage"
 color = Color(0.9, 0.6, 0.2, 1)
 dmg = 15.0
+element = &"Might"

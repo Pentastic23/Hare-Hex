@@ -102,8 +102,13 @@ func _fill():
 
 	var item_names: PackedStringArray = []
 	for item in u.items:
-		item_names.append(item.display_name)
+		item_names.append(item.display_name + (" (%d)" % u.stacks_of(item) if item.kind == &"bound" else ""))   # bound items show their stacks
 	items_label.text = "Items: " + (", ".join(item_names) if not item_names.is_empty() else "none")
+	var res: PackedStringArray = []
+	for k in Resonance.keys_for(u.items):
+		res.append(Resonance.def(k).get("name", k))
+	if not res.is_empty():   # resonance (items v2)
+		items_label.text += "\nResonance: " + ", ".join(res) + ("  (x2)" if Resonance.has_crystal(u.items) else "")
 	items_label.add_theme_color_override("font_color", HudStyle.GOLD if not item_names.is_empty() else DockKit.DIM_TEXT)
 
 	# Stats at the current star with items and synergy bonuses folded in (synergies aren't called out).

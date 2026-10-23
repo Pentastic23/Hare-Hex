@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"heros_blade"
+display_name = "Hero's Blade"
+description = "+10 damage, +4 per stack (max 15). Gains a stack each fight its holder survives."
+color = Color(0.95, 0.75, 0.3, 1)
+dmg = 10.0
+element = &"Might"
+kind = &"bound"
+min_stage = 3
+stack_dmg = 4.0
+max_stacks = 15

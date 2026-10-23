@@ -1,10 +1,14 @@
 # item_data.gd
 class_name ItemData extends Resource
 
+# One item type (items v2: docs/items-v2.md). Basic items have stats and an element (resonance);
+# special kinds add a rule: bound items grow, economy items pay gold, benders count their holder
+# twice for a trait, the Resonance Crystal doubles resonances, Tinker's Tongs remove items.
+
 @export var id: StringName            # stable, unique; used by saves and snapshots. Never rename.
 @export var display_name: String
 @export_multiline var description: String
-@export var color := Color.WHITE      # UI swatch until there are icons
+@export var color := Color.WHITE      # UI swatch, and the model's colour if there is no icon
 @export var icon: Texture2D           # optional, unused in v1
 
 # Stat boosts. Flat values add to the unit's base stats before star and synergy multipliers.
@@ -14,3 +18,26 @@ class_name ItemData extends Resource
 @export var mana := 0.0               # flat starting mana
 @export var damage_reduction := 0.0   # fraction
 @export var lifesteal := 0.0          # fraction
+@export var effects := {}             # extra combat effects, keys as in Synergies.DEFS (e.g. {"dmg": 0.08})
+
+# Items v2
+@export var element: StringName = &""   # Might, Vigor, Swift, Guard, Blood, Arcane ("" = none): resonance
+@export var kind: StringName = &"basic" # basic, bound, economy, bender, crystal, remover
+@export var min_stage := 1              # first stage it can drop in
+@export var drop_weight := 1.0          # weight in its drop pool (0 = never drops at random)
+# bound: grows by a stack each fight its holder survives
+@export var stack_hp := 0.0
+@export var stack_dmg := 0.0
+@export var max_stacks := 0
+# economy: only while the holder is on the board
+@export var gold_per_round := 0
+@export var free_rerolls := 0
+# bender: the holder counts twice for this part of its traits ("origin" or "class")
+@export var counts_twice: StringName = &""
+
+func is_special() -> bool:
+	return kind != &"basic"
+
+# Takes an item slot on a unit (Tinker's Tongs don't: they are used up).
+func takes_slot() -> bool:
+	return kind != &"remover"

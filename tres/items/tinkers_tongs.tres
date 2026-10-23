@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"tinkers_tongs"
+display_name = "Tinker's Tongs"
+description = "During prep, drag onto one of your units: all its items go back to your inventory (bound items lose their stacks). Used up."
+color = Color(0.6, 0.62, 0.7, 1)
+kind = &"remover"
+min_stage = 3
+drop_weight = 0.0

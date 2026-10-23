@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"resonance_crystal"
+display_name = "Resonance Crystal"
+description = "The resonances on its unit are twice as strong. With none: +8% HP and damage."
+color = Color(0.75, 0.55, 1, 1)
+kind = &"crystal"
+min_stage = 3

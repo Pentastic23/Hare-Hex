@@ -166,6 +166,7 @@ func _price_content(caption: String, price: int, note: String) -> Control:
 	h.add_theme_constant_override("separation", 5)
 	v.add_child(h)
 	var num := HudStyle.number(22, HudStyle.INK)
+	num.name = "Price"
 	num.text = str(price)
 	h.add_child(num)
 	h.add_child(DockKit.Coin.new(13))
@@ -228,14 +229,24 @@ func _refresh_stats() -> void:
 	var base: int = GameState.base_income_for_round(next_round)
 	var interest: int = me.interest_gold()
 	var streak: int = me.streak_bonus()
-	gold_row.tooltip_text = Tip.wrap("Next round income\nBase: %d\nInterest: %d\nStreak: %d\nTotal: %d" % [base, interest, streak, base + interest + streak])
+	var gm = get_tree().get_first_node_in_group("game_manager")
+	var purse: int = gm.item_income() if gm != null else 0   # Coin Purses on the board (items v2)
+	var lines := "Next round income\nBase: %d\nInterest: %d\nStreak: %d" % [base, interest, streak]
+	if purse > 0:
+		lines += "\nCoin Purse: %d" % purse
+	gold_row.tooltip_text = Tip.wrap(lines + "\nTotal: %d" % (base + interest + streak + purse))
+	var free := me.free_rerolls > 0   # Merchant's Ledger: this reroll costs nothing
+	var price_l := reroll_button.find_child("Price", true, false) as Label
+	if price_l != null:
+		price_l.text = "0" if free else str(_gm_const("REROLL_COST", 2))
+		price_l.add_theme_color_override("font_color", HudStyle.GOLD if free else HudStyle.INK)
 	_refresh_affordable()
 
 # Buy XP and Reroll dim when you can't pay for them (they stay clickable; the game ignores it).
 func _refresh_affordable() -> void:
 	var g := GameState.me.gold
 	buy_xp_button.modulate.a = 1.0 if g >= _gm_const("BUY_XP_COST", 4) else 0.55
-	reroll_button.modulate.a = 1.0 if g >= _gm_const("REROLL_COST", 2) or reroll_button.disabled else 0.55
+	reroll_button.modulate.a = 1.0 if g >= _gm_const("REROLL_COST", 2) or GameState.me.free_rerolls > 0 or reroll_button.disabled else 0.55
 
 func _on_lock_changed(on: bool):
 	lock_button.set_pressed_no_signal(on)

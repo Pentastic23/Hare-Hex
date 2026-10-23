@@ -65,7 +65,8 @@ func _enter(p: int):
 	Events.phase_changed.emit(p)
 	match p:
 		Events.Phase.PREP:
-			GameState.me.gold += GameState.me.total_income_for_round(GameState.round_number)
+			GameState.me.gold += GameState.me.total_income_for_round(GameState.round_number) + item_income()   # + Coin Purses on the board
+			GameState.me.free_rerolls = item_free_rerolls()   # Merchant's Ledger
 			_drop_item()
 			board.merge_all()
 			GameState.me.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
@@ -181,6 +182,8 @@ func make_carry(next_level: CampaignLevel) -> Dictionary:
 	var units := []
 	for u in board.all_player_units():
 		var e := {"unit": u.data.display_name, "star": u.star, "items": u.items.map(func(i): return String(i.id))}
+		if not u.item_stacks.is_empty():
+			e["stacks"] = EnemyBoard._stacks_out(u.item_stacks)   # bound items keep their growth between levels
 		var slot := board.bench.find(u)
 		if slot != -1:
 			e["bench"] = slot
@@ -225,6 +228,8 @@ func _restore_carry(carry: Dictionary) -> void:
 				its.append(item)
 		if not its.is_empty():
 			u.set_items(its)
+			u.item_stacks = EnemyBoard.stacks_in(e.get("stacks", {}))
+			u._recalc_items()
 		u.health = u.max_hp()
 		shared_pool.take_copies(d, UnitPool.copies_in(star))
 		var c = e.get("coord", [-1, -1])
@@ -260,10 +265,75 @@ func roll_shop():
 	Events.shop_rolled.emit(offers)
 
 func _drop_item():
-	if item_roster.is_empty() or not GameState.item_drop_rounds().has(GameState.round_number):
+	if item_roster.is_empty():
 		return
-	GameState.me.items.append(item_roster[GameState.me.rng.randi_range(0, item_roster.size() - 1)])
-	Events.items_changed.emit()
+	var me := GameState.me
+	var dropped := false
+	if GameState.item_drop_rounds().has(GameState.round_number):
+		var item := pick_drop(drop_stage(), me.rng, me.dropped)
+		if item != null:
+			me.items.append(item)
+			me.dropped[item.id] = int(me.dropped.get(item.id, 0)) + 1
+			dropped = true
+	if GameState.run_level == null and GameState.TONGS_ROUNDS.has(GameState.round_number):
+		var tongs := EnemyBoard.lookup_item(item_roster, &"tinkers_tongs")
+		if tongs != null:
+			me.items.append(tongs)
+			dropped = true
+	if dropped:
+		Events.items_changed.emit()
+
+# The stage the drop table uses: the real stage in free play; in a campaign the chapter decides
+# (chapter 1 = stage 2, chapter 2 = stage 4, chapter 3 = stage 6; the tutorial = stage 1).
+func drop_stage() -> int:
+	var lvl := GameState.run_level
+	if lvl == null:
+		return GameState.stage()
+	var camp := GameState.run_campaign
+	if camp != null:
+		for i in camp.chapters.size():
+			if camp.chapters[i] != null and camp.chapters[i].levels.has(lvl):
+				return mini(2 + i * 2, 7)
+	return 1
+
+# One random drop for `stage` (items v2): basic items, and from stage 3 a SPECIAL_DROP_CHANCE of a
+# special one (weighted by drop_weight, only those whose min_stage has come; synergy benders at most
+# once a run). Tinker's Tongs never drop at random. Uses the player's seeded RNG.
+func pick_drop(stage: int, rng: RandomNumberGenerator, dropped: Dictionary) -> ItemData:
+	var basic: Array = item_roster.filter(func(i): return i != null and i.kind == &"basic" and i.min_stage <= stage)
+	var special: Array = item_roster.filter(func(i): return i != null and i.is_special() and i.drop_weight > 0.0 and i.min_stage <= stage and not (i.kind == &"bender" and dropped.has(i.id)))
+	var pool := basic
+	if stage >= 3 and not special.is_empty() and rng.randf() < GameState.SPECIAL_DROP_CHANCE:
+		pool = special
+	if pool.is_empty():
+		return null
+	var total := 0.0
+	for i in pool:
+		total += i.drop_weight
+	var roll := rng.randf() * total
+	for i in pool:
+		roll -= i.drop_weight
+		if roll < 0.0:
+			return i
+	return pool.back()
+
+# Gold the items on your board pay each round (Coin Purse; items v2).
+func item_income() -> int:
+	var n := 0
+	for u in board.all_player_units():
+		if u.coord.x >= 0:
+			for it in u.items:
+				n += it.gold_per_round
+	return n
+
+# Free rerolls this round from items on your board (Merchant's Ledger: the first reroll is free).
+func item_free_rerolls() -> int:
+	var n := 0
+	for u in board.all_player_units():
+		if u.coord.x >= 0:
+			for it in u.items:
+				n = maxi(n, it.free_rerolls)
+	return n
 
 func _return_offers():
 	for d in GameState.me.shop_offers:
@@ -296,8 +366,14 @@ func _random_unit_of_cost(tier: int) -> UnitData:
 	return null
 
 func _on_reroll():
-	if GameState.me.shop_locked or phase != Events.Phase.PREP or GameState.me.gold < REROLL_COST: return   # unlock to reroll
-	GameState.me.gold -= REROLL_COST
+	var me := GameState.me
+	var free := me.free_rerolls > 0
+	if me.shop_locked or phase != Events.Phase.PREP or (not free and me.gold < REROLL_COST): return   # unlock to reroll
+	if free:
+		me.free_rerolls -= 1   # Merchant's Ledger
+		Events.gold_changed.emit(me.gold)   # the reroll price on the shop bar updates
+	else:
+		me.gold -= REROLL_COST
 	GameState.me.cheap_shop = false
 	roll_shop()
 
@@ -337,6 +413,7 @@ func start_combat():
 			mine.append(u)
 	_record_snapshot()
 	Synergies.apply(mine)
+	_record_resonances(mine)
 	_spawn_enemies()
 	for n in units_node.get_children():
 		var u := n as Unit
@@ -425,6 +502,8 @@ func _spawn_enemy(bu: BoardUnit, c: Vector2i, scale: float) -> Unit:
 		u.set_star(bu.star)
 	if not bu.items.is_empty():
 		u.set_items(bu.items)
+		u.item_stacks = bu.stacks.duplicate()   # bound items keep their growth (ghosts, waves)
+		u._recalc_items()
 	u.health = u.max_hp()
 	board.put_enemy_on_tile(u, c)
 	return u
@@ -539,3 +618,19 @@ func _win_run():
 			GameState.run_carry = {}
 			SaveGame.clear_chapter_run()   # chapter complete
 	Events.run_won.emit()
+
+# Resonances your units bring into a fight are marked as discovered in the resonance book
+# (saved as unlocks "resonance:<key>"; written once, only when something is new).
+func _record_resonances(units: Array) -> void:
+	var fresh := false
+	for x in units:
+		var u := x as Unit
+		if u == null:
+			continue
+		for k in Resonance.keys_for(u.items):
+			var id := StringName("resonance:" + k)
+			if not SaveGame.has_unlock(id):
+				SaveGame.add_unlock(id, false)
+				fresh = true
+	if fresh:
+		SaveGame.save_game()

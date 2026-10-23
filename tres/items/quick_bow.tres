@@ -9,3 +9,4 @@ display_name = "Quick Bow"
 description = "+15% attack speed"
 color = Color(0.4, 0.8, 0.4, 1)
 attack_speed = 0.15
+element = &"Swift"

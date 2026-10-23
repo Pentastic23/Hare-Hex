@@ -26,6 +26,8 @@ var start_hp := 100   # HP this run started with; also the cap for HP packs
 var win_streak := 0
 var loss_streak := 0
 var items: Array[ItemData] = []    # unequipped items this player owns
+var dropped := {}                 # item id -> times dropped this run (rare items drop at most once)
+var free_rerolls := 0             # rerolls left this round that cost nothing (Merchant's Ledger)
 var cheap_shop := false            # round 1-1: 1-cost units only
 
 # Shop and results (the shared unit pool itself is run-wide, in GameManager).
@@ -45,6 +47,8 @@ func reset():
 	loss_streak = 0
 	cheap_shop = false
 	items.clear()
+	dropped.clear()
+	free_rerolls = 0
 	shop_offers.clear()
 	shop_locked = false
 	shop_has_rolled = false

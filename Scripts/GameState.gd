@@ -25,8 +25,12 @@ const SHOP_ODDS := {
 	10: [5, 10, 20, 35, 30],
 }
 
-# Overall round numbers whose PREP start drops a free item: 1-2, 1-3, and the last round of stages 2-6.
-const ITEM_DROP_ROUNDS := [2, 3, 9, 15, 21, 27, 33]
+# Overall round numbers whose PREP start drops a free item (items v2: 14 a run): 1-2, 1-3; 2-2, 2-4,
+# 2-6; 3-2, 3-4, 3-6; 4-3, 4-6; 5-3, 5-6; 6-3, 6-6.
+const ITEM_DROP_ROUNDS := [2, 3, 5, 7, 9, 11, 13, 15, 18, 21, 24, 27, 30, 33]
+# Rounds that also hand out Tinker's Tongs (free play and async PvP only): the end of stages 3 and 5.
+const TONGS_ROUNDS := [15, 27]
+const SPECIAL_DROP_CHANCE := 0.3   # from stage 3, a drop is a special item this often
 const MENU_SCENE := "res://scenes/menu.tscn"
 
 var me: PlayerState                    # the local player

@@ -72,18 +72,16 @@ var damage_taken := 0.0   # this fight, HP lost
 # Items live apart from the synergy bonuses above: clear_bonuses() runs every combat and must not wipe them.
 const MAX_ITEMS := 3
 var items: Array[ItemData] = []
+var item_stacks := {}   # bound items (items v2): item id -> stacks, grown each fight this unit survives
 var item_hp := 0.0
 var item_dmg := 0.0
 var item_as := 0.0
 var item_mana := 0.0
 var item_dr := 0.0
 var item_lifesteal := 0.0
-var item_icons: Node3D   # row of coloured squares above the health bar, one per item
-static var _icon_tex: ImageTexture
-const ICON_PX := 16
-const ICON_SIZE := 0.22    # world size of one icon square
-const ICON_STEP := 0.3     # spacing between icon centers
-const ICON_HEIGHT := 0.28  # how far above the health bar the row sits
+var item_icons: Node3D   # row of item models above the health bar, one per item (ItemModel)
+const ICON_STEP := 0.42    # spacing between item models
+const ICON_HEIGHT := 0.42  # how far above the health bar the row sits (its middle)
 
 const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2}
 const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45}
@@ -203,6 +201,7 @@ func _process(delta):
 			visible = false   # the death animation has played
 	if item_icons != null:
 		item_icons.global_position = global_position + Vector3(0, bar_height + ICON_HEIGHT, 0)
+		_spin_items(delta)
 	if data == null or bar_fill == null:
 		return
 
@@ -336,6 +335,8 @@ func leave_fight(enemy_won: bool):
 # won: the player won the fight; surviving units with a model celebrate (visual only).
 func end_combat(won := false):
 	var celebrate := won and not dead and team == 0
+	if not dead and team == 0:
+		grow_bound_items()   # survived the fight
 	moving = false
 	dead = false
 	visible = true
@@ -547,9 +548,20 @@ func attack_interval() -> float:
 func can_equip() -> bool:
 	return items.size() < MAX_ITEMS
 
+# Room and rules for one more item: a free slot, at most one of each bound item and one synergy
+# bender per unit, and never Tinker's Tongs (they are used, not worn).
+func can_take(item: ItemData) -> bool:
+	if item == null or not item.takes_slot() or not can_equip():
+		return false
+	if item.kind == &"bound" and items.any(func(i): return i.id == item.id):
+		return false
+	if item.kind == &"bender" and items.any(func(i): return i.kind == &"bender"):
+		return false
+	return true
+
 # in_combat: the unit is mid-fight, so keep its current health and mana and add the boost on top.
 func equip(item: ItemData, in_combat := false) -> bool:
-	if item == null or dead or not can_equip():
+	if item == null or dead or not can_take(item):
 		return false
 	var old_max := max_hp()
 	items.append(item)
@@ -569,10 +581,12 @@ func set_items(list: Array[ItemData]) -> void:
 	_recalc_items()
 	health = minf(health, max_hp())
 
-# Removes and returns every item (selling, merging).
+# Removes and returns every item (selling, merging, Tinker's Tongs). Bound items lose their stacks
+# (a merge copies them over first: Board._move_items_to).
 func take_items() -> Array[ItemData]:
 	var out: Array[ItemData] = items.duplicate()
 	items.clear()
+	item_stacks.clear()
 	_recalc_items()
 	health = minf(health, max_hp())
 	return out
@@ -585,17 +599,18 @@ func _recalc_items() -> void:
 	item_dr = 0.0
 	item_lifesteal = 0.0
 	for it in items:
-		item_hp += it.hp
-		item_dmg += it.dmg
+		var stacks := int(item_stacks.get(it.id, 0))
+		item_hp += it.hp + it.stack_hp * stacks
+		item_dmg += it.dmg + it.stack_dmg * stacks
 		item_as += it.attack_speed
 		item_mana += it.mana
 		item_dr += it.damage_reduction
 		item_lifesteal += it.lifesteal
 	_update_item_icons()
 
-# One coloured square per item above the health bar, so items are visible on the board
-# without the inspector. The row is top_level so it keeps facing the camera when the unit turns;
-# _process moves it along with the unit.
+# The items as small voxel models (ItemModel) in a row above the health bar, slowly turning (not with
+# Reduce motion). Bound items show their stack count; items in an active resonance glow. The row is
+# top_level so it stays level when the unit turns; _process moves it along with the unit.
 func _update_item_icons() -> void:
 	if item_icons == null:
 		item_icons = Node3D.new()
@@ -606,27 +621,38 @@ func _update_item_icons() -> void:
 	for c in item_icons.get_children():
 		item_icons.remove_child(c)
 		c.queue_free()
+	var resonating := {}   # elements in an active pair resonance on this unit
+	for k in Resonance.keys_for(items):
+		for e in k.split("+"):
+			resonating[StringName(e)] = true
 	var n := items.size()
 	for i in n:
-		var x := (i - (n - 1) / 2.0) * ICON_STEP
-		item_icons.add_child(_icon_sprite(Color(0.05, 0.05, 0.05, 0.9), ICON_SIZE * 1.3, 1, x))   # border
-		item_icons.add_child(_icon_sprite(items[i].color, ICON_SIZE, 2, x))
+		var it: ItemData = items[i]
+		var m := MeshInstance3D.new()
+		m.mesh = ItemModel.mesh_for(it)
+		m.material_override = ItemModel.material(resonating.has(it.element) or (it.kind == &"crystal" and not resonating.is_empty()))
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.position = Vector3((i - (n - 1) / 2.0) * ICON_STEP, 0, 0)
+		m.rotation.y = i * 0.7   # not all facing the same way
+		item_icons.add_child(m)
+		if it.kind == &"bound":
+			var s := Label3D.new()
+			s.text = str(stacks_of(it))
+			s.font_size = 40
+			s.pixel_size = 0.006
+			s.outline_size = 10
+			s.modulate = HudStyle.GOLD
+			s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			s.no_depth_test = true
+			s.position = m.position + Vector3(0.14, -0.12, 0)
+			item_icons.add_child(s)
 
-func _icon_sprite(color: Color, world_size: float, priority: int, x: float) -> Sprite3D:
-	if _icon_tex == null:
-		var img := Image.create(ICON_PX, ICON_PX, false, Image.FORMAT_RGBA8)
-		img.fill(Color.WHITE)
-		_icon_tex = ImageTexture.create_from_image(img)
-	var s := Sprite3D.new()
-	s.texture = _icon_tex
-	s.pixel_size = world_size / ICON_PX
-	s.modulate = color
-	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	s.shaded = false
-	s.no_depth_test = true    # draw over the model
-	s.render_priority = priority
-	s.position = Vector3(x, 0, 0)
-	return s
+func _spin_items(delta: float) -> void:
+	if item_icons == null or Settings.reduce_motion:
+		return
+	for c in item_icons.get_children():
+		if c is MeshInstance3D:
+			c.rotation.y += delta * 1.2
 
 func _ability() -> Ability:
 	if data.ability != null:
@@ -660,3 +686,18 @@ func _popup(text: String, color: Color):
 		t.tween_property(l, "position:y", bar_height + 0.9, 0.6)
 	t.parallel().tween_property(l, "modulate:a", 0.0, 0.6)
 	t.tween_callback(l.queue_free)
+
+# Bound items (Hero's Blade, Heartwood Charm) gain a stack, up to their maximum.
+func grow_bound_items() -> void:
+	var grew := false
+	for it in items:
+		if it.kind == &"bound":
+			var s := int(item_stacks.get(it.id, 0))
+			if s < it.max_stacks:
+				item_stacks[it.id] = s + 1
+				grew = true
+	if grew:
+		_recalc_items()
+
+func stacks_of(item: ItemData) -> int:
+	return int(item_stacks.get(item.id, 0))

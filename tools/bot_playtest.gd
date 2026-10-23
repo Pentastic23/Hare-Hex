@@ -144,12 +144,8 @@ func _bot_turn():
 				break
 	var on_board: Array = board.all_player_units().filter(func(u): return u.coord.x >= 0)
 	on_board.sort_custom(strength)
-	while not GameState.me.items.is_empty():
-		var target: Unit = null
+	for item in GameState.me.items.duplicate():   # each item onto the strongest unit that can take it (Tongs are never worn)
 		for u in on_board:
-			if u.can_equip():
-				target = u
+			if u.can_take(item):
+				main.get_node("DragController").equip_item_on(u, item)
 				break
-		if target == null:
-			break
-		main.get_node("DragController").equip_item_on(target, GameState.me.items[0])

@@ -139,6 +139,8 @@ func equip_item_on(u: Unit, item: ItemData) -> bool:
 	var index := GameState.me.items.find(item)
 	if index == -1 or u == null or u.team != 0:
 		return false
+	if item.kind == &"remover":
+		return use_tongs_on(u, item)
 	if not u.equip(item, not in_prep and u.coord.x >= 0):
 		return false
 	GameState.me.items.remove_at(index)
@@ -191,3 +193,17 @@ func _cancel_drag():
 		var slot := board.first_free_bench()
 		if slot != -1:
 			board.put_on_bench(u, slot)
+
+# Tinker's Tongs (items v2): during prep, every item on one of your units goes back to the inventory
+# (bound items lose their stacks) and the Tongs are used up. Nothing happens on a unit without items.
+func use_tongs_on(u: Unit, tongs: ItemData) -> bool:
+	if not in_prep or u == null or u.team != 0 or u.dead or u.items.is_empty():
+		return false
+	var index := GameState.me.items.find(tongs)
+	if index == -1:
+		return false
+	GameState.me.items.remove_at(index)
+	GameState.me.items.append_array(u.take_items())
+	u.health = u.max_hp()
+	Events.items_changed.emit()
+	return true

@@ -20,12 +20,15 @@ func to_dict() -> Dictionary:
 		var item_ids := []
 		for item in bu.items:
 			item_ids.append(String(item.id))
-		list.append({
+		var e := {
 			"unit": bu.unit.display_name,
 			"star": bu.star,
 			"coord": [bu.coord.x, bu.coord.y],
 			"items": item_ids,
-		})
+		}
+		if not bu.stacks.is_empty():
+			e["stacks"] = _stacks_out(bu.stacks)
+		list.append(e)
 	return {
 		"name": display_name,
 		"stat_scale": stat_scale,
@@ -60,6 +63,7 @@ static func from_dict(d: Dictionary, unit_roster: Array, item_roster: Array) -> 
 				bu.items.append(item)
 			else:
 				push_warning("EnemyBoard: unknown item '%s' skipped" % id)
+		bu.stacks = stacks_in(e.get("stacks", {}))
 		b.units.append(bu)
 	return b
 
@@ -77,3 +81,17 @@ static func lookup_item(roster: Array, id: StringName) -> ItemData:
 		if item != null and item.id == id:
 			return item
 	return null
+
+# Bound-item stacks (items v2) as plain data: {"heros_blade": 7}. Old saves have none.
+static func _stacks_out(stacks: Dictionary) -> Dictionary:
+	var out := {}
+	for k in stacks:
+		out[String(k)] = int(stacks[k])
+	return out
+
+static func stacks_in(raw) -> Dictionary:
+	var out := {}
+	if raw is Dictionary:
+		for k in raw:
+			out[StringName(str(k))] = maxi(int(raw[k]), 0)
+	return out
