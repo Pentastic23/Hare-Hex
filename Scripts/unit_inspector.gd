@@ -16,6 +16,9 @@ var stars_label: Label
 var team_label: Label
 var portrait_slot: Control
 var _portrait_of: UnitData
+var item_row: HBoxContainer        # one hoverable chip per item (icon; tooltip with what it does)
+var res_row: HFlowContainer        # one hoverable chip per resonance
+var _items_sig := ""
 
 func _ready():
 	# Bottom right, just above the shop bar, growing up and left, so it stays clear of the HP standings
@@ -53,6 +56,7 @@ func _process(_delta):
 
 func _close():
 	shown = null
+	_items_sig = ""
 	visible = false
 
 func _unit_under_mouse() -> Unit:
@@ -100,16 +104,13 @@ func _fill():
 		tags.append(String(t))
 	tags_label.text = "  ·  ".join(tags)
 
-	var item_names: PackedStringArray = []
-	for item in u.items:
-		item_names.append(item.display_name + (" (%d)" % u.stacks_of(item) if item.kind == &"bound" else ""))   # bound items show their stacks
-	items_label.text = "Items: " + (", ".join(item_names) if not item_names.is_empty() else "none")
-	var res: PackedStringArray = []
-	for k in Resonance.keys_for(u.items):
-		res.append(Resonance.def(k).get("name", k))
-	if not res.is_empty():   # resonance (items v2)
-		items_label.text += "\nResonance: " + ", ".join(res) + ("  (x2)" if Resonance.has_crystal(u.items) else "")
-	items_label.add_theme_color_override("font_color", HudStyle.GOLD if not item_names.is_empty() else DockKit.DIM_TEXT)
+	# Items and resonances as chips you can hover (rebuilt only when they change).
+	var sig := str(u.items.map(func(i): return i.id)) + str(u.item_stacks)
+	if sig != _items_sig:
+		_items_sig = sig
+		_fill_item_chips(u)
+	items_label.text = "ITEMS" if not u.items.is_empty() else "Items: none"
+	items_label.add_theme_color_override("font_color", HudStyle.MUTED if not u.items.is_empty() else DockKit.DIM_TEXT)
 
 	# Stats at the current star with items and synergy bonuses folded in (synergies aren't called out).
 	var b := _synergy_bonuses(u)
@@ -218,6 +219,17 @@ func _restyle():
 	box.add_child(line)
 	box.move_child(line, items_label.get_index())
 	_font_style(items_label, 12, HudStyle.GOLD)
+	item_row = HBoxContainer.new()
+	item_row.add_theme_constant_override("separation", 6)
+	item_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(item_row)
+	box.move_child(item_row, items_label.get_index() + 1)
+	res_row = HFlowContainer.new()
+	res_row.add_theme_constant_override("h_separation", 4)
+	res_row.add_theme_constant_override("v_separation", 4)
+	res_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(res_row)
+	box.move_child(res_row, item_row.get_index() + 1)
 	_font_style(stats_label, 12, HudStyle.INK)
 	stats_label.add_theme_constant_override("line_spacing", 2)
 
@@ -226,3 +238,58 @@ func _font_style(l: Label, size: int, color: Color):
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+# One chip per item (its icon, the bound stacks on it) and one per resonance, each with a tooltip.
+func _fill_item_chips(u: Unit) -> void:
+	for row in [item_row, res_row]:
+		for c in row.get_children():
+			row.remove_child(c)
+			c.queue_free()
+	for it in u.items:
+		var chip := DockKit.well(Vector2(34, 34), it.color, 3)
+		chip.mouse_filter = Control.MOUSE_FILTER_STOP   # for the tooltip
+		chip.tooltip_text = Tip.wrap(item_tip(it, u.stacks_of(it)))
+		var tex := DockKit.item_icon(it)
+		if tex != null:
+			var r := TextureRect.new()
+			r.texture = tex
+			r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			chip.add_child(r)
+		if it.kind == &"bound":
+			var s := HudStyle.number(14, HudStyle.GOLD)
+			s.text = str(u.stacks_of(it))
+			s.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			s.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+			chip.add_child(s)
+		item_row.add_child(chip)
+	var doubled := Resonance.has_crystal(u.items)
+	for k in Resonance.keys_for(u.items):
+		var c := DockKit.chip(str(Resonance.def(k).get("name", k)) + ("  x2" if doubled else ""), DockKit.CHIP_ACTIVE, HudStyle.GOLD, 11)
+		c.mouse_filter = Control.MOUSE_FILTER_STOP
+		c.tooltip_text = Tip.wrap(resonance_tip(k, doubled))
+		res_row.add_child(c)
+	res_row.visible = res_row.get_child_count() > 0
+
+# An item's tooltip in the inspector: name and element, what it does, and what its stacks add now.
+func item_tip(it: ItemData, stacks: int) -> String:
+	var lines: PackedStringArray = [it.display_name + ("  (%s)" % String(it.element) if it.element != &"" else ""), it.description]
+	if it.kind == &"bound":
+		var now: PackedStringArray = []
+		if it.stack_dmg > 0.0:
+			now.append("+%d damage" % roundi(it.dmg + it.stack_dmg * stacks))
+		if it.stack_hp > 0.0:
+			now.append("+%d HP" % roundi(it.hp + it.stack_hp * stacks))
+		lines.append("%d / %d stacks: %s now" % [stacks, it.max_stacks, ", ".join(now)])
+	return "\n".join(lines)
+
+# A resonance's tooltip: its name, the two elements, what it does (doubled by a Crystal).
+func resonance_tip(k: String, doubled: bool) -> String:
+	var d := Resonance.def(k)
+	var elems := "three different elements" if k == "Prism" else k.replace("+", " + ")
+	var lines: PackedStringArray = ["%s  (%s)" % [d.get("name", k), elems], str(d.get("text", ""))]
+	if doubled:
+		lines.append("Twice as strong: Resonance Crystal.")
+	return "\n".join(lines)

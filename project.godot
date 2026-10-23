@@ -32,8 +32,8 @@ window/handheld/orientation=4
 
 [gui]
 
-theme/custom="res://tres/ui_theme.tres"
 timers/tooltip_delay_sec=0.1
+theme/custom="res://tres/ui_theme.tres"
 timers/tooltip_delay_sec.mobile=10000.0
 
 [layer_names]

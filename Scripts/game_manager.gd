@@ -8,7 +8,7 @@ var snapshot := {}   # Unit -> Vector2i
 var snapshot_store: SnapshotStore   # async PvP boards; null in campaign levels
 var balance_hash := ""              # BoardSnapshot.balance_hash of the roster and items
 var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
-@export var prep_time := 10
+@export var prep_time := 30   # seconds of PREP; a campaign level can override it (prep_time > 0)
 @onready var board: Board = $"../Board"
 @export var unit_pool: Array[UnitData] = []
 # TEMPORARY while the unit models are tested: only units with a model (UnitData.model) are used, in

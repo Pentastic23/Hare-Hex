@@ -63,7 +63,7 @@ func _run():
 	Settings._loaded = true
 
 	await start_tutorial()
-	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 14")
+	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 15")
 	for k in 3:
 		await get_tree().process_frame
 	var tut_rect: Rect2 = tut.get_global_rect()
@@ -121,7 +121,10 @@ func _run():
 
 	main.get_node("DragController").equip_item_on(knights[0], GameState.me.items[0])
 	await poll()
-	chk("equipping it moves to 'Sell a unit'", tut.title_label.text == "Sell a unit", tut.title_label.text)
+	chk("equipping it moves to 'Resonance', which hands out a Quick Bow", tut.title_label.text == "Resonance" and GameState.me.items.has(load("res://tres/items/quick_bow.tres")), tut.title_label.text)
+	main.get_node("DragController").equip_item_on(knights[0], load("res://tres/items/quick_bow.tres"))
+	await poll()
+	chk("Longsword + Quick Bow on one unit (Flurry) moves to 'Sell a unit'", tut.title_label.text == "Sell a unit" and Resonance.keys_for(knights[0].items) == ["Might+Swift"], tut.title_label.text)
 
 	Events.unit_bought.emit(U("cleric"))
 	var spare: Unit = board.bench.filter(func(u): return u != null)[0]

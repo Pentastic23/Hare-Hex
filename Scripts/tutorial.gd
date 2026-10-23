@@ -87,6 +87,7 @@ func _build_steps():
 		# Done once a unit is planned and the planner is closed again (it would cover the next step).
 		{"title": "Plan your team", "text": "The team planner helps you aim for a team. Open it with Planner (top right) or press P, and click a unit to add it to your plan: planned units get a star and a gold border in the shop, and the planner shows the synergies your plan would make. Then close it (P or the Planner tab).", "enter": func(): _planned = false, "done": func(): return _planned and not _planner_open()},
 		{"title": "Equip an item", "text": "Items give stat boosts. Drag the item from the Items tab (top left) onto one of your units. A unit holds up to 3 items, and items can't be taken off.", "enter": func(): _give_item(), "done": func(): return _board().all_player_units().any(func(u): return not u.items.is_empty())},
+		{"title": "Resonance", "text": "Two items with different elements (the tag by an item's name) on one unit make a resonance. Put this Quick Bow on your Longsword unit to make Flurry.\n\nSee them under RESONANCE in the Items tab (Book lists all 16) and in the inspector.", "enter": func(): _give_resonance_item(), "done": func(): return _board().all_player_units().any(func(u): return not Resonance.keys_for(u.items).is_empty())},
 		{"title": "Sell a unit", "text": "Sell units you don't need for gold: drag one onto the red SELL tile next to the bench, or point at it and press F. You get its cost back, and more for 2-star and 3-star units. Buy a spare unit and sell it now.", "enter": func(): _sold = false, "done": func(): return _sold},
 		{"title": "Lock the shop", "text": "Like these offers but can't afford them yet? Click Lock (next to Reroll) to keep them for the next round. While locked, Reroll is greyed out. Lock the shop now, then click it again to unlock.", "enter": func(): _saw_lock = false, "done": func(): return _saw_lock and not GameState.me.shop_locked},
 		{"title": "Interest", "text": "Saved gold earns interest: +1 gold each round for every 10 you keep, up to +5 at 50. Bank gold when you can instead of spending it all.\n\nHover your gold (bottom left) to see next round's income.", "next": true},
@@ -156,3 +157,11 @@ func _button(parent: Control, text: String, action: Callable) -> Button:
 func _planner_open() -> bool:
 	var dock := get_tree().get_first_node_in_group("right_dock")
 	return dock != null and dock.current == "planner"
+
+# The resonance step hands out a Quick Bow (Swift) unless a unit already has a resonance, so the
+# Longsword (Might) from the items step can make Flurry.
+func _give_resonance_item():
+	if _board().all_player_units().any(func(u): return not Resonance.keys_for(u.items).is_empty()):
+		return
+	GameState.me.items.append(load("res://tres/items/quick_bow.tres"))
+	Events.items_changed.emit()
