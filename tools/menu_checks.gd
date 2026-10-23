@@ -55,7 +55,7 @@ class Driver extends Node:
 
 		await to_menu()
 		var texts := labels(scene())
-		chk("menu shows the title AZTactics", texts.has("AZTactics"))
+		chk("menu shows the title Hare & Hex", texts.has("Hare & Hex"))
 		chk("menu buttons: Campaign, Free Play, Settings, Quit", find_button(scene(), "Campaign") != null and find_button(scene(), "Free Play") != null and find_button(scene(), "Settings") != null and find_button(scene(), "Quit") != null)
 		chk("no saved run: Continue hidden", find_button(scene(), "Continue") == null)
 		chk("sections: SINGLE PLAYER and PVP", texts.has("SINGLE PLAYER") and texts.has("PVP"))

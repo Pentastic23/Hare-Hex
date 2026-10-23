@@ -6,7 +6,7 @@ extends Control
 #   PVP: Async PvP (ghost opponents, playable) and Live PvP (coming later: opens an info panel)
 # and Settings / Keybinds / Quit. Built in code; menu.tscn is just this script on a full-screen Control.
 
-const TITLE := "AZTactics"
+const TITLE := "Hare & Hex"
 const MAIN_SCENE := "res://scenes/main.tscn"
 const CAMPAIGN_PATH := "res://tres/campaign/campaign.tres"
 const TUTORIAL_PATH := "res://tres/campaign/tutorial.tres"
@@ -33,7 +33,7 @@ var confirm: ConfirmationDialog
 var _confirm_action: Callable
 
 func _ready():
-	DisplayServer.window_set_title(TITLE)
+	get_window().title = TITLE   # the window's own title (config/name stays "Azerothtactics": the save folder is named after it)
 	Settings.ensure_loaded()
 	Settings.apply()
 	if ResourceLoader.exists(CAMPAIGN_PATH):
