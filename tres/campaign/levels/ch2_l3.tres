@@ -313,6 +313,7 @@ script = ExtResource("2_8mhy5")
 id = &"ch2_l3"
 display_name = "Throne of Cinders"
 description = "The Ash King sits above a sea of embers."
+theme = &"volcano"
 waves = Array[ExtResource("3_tb5fe")]([SubResource("Resource_hqg8f"), SubResource("Resource_n1ogy"), SubResource("Resource_n0ndw"), SubResource("Resource_n066o"), SubResource("Resource_opks3"), SubResource("Resource_f1kbh"), SubResource("Resource_k3fm0"), SubResource("Resource_dqd0c")])
 start_gold = 20
 start_level = 5

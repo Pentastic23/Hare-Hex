@@ -312,6 +312,30 @@ Wave 1/6: Scouts"), tip2.replace("
 	await start(CampaignLevel.new())   # an empty "New CampaignLevel" in Debug Level
 	chk("level with no waves falls back to free play", GameState.run_level == null and gm.opponents is RandomOpponents and GameState.total_rounds() == 39)
 
+	print("--- board themes")
+	var missing: PackedStringArray = []
+	for id in BoardThemes.ORDER:
+		for part in ["board_1", "board_2", "board_3", "board_side", "bench", "bench_side", "sell", "sell_side"]:
+			if not ResourceLoader.exists(BoardThemes.texture_path(id, part)):
+				missing.append("%s/%s" % [id, part])
+	chk("10 themes, each with all 8 textures", BoardThemes.ORDER.size() == 10 and BoardThemes.THEMES.size() == 10 and missing.is_empty(), ", ".join(missing))
+	var camp_all: Campaign = load("res://tres/campaign/campaign.tres")
+	var bad_theme: PackedStringArray = []
+	var used := {}
+	var levels: Array = camp_all.all_levels().duplicate()
+	levels.append(load("res://tres/campaign/tutorial.tres"))
+	for lv in levels:
+		if not BoardThemes.has(lv.theme):
+			bad_theme.append(String(lv.id))
+		used[lv.theme] = true
+	chk("every campaign level and the tutorial has its own theme", bad_theme.is_empty() and used.size() == levels.size(), ", ".join(bad_theme))
+	await start(load("res://tres/campaign/levels/ch2_l3.tres"))
+	var tile0: Tile = board.tiles[Vector2i(3, 4)]
+	var top_mat := (tile0.get_node("MeshInstance3D") as MeshInstance3D).get_surface_override_material(0) as StandardMaterial3D
+	chk("a level dresses the board in its theme (Throne of Cinders: volcano)", board.theme == &"volcano" and top_mat != null and top_mat.albedo_texture != null and top_mat.albedo_texture.resource_path.contains("/volcano/"))
+	chk("the board hexes are voxel blocks with a top and sides", (tile0.get_node("MeshInstance3D") as MeshInstance3D).mesh.get_surface_count() == 2)
+	chk("free play picks a theme from the run seed", BoardThemes.for_run(null, 12) == BoardThemes.for_run(null, 12) and BoardThemes.has(BoardThemes.for_run(null, 12)) and BoardThemes.for_run(null, 3) != BoardThemes.for_run(null, 4))
+
 	print("--- free play")
 	await start(null)
 	var ft = main.get_node("UI/TopBar").rounds

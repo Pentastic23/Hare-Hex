@@ -140,6 +140,7 @@ func _begin_run():
 		camp = null
 	var carry := GameState.begin_run(lvl, camp)
 	rng.seed = GameState.run_seed
+	board.apply_theme(BoardThemes.for_run(lvl, GameState.run_seed))   # the board's look: the level's theme, or one from the seed
 	roster = unit_pool
 	if lvl != null and not lvl.allowed_units.is_empty():
 		roster = lvl.allowed_units
@@ -546,7 +547,9 @@ func combat_tick():
 
 # A ground effect from an ability (Miasma, Antler Grove): every tick for `secs`, the units within
 # `radius` of `center` are affected. kind "miasma": enemies of `team` take `amount` per second and are
-# cursed 15%; kind "grove": allies of `team` regenerate `amount` of their max HP per second. It stays
+# cursed 15%; kind "grove": allies of `team` regenerate `amount` of their max HP per second; kind
+# "winter": enemies take `amount` per second and are chilled 50%, and when it ends those below half
+# HP are frozen (stunned) for 1.5 s. It stays
 # if its caster dies; `by` gets the damage credit while it lives.
 func add_zone(kind: String, center: Vector2i, radius: int, secs: float, team: int, amount: float, by: Unit) -> void:
 	zones.append({"kind": kind, "center": center, "radius": radius, "left": secs, "team": team, "amount": amount, "by": by})
@@ -565,8 +568,17 @@ func _tick_zones() -> void:
 				if by != null:
 					by.damage_dealt += removed
 				u.apply_curse(0.15, 0.25)
+			elif z.kind == "winter" and u.team != z.team:
+				var cold := u.take_damage(z.amount * COMBAT_TICK, by)
+				if by != null:
+					by.damage_dealt += cold
+				u.apply_chill(0.5, 0.25)
 			elif z.kind == "grove" and u.team == z.team:
 				u.heal(u.max_hp() * z.amount * COMBAT_TICK)
+		if z.kind == "winter" and z.left <= 0.0001:   # Eternal Winter ends: the weakened freeze
+			for u in combatants:
+				if is_instance_valid(u) and not u.dead and u.coord.x >= 0 and u.team != z.team and u.health < u.max_hp() * 0.5:
+					u.apply_stun(1.5)
 	zones = zones.filter(func(z): return z.left > 0.0001)   # (float steps: 240 ticks of 1/60 leave a crumb)
 
 # Adds a summoned unit to the fight; it acts from the next tick (see combat_tick).

@@ -153,6 +153,7 @@ script = ExtResource("2_qh2iu")
 id = &"ch1_l2"
 display_name = "Shadows in the Wood"
 description = "Something hunts in the forest. Extra gold each round, but the enemy strikes fast."
+theme = &"forest"
 waves = Array[ExtResource("3_m08we")]([SubResource("Resource_1h5bw"), SubResource("Resource_dso5x"), SubResource("Resource_4ug0c"), SubResource("Resource_nde3w"), SubResource("Resource_gkx7d"), SubResource("Resource_cbfyw")])
 start_gold = 10
 start_level = 3

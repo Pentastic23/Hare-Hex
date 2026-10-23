@@ -91,6 +91,25 @@ var thorns_left := 0.0
 var summoned := false     # a temporary unit from an ability: no traits or items, gone when the fight ends
 var summons: Array[Unit] = []   # what this unit has summoned this fight
 var on_death: Callable    # runs once when it dies (the Pact Demon's explosion)
+# chunk 4
+var link_to: Unit         # Loyal Guard: half the damage this unit takes goes to link_to instead
+var link_left := 0.0
+var parry_left := 0.0     # Riposte: attacks against it are parried and countered for parry_dmg
+var parry_dmg := 0.0
+var doom_left := 0.0      # Doom: when it runs out, doom_by deals doom_dmg; passes on if this unit dies first
+var doom_dmg := 0.0
+var doom_by: Unit
+var root_left := 0.0      # rooted: can attack but not move
+var charm_left := 0.0     # charmed: attacks its own side (see foe_team)
+var charm_by: Unit
+var raised_left := 0.0    # Army of the Dead: back for this long, then falls again
+var army_used := false    # the Deathlord raises the dead once per fight
+var erupt_dmg := 0.0      # Molten Shell: when its ability shield breaks or runs out, adjacent enemies take this
+var nova_left := 0.0      # Sunfire Nova: while it runs, allies heal 10% of the burn damage this unit deals
+var nova_pool := 0.0
+var _ring_mat: StandardMaterial3D
+var _charm_fx: Node3D     # the charm's sigil and thread (visual only)
+const CHARM_COLOR := Color("d98cff")
 var damage_dealt := 0.0   # this fight, HP actually removed from enemies (damage meter)
 var damage_taken := 0.0   # this fight, HP lost
 
@@ -230,6 +249,8 @@ func _place_bars():
 	mana_fill.position.y = bar_height - MANA_OFFSET
 
 func _process(delta):
+	if _charm_fx != null:
+		_update_charm_fx(delta)
 	if _hide_in > 0.0:
 		_hide_in -= delta
 		if _hide_in <= 0.0 and dead:
@@ -311,6 +332,7 @@ func _make_ring():
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = RING_COLORS[team]
 	ring.material_override = mat
+	_ring_mat = mat
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
 
@@ -365,6 +387,21 @@ func _reset_fight_state():
 	thorns = 0.0
 	thorns_left = 0.0
 	summons.clear()
+	link_to = null
+	link_left = 0.0
+	parry_left = 0.0
+	doom_left = 0.0
+	doom_by = null
+	root_left = 0.0
+	if charm_left > 0.0:
+		charm_left = 0.0
+		_show_charm(false)
+	charm_by = null
+	raised_left = 0.0
+	army_used = false
+	erupt_dmg = 0.0
+	nova_left = 0.0
+	nova_pool = 0.0
 
 # An enemy leaving the board when its fight ends (GameManager frees it). A model still falling, or
 # celebrating because the enemy side won, is left behind as a stand-in that finishes and then
@@ -429,7 +466,7 @@ func combat_step(delta: float):
 		return   # stunned or casting (both counted down in _tick_effects)
 	cooldown = maxf(0.0, cooldown - delta)
 
-	if taunt_left > 0.0 and is_instance_valid(taunt_by) and not taunt_by.dead and taunt_by.coord.x >= 0:
+	if taunt_left > 0.0 and charm_left <= 0.0 and is_instance_valid(taunt_by) and not taunt_by.dead and taunt_by.coord.x >= 0:
 		target = taunt_by
 	if is_instance_valid(target) and target.untargetable_left > 0.0:
 		target = null   # it vanished: pick another
@@ -441,7 +478,7 @@ func combat_step(delta: float):
 	var rng := roundi(data.attack_range) + range_bonus
 	if Board.hex_distance(coord, target.coord) <= rng:
 		_face(target)
-		if data.max_mana > 0.0 and mana >= data.max_mana:
+		if data.max_mana > 0.0 and mana >= data.max_mana and charm_left <= 0.0:   # charmed units don't cast
 			_cast(target)
 			return
 		if cooldown <= 0.0:
@@ -450,6 +487,8 @@ func combat_step(delta: float):
 				model_view.on_attack(cooldown)
 			_attack(target)
 	else:
+		if root_left > 0.0:
+			return   # rooted: can't step
 		var next := board.next_step(coord, target.coord, rng)
 		if next == Board.NO_STEP:
 			return   # blocked; try again next tick
@@ -476,6 +515,10 @@ func _attack(t: Unit, fixed := -1.0):
 		return
 	if t.dodges_next():
 		t._popup("MISS", Color(0.8, 0.85, 1.0))
+		return
+	if t.parry_left > 0.0:
+		t._popup("PARRY", Color(0.95, 0.9, 0.6))
+		Abilities.hit(t, self, t.parry_dmg)   # Riposte: no damage, a counter instead
 		return
 	var dmg := fixed if fixed >= 0.0 else damage()
 	var crit := crit_every > 0 and attacks_made % crit_every == 0
@@ -568,7 +611,7 @@ func heal(amount: float) -> float:
 # Leap, teleport or charge to tile c: the tile is claimed now, and the model flies there in secs
 # (stepped by the combat tick like a normal step, just faster).
 func leap_to(c: Vector2i, secs := 0.25):
-	if c == coord:
+	if c == coord or root_left > 0.0:
 		return
 	board.claim(self, c)
 	moving = true
@@ -596,6 +639,8 @@ func _tick_effects(delta: float):
 		var removed := take_damage(burn_dps * delta, by)
 		if by != null:
 			by.damage_dealt += removed
+			if by.nova_left > 0.0:
+				by.nova_pool += removed   # Sunfire Nova heals its side from it
 	if chill_left > 0.0:
 		chill_left -= delta
 		if chill_left <= 0.0:
@@ -608,6 +653,42 @@ func _tick_effects(delta: float):
 	silence_left = maxf(0.0, silence_left - delta)
 	untargetable_left = maxf(0.0, untargetable_left - delta)
 	thorns_left = maxf(0.0, thorns_left - delta)
+	root_left = maxf(0.0, root_left - delta)
+	parry_left = maxf(0.0, parry_left - delta)
+	if link_left > 0.0:
+		link_left -= delta
+		if link_left <= 0.0:
+			link_to = null
+	if charm_left > 0.0:
+		charm_left -= delta
+		if charm_left <= 0.0:
+			charm_left = 0.0
+			charm_by = null
+			target = null
+			_popup("FREED", CHARM_COLOR)
+			_show_charm(false)
+	if nova_left > 0.0:
+		nova_left -= delta
+		if nova_pool > 0.0:
+			for a in Abilities.allies(self):
+				a.heal(nova_pool * 0.1)
+			nova_pool = 0.0
+	if doom_left > 0.0:
+		doom_left -= delta
+		if doom_left <= 0.0001:
+			doom_left = 0.0
+			var dby: Unit = doom_by if is_instance_valid(doom_by) else null
+			var removed := take_damage(doom_dmg, dby)
+			if dby != null:
+				dby.damage_dealt += removed
+			if dead:
+				return
+	if raised_left > 0.0:
+		raised_left -= delta
+		if raised_left <= 0.0001:
+			health = 0.0
+			_fall()   # Army of the Dead ends
+			return
 	cast_lock = maxf(0.0, cast_lock - delta)
 	if taunt_left > 0.0:
 		taunt_left -= delta
@@ -625,6 +706,8 @@ func _tick_effects(delta: float):
 			ab_shield = 0.0
 			if ab_shield_heals:
 				heal(left)
+			if erupt_dmg > 0.0:
+				_erupt()
 	if not queued.is_empty():
 		var due: Array = []
 		for q in queued:
@@ -647,9 +730,15 @@ func take_damage(amount: float, by: Unit = null, attack := false, pierce := fals
 		amount *= (1.0 + curse_on) * (1.0 - minf(dmg_reduction + item_dr, 0.6)) * (1.0 - minf(buff_total("dr"), 0.9))
 	if attack:
 		gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
+	if link_left > 0.0 and is_instance_valid(link_to) and not link_to.dead and link_to != self:
+		var share := amount * 0.5   # Loyal Guard: the Paladin takes half (through its own armour and shield)
+		amount -= share
+		link_to.take_damage(share, by)
 	var absorbed := minf(shield, amount)
 	shield -= absorbed
 	ab_shield = maxf(0.0, ab_shield - absorbed)   # ability shields are used up first
+	if erupt_dmg > 0.0 and ab_shield <= 0.0:
+		_erupt()   # Molten Shell broke
 	amount -= absorbed
 	var removed := absorbed + minf(amount, maxf(health, 0.0))
 	damage_taken += removed
@@ -663,18 +752,113 @@ func take_damage(amount: float, by: Unit = null, attack := false, pierce := fals
 			burn_left = 0.0
 			_popup("REVIVE", Color(0.75, 1.0, 0.75))
 			return removed
-		dead = true
-		board.vacate(self)
-		if on_death.is_valid():
-			on_death.call()
-		if model_view != null:
-			model_view.on_death()   # stays visible while it falls; _process hides it after
-			_hide_in = model_view.death_left() + 0.4
-		else:
-			visible = false
+		_fall()
 	elif model_view != null and attack:
 		model_view.on_hit()
 	return removed
+
+# Dies now (no revive): leaves its tile, passes on a Doom, runs on_death, then the model falls.
+func _fall():
+	dead = true
+	raised_left = 0.0
+	board.vacate(self)
+	if charm_left > 0.0:
+		charm_left = 0.0
+		_show_charm(false)
+	if doom_left > 0.0:
+		Abilities.pass_doom(self)
+	if on_death.is_valid():
+		on_death.call()
+	if model_view != null:
+		model_view.on_death()   # stays visible while it falls; _process hides it after
+		_hide_in = model_view.death_left() + 0.4
+	else:
+		visible = false
+
+# Molten Shell: the shield broke or ran out; adjacent enemies take what it started as, and burn.
+func _erupt():
+	var d := erupt_dmg
+	erupt_dmg = 0.0
+	for e in Abilities.enemies_within(self, coord, 1):
+		Abilities.hit(self, e, d)
+		e.apply_burn(0.03 * e.max_hp(), self)
+
+# The side this unit attacks: the other team, or its own while charmed.
+func foe_team() -> int:
+	return team if charm_left > 0.0 else 1 - team
+
+func apply_root(secs: float):
+	root_left = maxf(root_left, secs)
+
+# Moonlit Charm: for secs this unit attacks its own side (it doesn't cast). Marked as hexed.
+func apply_charm(by: Unit, secs: float):
+	if dead:
+		return
+	var fresh := charm_left <= 0.0
+	charm_left = maxf(charm_left, secs)
+	charm_by = by
+	target = null
+	if fresh:
+		_popup("CHARMED", CHARM_COLOR)
+		_show_charm(true)
+
+# The hexed look (visual only): a turning pink-violet hex sigil above it, its team ring turns
+# pink-violet, and a faint thread runs to the Faerie Queen. Reduce motion: the sigil stands still.
+func _show_charm(on: bool):
+	if _ring_mat != null:
+		_ring_mat.albedo_color = CHARM_COLOR if on else RING_COLORS[team]
+	if _charm_fx != null:
+		_charm_fx.queue_free()
+		_charm_fx = null
+	if not on or not is_inside_tree():
+		return
+	_charm_fx = Node3D.new()
+	add_child(_charm_fx)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = CHARM_COLOR
+	mat.no_depth_test = true
+	mat.render_priority = 3
+	var sigil := MeshInstance3D.new()
+	sigil.name = "Sigil"
+	var hexm := CylinderMesh.new()
+	hexm.top_radius = 0.3
+	hexm.bottom_radius = 0.3
+	hexm.height = 0.06
+	hexm.radial_segments = 6
+	hexm.rings = 1
+	sigil.mesh = hexm
+	sigil.material_override = mat
+	sigil.rotation.x = PI / 2.0   # stands up like a coin, facing the camera side
+	sigil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_charm_fx.add_child(sigil)
+	var tmat := mat.duplicate() as StandardMaterial3D
+	tmat.albedo_color = Color(CHARM_COLOR, 0.55)
+	tmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var thread := MeshInstance3D.new()
+	thread.name = "Thread"
+	var box := BoxMesh.new()
+	box.size = Vector3(0.05, 0.05, 1.0)
+	thread.mesh = box
+	thread.material_override = tmat
+	thread.top_level = true
+	thread.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_charm_fx.add_child(thread)
+
+func _update_charm_fx(delta: float):
+	var sigil := _charm_fx.get_node("Sigil") as Node3D
+	sigil.global_position = global_position + Vector3(0, bar_height + 1.0, 0)
+	if not Settings.reduce_motion:
+		sigil.global_rotation = Vector3(PI / 2.0, sigil.global_rotation.y + delta * 3.0, 0)
+	var thread := _charm_fx.get_node("Thread") as Node3D
+	thread.visible = is_instance_valid(charm_by) and not charm_by.dead
+	if thread.visible:
+		var a := global_position + Vector3(0, 1.0, 0)
+		var b := charm_by.global_position + Vector3(0, 1.0, 0)
+		thread.global_position = (a + b) * 0.5
+		if a.distance_to(b) > 0.01:
+			thread.look_at(b)
+		thread.scale = Vector3(1, 1, a.distance_to(b))
 
 func _face(u: Unit):
 	_face_point(u.global_position)

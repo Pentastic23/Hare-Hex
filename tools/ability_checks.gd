@@ -91,7 +91,7 @@ func _run():
 		elif Abilities.text(names[n]).contains("{") or Abilities.text(names[n], 2).contains("{"):
 			unfilled.append(n)
 	chk("every ability belongs to a unit in the roster", unknown.is_empty(), ", ".join(unknown))
-	chk("chunks 1-3: 52 units have an ability", Abilities.DEFS.size() == 52, str(Abilities.DEFS.size()))
+	chk("every unit in the roster has an ability (all 65)", Abilities.DEFS.size() == roster.size() and roster.size() == 65, str(Abilities.DEFS.size()))
 	chk("every text has its numbers filled in", unfilled.is_empty(), ", ".join(unfilled))
 	chk("shop text shows all three stars, the inspector one", Abilities.text(UD("cleric")).contains("110 / 200 / 350") and Abilities.text(UD("cleric"), 2).contains("for 200 each"), Abilities.text(UD("cleric")))
 	chk("per-star arrays stay as written", Abilities.text(UD("bard"), 3).contains("50%"))
@@ -399,6 +399,196 @@ func _run():
 	chk("the same fight with summons twice gives the same result", fsigs[0] == fsigs[1])
 	chk("when it ends every summon is gone and your units are back on their tiles", left_over == 0 and on_tiles == 0 and board.tiles[board.player_order[0]].occupant != null)
 
+	print("--- chunk 4: special rules")
+	var th := place("thief", Vector2i(3, 4))
+	var mark := place("knight", Vector2i(3, 3), 1)
+	var gold0 := GameState.me.gold
+	th._cast(mark)
+	chk("Pickpocket without a kill: no gold", GameState.me.gold == gold0)
+	mark.health = 10.0
+	th._cast(mark)
+	chk("Pickpocket kill: 1 gold", GameState.me.gold == gold0 + 1)
+	var enemy_thief := place("thief", Vector2i(5, 3), 1)
+	var mine_low := place("militia", Vector2i(5, 4))
+	mine_low.health = 10.0
+	enemy_thief._cast(mine_low)
+	chk("an enemy Thief's kill gives you nothing", GameState.me.gold == gold0 + 1 and mine_low.dead)
+	clear_units()
+
+	var mn := place("minstrel", Vector2i(3, 6))
+	var fullish := place("mage", Vector2i(2, 6))
+	var half_full := place("archer", Vector2i(4, 6))
+	var empty := place("knight", Vector2i(3, 5))
+	var mfoe := place("thief", Vector2i(3, 2), 1)
+	fullish.mana = 40.0
+	half_full.mana = 30.0
+	empty.mana = 0.0
+	mn._cast(mfoe)
+	chk("Encore: +30 mana for the two allies closest to a full bar", is_equal_approx(fullish.mana, 50.0) and is_equal_approx(half_full.mana, 60.0) and empty.mana == 0.0 and mn.mana == 0.0)
+	clear_units()
+
+	var pal := place("paladin", Vector2i(3, 6))
+	var ward := place("archer", Vector2i(3, 4))
+	var pfoe := place("knight", Vector2i(3, 3), 1)
+	ward.health = 100.0
+	pal._cast(pfoe)
+	chk("Loyal Guard heals the weakest ally", is_equal_approx(ward.health, 250.0))
+	var w0 := ward.health
+	var pa0 := pal.health + pal.shield
+	ward.take_damage(100.0)
+	chk("and half of what it takes goes to the Paladin", is_equal_approx(w0 - ward.health, 50.0) and is_equal_approx(pa0 - pal.health - pal.shield, 50.0))
+	timers([ward], 4.05)
+	var w1 := ward.health
+	ward.take_damage(100.0)
+	chk("for 4 s", is_equal_approx(w1 - ward.health, 100.0))
+	clear_units()
+
+	var du := place("duelist", Vector2i(3, 4))
+	var swinger := place("knight", Vector2i(3, 3), 1)
+	du._cast(swinger)
+	var d0 := du.health
+	var s0 := swinger.health
+	swinger._attack(du)
+	chk("Riposte: the attack is parried and countered for 80", du.health == d0 and is_equal_approx(s0 - swinger.health, 80.0))
+	timers([du], 2.05)
+	swinger._attack(du)
+	chk("the stance lasts 2 s", du.health < d0)
+	clear_units()
+
+	var mg := place("magma_guard", Vector2i(3, 4))
+	var hugger := place("guardian", Vector2i(3, 3), 1)
+	mg._cast(hugger)
+	var hu0 := hugger.health
+	mg.take_damage(399.0)
+	chk("Molten Shell: nothing until the shield breaks", hugger.health == hu0)
+	mg.take_damage(10.0)
+	chk("when it breaks, adjacent enemies take 400 and burn", is_equal_approx(hu0 - hugger.health, 400.0) and hugger.burn_left > 0.0 and mg.erupt_dmg == 0.0)
+	mg._cast(hugger)
+	var hu1 := hugger.health
+	timers([mg], 5.05)
+	chk("it also erupts when it runs out", hugger.health < hu1)
+	clear_units()
+
+	var zm := place("zen_master", Vector2i(3, 4))
+	var caster := place("mage", Vector2i(3, 3), 1)
+	caster.mana = 45.0
+	zm._cast(caster)
+	chk("Pressure Point: stunned for 2 s and the mana emptied", caster.stun_left == 2.0 and caster.mana == 0.0)
+	clear_units()
+
+	var dl := place("deathlord", Vector2i(3, 5))
+	var fallen_ally := place("knight", Vector2i(2, 5))
+	var dfoe3 := place("guardian", Vector2i(3, 3), 1)
+	var df0 := dfoe3.health
+	dl._cast(dfoe3)
+	chk("Army of the Dead with nobody fallen: strikes for 400", is_equal_approx(df0 - dfoe3.health, 400.0) and not dl.army_used)
+	fallen_ally.take_damage(9999.0)
+	dl._cast(dfoe3)
+	chk("the fallen rise at 30% HP", not fallen_ally.dead and is_equal_approx(fallen_ally.health, fallen_ally.max_hp() * 0.3) and board.tiles[fallen_ally.coord].occupant == fallen_ally)
+	timers([fallen_ally], 5.05)
+	chk("and fall again after 5 s", fallen_ally.dead and board.tiles[Vector2i(2, 5)].occupant == null)
+	var df1 := dfoe3.health
+	dl._cast(dfoe3)
+	chk("only once a fight: then it strikes", df1 - dfoe3.health > 0.0)
+	clear_units()
+
+	var ph := place("phoenix", Vector2i(3, 6))
+	var friend := place("knight", Vector2i(3, 5))
+	var b_1 := place("guardian", Vector2i(3, 2), 1)
+	var b_2 := place("guardian", Vector2i(5, 1), 1)
+	friend.health = 100.0
+	ph._cast(b_1)
+	chk("Sunfire Nova sets every enemy burning (6% a second)", is_equal_approx(b_1.burn_dps, b_1.max_hp() * 0.06) and b_2.burn_left == 6.0)
+	timers([b_1, b_2, ph, friend], 1.0)
+	chk("allies heal from the burn damage", friend.health > 100.0 and ph.damage_dealt > 0.0, "%.1f" % friend.health)
+	clear_units()
+
+	var ad := place("archdemon", Vector2i(3, 6))
+	var big := place("titan", Vector2i(3, 2), 1)
+	var small := place("thief", Vector2i(4, 2), 1)
+	ad._cast(small)
+	chk("Doom falls on the enemy with the most HP", big.doom_left == 4.0 and small.doom_left == 0.0)
+	var bg0 := big.health
+	timers([big], 4.05)
+	chk("after 4 s it takes 600", is_equal_approx(bg0 - big.health, 600.0) and big.doom_left == 0.0)
+	ad._cast(small)
+	big.take_damage(99999.0)
+	chk("if it dies first, the doom jumps to its nearest ally", small.doom_left == 4.0 and small.doom_by == ad)
+	clear_units()
+
+	var fq := place("frost_queen", Vector2i(3, 6))
+	var sturdy := place("titan", Vector2i(3, 2), 1)
+	var frail := place("thief", Vector2i(1, 1), 1)
+	frail.health = frail.max_hp() * 0.55
+	gm.combatants.assign([fq, sturdy, frail])
+	fq._cast(sturdy)
+	gm._tick_zones()
+	chk("Eternal Winter chills every enemy", sturdy.chill_on == 0.5 and frail.chill_on == 0.5)
+	for i in 240:
+		gm._tick_zones()
+	chk("when it ends, enemies below half HP freeze", frail.stun_left == 1.5 and sturdy.stun_left == 0.0 and gm.zones.is_empty())
+	clear_units()
+
+	var fae := place("faerie_queen", Vector2i(3, 6))
+	var star_foe := place("knight", Vector2i(3, 3), 1)
+	var buddy := place("knight", Vector2i(4, 3), 1)
+	var meh := place("thief", Vector2i(0, 0), 1)
+	var mine2 := place("militia", Vector2i(3, 4))
+	star_foe.damage_dealt = 500.0
+	buddy.damage_dealt = 300.0
+	fae._cast(star_foe)
+	chk("Moonlit Charm takes the two enemies that dealt the most", star_foe.charm_left == 3.0 and buddy.charm_left == 3.0 and meh.charm_left == 0.0)
+	chk("charmed, they turn on their own side", board.nearest_enemy(star_foe) == buddy and board.nearest_enemy(mine2) == star_foe)
+	chk("marked as hexed: sigil, thread and a pink-violet ring", star_foe._charm_fx != null and star_foe._charm_fx.get_node("Sigil") != null and (star_foe._ring_mat == null or star_foe._ring_mat.albedo_color == Unit.CHARM_COLOR))
+	star_foe.mana = star_foe.data.max_mana
+	var made2 := star_foe.attacks_made
+	steps([star_foe], 0.5)
+	chk("a charmed unit attacks instead of casting", star_foe.attacks_made > made2)
+	timers([star_foe, buddy], 3.05)
+	chk("then it is freed and fights for its side again", star_foe.charm_left == 0.0 and star_foe._charm_fx == null and board.nearest_enemy(star_foe) != buddy)
+	clear_units()
+
+	var rp := place("reaper", Vector2i(3, 4))
+	var r1 := place("thief", Vector2i(3, 3), 1)
+	var r2 := place("guardian", Vector2i(2, 3), 1)
+	r1.health = 400.0
+	rp._cast(r1)
+	chk("Scythe Sweep executes the one left below 20% and refunds 40 mana", r1.dead and not r2.dead and is_equal_approx(rp.mana, 40.0), "mana %d" % rp.mana)
+	clear_units()
+
+	var tr := place("treant", Vector2i(3, 5))
+	var walker := place("knight", Vector2i(3, 3), 1)
+	var outside := place("archer", Vector2i(6, 0), 1)
+	tr.health = 500.0
+	tr._cast(walker)
+	chk("Overgrowth roots enemies within 2 hexes and heals the Treant", walker.root_left == 2.0 and outside.root_left == 0.0 and tr.health > 500.0, "%s %s" % [walker.root_left, outside.root_left])
+	var spot0 := walker.coord
+	walker.target = tr
+	steps([walker], 1.0)
+	chk("a rooted unit doesn't move", walker.coord == spot0)
+	clear_units()
+
+	print("--- chunk 4 in a real fight")
+	var ssigs: PackedStringArray = []
+	for i in 3:
+		await load_main(9090)
+		_special_fight()
+		gm.start_combat()
+		if i < 2:
+			gm.resolve_combat()
+		else:
+			await Events.combat_ended
+		ssigs.append(_signature())
+		await get_tree().process_frame
+	chk("a fight full of special rules gives the same result twice", ssigs[0] == ssigs[1], ssigs[0].left(140))
+	chk("and the same in real time", ssigs[0] == ssigs[2])
+	var hexed_left := 0
+	for n in board.get_node("Units").get_children():
+		var u := n as Unit
+		if u != null and not u.is_queued_for_deletion() and (u.charm_left > 0.0 or u._charm_fx != null or u.raised_left > 0.0):
+			hexed_left += 1
+	chk("nothing is left charmed or raised after the fight", hexed_left == 0)
+
 	print("--- in the inspector")
 	var dr := place("dragon", Vector2i(3, 5), 0, 2)
 	var its: Array[ItemData] = []
@@ -417,10 +607,6 @@ func _run():
 	insp._yield_standings()
 	chk("the inspector names the ability and shows it at the unit's star", insp.ability_head.text == "ABILITY  ·  DRAGONFIRE BREATH" and insp.ability_text.text.contains("720"), insp.ability_text.text)
 	chk("a tall inspector fades the HP standings out instead of covering them", standings.modulate.a == (0.0 if overlaps else 1.0), "inspector top %d, standings end %d" % [insp.get_global_rect().position.y, standings.get_global_rect().end.y])
-	var no_ab := place("thief", Vector2i(0, 7))
-	insp.shown = no_ab
-	insp._fill()
-	chk("a unit without an ability yet shows no ability lines", not insp.ability_head.visible)
 	insp._close()
 	chk("the standings come back when it closes", standings.modulate.a == 1.0)
 	clear_units()
@@ -498,6 +684,28 @@ func _summon_fight():
 	var wave := EnemyBoard.new()
 	wave.display_name = "Summoners"
 	for e in [["demonologist", Vector2i(3, 3), 2], ["guardian", Vector2i(4, 3), 2], ["plague_doctor", Vector2i(3, 1), 1], ["necromancer", Vector2i(2, 2), 1]]:
+		var bu := BoardUnit.new()
+		bu.unit = UD(e[0])
+		bu.coord = e[1]
+		bu.star = e[2]
+		wave.units.append(bu)
+	var waves: Array[EnemyBoard] = [wave]
+	gm.opponents = WaveOpponents.new(waves, 1.0)
+
+# The chunk 4 units on both sides (they start with full mana, so every one casts early).
+func _special_fight():
+	GameState.me.level = 9
+	var mine := [["paladin", 2], ["duelist", 1], ["faerie_queen", 1], ["deathlord", 1], ["thief", 2], ["minstrel", 1], ["reaper", 1], ["phoenix", 1], ["treant", 1]]
+	for i in mine.size():
+		var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
+		board.get_node("Units").add_child(u)
+		u.setup(UD(mine[i][0]), 0)
+		u.set_star(mine[i][1])
+		u.mana = u.data.max_mana
+		board.put_on_tile(u, board.player_order[i])
+	var wave := EnemyBoard.new()
+	wave.display_name = "Specials"
+	for e in [["magma_guard", Vector2i(3, 3), 2], ["zen_master", Vector2i(4, 3), 1], ["archdemon", Vector2i(3, 1), 1], ["frost_queen", Vector2i(4, 1), 1], ["faerie_queen", Vector2i(2, 2), 1], ["deathlord", Vector2i(5, 2), 1], ["duelist", Vector2i(2, 3), 2]]:
 		var bu := BoardUnit.new()
 		bu.unit = UD(e[0])
 		bu.coord = e[1]

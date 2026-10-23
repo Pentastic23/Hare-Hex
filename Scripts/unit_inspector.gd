@@ -150,6 +150,8 @@ func _fill():
 	if steal > 0.0:
 		lines.append("Omnivamp: %d%%" % roundi(steal * 100.0))
 	lines.append_array(_mechanic_lines(b))
+	if u.charm_left > 0.0:
+		lines.append("Charmed: fighting for the other side (%.1f s)" % u.charm_left)
 	stats_label.text = "\n".join(lines)
 
 func _items_note(value: float, text: String) -> String:

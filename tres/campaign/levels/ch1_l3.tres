@@ -191,6 +191,7 @@ script = ExtResource("2_8b31y")
 id = &"ch1_l3"
 display_name = "The Dragon's Roost"
 description = "Climb the mountain and face the dragon. You start stronger; so do they."
+theme = &"mountains"
 waves = Array[ExtResource("3_sf75u")]([SubResource("Resource_s7tgv"), SubResource("Resource_jw0si"), SubResource("Resource_wsrxg"), SubResource("Resource_nup17"), SubResource("Resource_ojyjt"), SubResource("Resource_ah7wo"), SubResource("Resource_xv8yy")])
 start_gold = 20
 start_level = 5

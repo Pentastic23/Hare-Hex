@@ -11,7 +11,7 @@ class_name Abilities
 # x1 / x1.8 / x3.2 by star (rounded to 5), and with an enemy's stat_scale; damage also with the
 # caster's damage bonus. An array is the value at 1 / 2 / 3 stars as it is (percentages, seconds).
 # In "text", {a} / {b} show the values: all three stars in the shop, the unit's star in the inspector.
-# Units without an entry still cast the old placeholder (chunk 4 of the plan is not built yet).
+# Every unit in the roster has an entry (chunks 1-4); the Ability resource is only a fallback.
 
 const CAST_TIME := 0.5   # seconds a cast locks the caster (the skill clip; no attacks or moves)
 
@@ -75,6 +75,20 @@ const DEFS := {
 	"Plague Doctor": {"name": "Miasma", "a": 50, "text": "A plague cloud on the biggest cluster of enemies for 4 s: enemies within 1 hex of it take {a} per second and 15% more damage."},
 	"Druid": {"name": "Antler Grove", "b": [3, 4, 5], "text": "Grows a grove around itself for 4 s: allies within 1 hex of it regenerate {b}% of max HP per second."},
 	"Runesmith": {"name": "Rune Ward", "a": 160, "b": 20, "text": "The two allies with the lowest HP% get a {a} shield and thorns for 4 s: attackers take {b} per hit."},
+	# chunk 4: special rules
+	"Thief": {"name": "Pickpocket", "a": 200, "text": "Strikes the target for {a}. If that kills it, you get 1 gold."},
+	"Minstrel": {"name": "Encore", "b": [30, 40, 60], "text": "Plays for the two allies closest to a full mana bar (not itself): each gains {b} mana."},
+	"Paladin": {"name": "Loyal Guard", "a": 150, "text": "Heals the ally with the lowest HP% for {a} and guards it for 4 s: half the damage it takes goes to the Paladin instead."},
+	"Duelist": {"name": "Riposte", "a": 80, "text": "Takes a stance for 2 s: attacks against it are parried (no damage) and each is answered with a counter for {a}."},
+	"Magma Guard": {"name": "Molten Shell", "a": 400, "text": "Gains a {a} shield for 5 s. When it breaks or runs out, adjacent enemies take {a} and burn."},
+	"Zen Master": {"name": "Pressure Point", "a": 200, "text": "Strikes the target for {a}; it is stunned for 2 s and its mana is emptied."},
+	"Deathlord": {"name": "Army of the Dead", "b": 400, "text": "Once per fight, every ally that has died rises at 30% HP for 5 s, then falls again. Otherwise, or later, it strikes the target for {b}."},
+	"Phoenix": {"name": "Sunfire Nova", "text": "Sets every enemy burning for 6 s (6% of max HP per second); allies heal 10% of the burn damage it deals meanwhile."},
+	"Archdemon": {"name": "Doom", "a": 600, "text": "Dooms the enemy with the most HP: after 4 s it takes {a}. If it dies first, the doom jumps to the nearest of its allies and starts again."},
+	"Frost Queen": {"name": "Eternal Winter", "a": 60, "text": "A blizzard over the enemies for 4 s: chilled 50% and {a} damage per second. When it ends, enemies below 50% HP are frozen for 1.5 s."},
+	"Faerie Queen": {"name": "Moonlit Charm", "b": [3.0, 3.5, 4.0], "text": "Charms the two enemies that have dealt the most damage: for {b} s they attack their own side."},
+	"Reaper": {"name": "Scythe Sweep", "a": 300, "text": "Slashes every adjacent enemy for {a} and executes any left below 20%. Each kill refunds 40 mana."},
+	"Treant": {"name": "Overgrowth", "a": 120, "text": "Roots enemies within 2 hexes for 2 s (they can attack but not move), deals {a} to them, and heals itself 20% of its max HP."},
 }
 
 # Summons (chunk 3): the model they borrow, their attack speed and how many letters they show.
@@ -409,7 +423,129 @@ static func cast(u: Unit, t: Unit) -> float:
 				a.add_timed_shield(amt(u, "a"), 4.0)
 				a.thorns = amt(u, "b")
 				a.thorns_left = 4.0
+		"Thief":
+			var was_alive := not t.dead
+			hit(u, t, amt(u, "a"))
+			if was_alive and t.dead and u.team == 0 and not u.summoned:
+				GameState.me.gold += 1   # 1 gold per Pickpocket kill (user decision: no cap)
+				u._popup("+1 GOLD", Color(1.0, 0.85, 0.3))
+		"Minstrel":
+			var fans: Array[Unit] = []
+			for a in allies(u):
+				if a != u and a.data.max_mana > 0.0:
+					fans.append(a)
+			fans.sort_custom(func(a, b):
+				var ra: float = a.mana / a.data.max_mana
+				var rb: float = b.mana / b.data.max_mana
+				return ra > rb or (ra == rb and Board.tile_order(a.coord) < Board.tile_order(b.coord)))
+			for a in _first(fans, 2):
+				a.gain_mana(amt(u, "b"))
+		"Paladin":
+			for a in lowest_hp_allies(u, 1):
+				a.heal(amt(u, "a"))
+				if a != u:
+					a.link_to = u
+					a.link_left = 4.0
+		"Duelist":
+			u.parry_left = 2.0
+			u.parry_dmg = amt(u, "a")
+		"Magma Guard":
+			u.add_timed_shield(amt(u, "a"), 5.0)
+			u.erupt_dmg = amt(u, "a")
+		"Zen Master":
+			hit(u, t, amt(u, "a"))
+			t.apply_stun(2.0)
+			t.mana = 0.0
+		"Deathlord":
+			var fallen: Array[Unit] = []
+			if not u.army_used:
+				for n in u.board.get_node("Units").get_children():
+					var o := n as Unit
+					if o != null and o.team == u.team and o.dead and not o.summoned and o.coord.x >= 0 and not o.is_queued_for_deletion():
+						fallen.append(o)
+			if fallen.is_empty():
+				hit(u, t, amt(u, "b"))
+			else:
+				u.army_used = true
+				fallen.sort_custom(func(a, b): return Board.tile_order(a.coord) < Board.tile_order(b.coord))
+				for o in fallen:
+					_raise(u, o)
+		"Phoenix":
+			for e in enemies(u):
+				e.apply_burn(0.06 * e.max_hp(), u, 6.0)
+			u.nova_left = 6.0
+		"Archdemon":
+			var big: Unit = null
+			for e in targets(u):
+				if big == null or e.health > big.health:
+					big = e
+			if big != null:
+				big.doom_left = 4.0
+				big.doom_dmg = amt(u, "a") * u.damage_bonus()
+				big.doom_by = u
+		"Frost Queen":
+			var gm = _gm(u)
+			if gm != null:
+				gm.add_zone("winter", Vector2i.ZERO, 99, 4.0, u.team, amt(u, "a") * u.damage_bonus(), u)
+		"Faerie Queen":
+			var list := targets(u)
+			list.sort_custom(func(a, b):
+				if a.damage_dealt != b.damage_dealt:
+					return a.damage_dealt > b.damage_dealt
+				if a.damage() != b.damage():
+					return a.damage() > b.damage()
+				return Board.tile_order(a.coord) < Board.tile_order(b.coord))
+			for e in _first(list, 2):
+				e.apply_charm(u, amt(u, "b"))
+		"Reaper":
+			var kills := 0
+			for e in enemies_within(u, u.coord, 1):
+				hit(u, e, amt(u, "a"))
+				if not e.dead and e.health < e.max_hp() * 0.2:
+					u.damage_dealt += e.take_damage(e.health + e.shield, u, false, true)
+				if e.dead:
+					kills += 1
+			if kills > 0:
+				u.mana = minf(u.mana + 40.0 * kills, u.data.max_mana)   # the one cast that refunds mana
+		"Treant":
+			for e in enemies_within(u, u.coord, 2):
+				e.apply_root(2.0)
+				hit(u, e, amt(u, "a"))
+			u.heal(u.max_hp() * 0.2)
 	return lock
+
+# Army of the Dead: a fallen ally stands up where it fell (or the nearest free hex) at 30% HP for 5 s.
+static func _raise(u: Unit, o: Unit) -> void:
+	var spot := o.coord
+	var occ = u.board.tiles[spot].occupant if u.board.tiles.has(spot) else null
+	if occ != null and is_instance_valid(occ):
+		spot = free_tile_near(u, o.coord)
+		if spot == Board.NO_STEP:
+			return
+	o.dead = false
+	o.visible = true
+	o._hide_in = -1.0
+	o.health = o.max_hp() * 0.3
+	o.raised_left = 5.0
+	o.moving = false
+	o.target = null
+	u.board.claim(o, spot)
+	o.position = u.board.grid_to_world(spot)
+	if o.model_view != null:
+		o.model_view.on_fight_over(false)   # back on its feet (idle)
+	o._popup("RISE", Color(0.75, 0.95, 0.8))
+
+# Doom: its holder died before it went off, so it jumps to the nearest of the holder's allies.
+static func pass_doom(holder: Unit) -> void:
+	var next: Unit = null
+	for o in allies(holder):
+		if next == null or Board.hex_distance(holder.coord, o.coord) < Board.hex_distance(holder.coord, next.coord):
+			next = o
+	if next != null:
+		next.doom_left = 4.0
+		next.doom_dmg = holder.doom_dmg
+		next.doom_by = holder.doom_by
+	holder.doom_left = 0.0
 
 static func _gm(u: Unit):
 	return u.get_tree().get_first_node_in_group("game_manager") if u.is_inside_tree() else null

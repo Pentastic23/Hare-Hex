@@ -345,6 +345,7 @@ script = ExtResource("2_8gvqw")
 id = &"ch3_l2"
 display_name = "The Sundered Bridge"
 description = "A bridge of broken stone, and an army waiting on the far side."
+theme = &"sky_bridge"
 waves = Array[ExtResource("3_3kfa8")]([SubResource("Resource_2y2kt"), SubResource("Resource_m2n7d"), SubResource("Resource_hvsqx"), SubResource("Resource_u8mcm"), SubResource("Resource_6sltn"), SubResource("Resource_7t5bd"), SubResource("Resource_ajui5"), SubResource("Resource_v5vua")])
 start_gold = 20
 start_level = 5

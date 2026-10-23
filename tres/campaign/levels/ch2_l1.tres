@@ -169,6 +169,7 @@ script = ExtResource("2_hlwtk")
 id = &"ch2_l1"
 display_name = "Smoke on the Horizon"
 description = "Raiders burn the border villages. Start fresh and hold the line."
+theme = &"ashlands"
 waves = Array[ExtResource("3_uh2vp")]([SubResource("Resource_ga28x"), SubResource("Resource_d20bx"), SubResource("Resource_p34ll"), SubResource("Resource_twd06"), SubResource("Resource_2ghqx"), SubResource("Resource_eqd4x")])
 start_gold = 10
 start_level = 2

@@ -21,6 +21,12 @@ var unlocked := {}   # Vector2i -> true
 var player_order: Array[Vector2i] = []
 var enemy_order: Array[Vector2i] = []
 var _border_mat: StandardMaterial3D
+var theme: StringName = &""   # the board look (BoardThemes); set by apply_theme
+var _bench_tiles: Array[Node3D] = []
+var _sell_tile: Node3D
+static var _prism: ArrayMesh   # the hex block every tile, bench slot and sell hex shares
+static var _theme_mats := {}   # texture path -> material
+const BLOCK_DEPTH := 0.3       # how far a tile block reaches below its top
 
 
 static func to_cube(c: Vector2i) -> Vector3i:
@@ -65,7 +71,7 @@ func nearest_enemy(u: Unit) -> Unit:
 	var best_d := 9999
 	for n in $Units.get_children():
 		var o := n as Unit
-		if o == null or o.team == u.team or o.dead or o.coord.x < 0 or o.is_queued_for_deletion() or o.untargetable_left > 0.0:
+		if o == null or o == u or o.team != u.foe_team() or o.dead or o.coord.x < 0 or o.is_queued_for_deletion() or o.untargetable_left > 0.0:
 			continue
 		var d := hex_distance(u.coord, o.coord)
 		# Ties go to the lower tile (row, then column), so node order never decides a target.
@@ -105,7 +111,83 @@ func _ready():
 	Events.phase_changed.connect(_on_phase_for_unlocks)
 	_build_bench_slots()
 	_build_sell_zone()
+	apply_theme(BoardThemes.ORDER[1])   # until GameManager sets the run's theme
 	
+# Dresses the board in a theme (BoardThemes): every hex becomes a voxel block (the texture on top,
+# the layers on its sides), board tiles pick one of three top variations by their coord, and the
+# backdrop takes the theme's colour. Visual only.
+func apply_theme(id: StringName) -> void:
+	if not BoardThemes.has(id):
+		id = BoardThemes.ORDER[1]
+	theme = id
+	for t in tiles.values():
+		var c: Vector2i = t.coord
+		var v := posmod(c.x * 7 + c.y * 13, BoardThemes.BOARD_VARIANTS) + 1
+		_skin(t, "board_%d" % v, "board_side")
+	for s in _bench_tiles:
+		_skin(s, "bench", "bench_side")
+	if _sell_tile != null:
+		_skin(_sell_tile, "sell", "sell_side")
+	RenderingServer.set_default_clear_color(BoardThemes.backdrop(id))
+
+func _skin(node: Node3D, top: String, side: String) -> void:
+	var mi := node.get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if mi == null:
+		return
+	mi.mesh = hex_block()
+	mi.material_override = null
+	mi.set_surface_override_material(0, _theme_mat(BoardThemes.texture_path(theme, top)))
+	mi.set_surface_override_material(1, _theme_mat(BoardThemes.texture_path(theme, side)))
+
+static func _theme_mat(path: String) -> StandardMaterial3D:
+	if not _theme_mats.has(path):
+		var mat := StandardMaterial3D.new()
+		if ResourceLoader.exists(path):
+			mat.albedo_texture = load(path)
+		else:
+			mat.albedo_color = Color(0.45, 0.45, 0.5)   # textures missing: a plain grey block
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST   # every pixel a voxel
+		mat.roughness = 1.0
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_theme_mats[path] = mat
+	return _theme_mats[path]
+
+# A pointy-top hex block (same corners as the old 6-sided cylinder): surface 0 is the top, mapped
+# flat onto the texture; surface 1 is the six sides, each showing the whole side texture.
+static func hex_block() -> ArrayMesh:
+	if _prism != null:
+		return _prism
+	var r := 0.95
+	var top_y := 0.005
+	var bottom_y := -BLOCK_DEPTH
+	var corners: Array[Vector3] = []
+	for k in 6:
+		var a := k * TAU / 6.0
+		corners.append(Vector3(sin(a) * r, 0.0, cos(a) * r))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k in 6:
+		var a := corners[k]
+		var b := corners[(k + 1) % 6]
+		for p in [Vector3.ZERO, b, a]:
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2((p.x / r + 1.0) * 0.5, (p.z / r + 1.0) * 0.5))
+			st.add_vertex(p + Vector3(0, top_y, 0))
+	_prism = st.commit()
+	st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k in 6:
+		var a := corners[k]
+		var b := corners[(k + 1) % 6]
+		var n := ((a + b) * 0.5).normalized()
+		var quad := [[a, top_y, 0.0, 0.0], [b, top_y, 1.0, 0.0], [b, bottom_y, 1.0, 1.0], [a, top_y, 0.0, 0.0], [b, bottom_y, 1.0, 1.0], [a, bottom_y, 0.0, 1.0]]
+		for q in quad:
+			st.set_normal(n)
+			st.set_uv(Vector2(q[2], q[3]))
+			st.add_vertex(q[0] + Vector3(0, q[1], 0))
+	st.commit(_prism)
+	return _prism
+
 func _build_border():
 	if _border_mat == null:
 		_border_mat = StandardMaterial3D.new()
@@ -293,10 +375,7 @@ func _build_bench_slots():
 			s.collision_mask = 0
 		$Bench.add_child(s)
 		s.position = bench_to_world(i)
-		for m in s.find_children("*", "MeshInstance3D", true, false):
-			var mat := StandardMaterial3D.new()
-			mat.albedo_color = Color(0.35, 0.4, 0.55)   # bluish so it reads as the bench
-			m.material_override = mat
+		_bench_tiles.append(s)   # its look comes from the theme (apply_theme)
 
 func is_player_side(c: Vector2i) -> bool:
 	return c.y >= ROWS / 2
@@ -415,10 +494,7 @@ func _build_sell_zone():
 		s.collision_mask = 0
 	$Bench.add_child(s)
 	s.position = sell_zone_pos()
-	for m in s.find_children("*", "MeshInstance3D", true, false):
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.7, 0.2, 0.2)
-		m.material_override = mat
+	_sell_tile = s   # its look comes from the theme (apply_theme)
 	var l := Label3D.new()
 	l.text = "SELL" if OS.has_feature("mobile") else "SELL\n(F)"   # no F key on a phone: drag a unit here
 	l.font_size = 64

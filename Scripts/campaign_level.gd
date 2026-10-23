@@ -12,6 +12,7 @@ class_name CampaignLevel extends Resource
 @export var id: StringName              # stable, unique; used by the save file. Never rename.
 @export var display_name := ""
 @export_multiline var description := ""
+@export var theme: StringName = &""            # board look (BoardThemes: castle, grasslands, forest, mountains, ashlands, scorched_road, volcano, crystal_cave, sky_bridge, storm_citadel)
 @export var waves: Array[EnemyBoard] = []
 
 @export_group("Modifiers")

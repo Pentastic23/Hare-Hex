@@ -120,6 +120,7 @@ script = ExtResource("2_8p54t")
 id = &"ch1_l1"
 display_name = "First Blood"
 description = "Raiders are testing the border. Hold the line for five waves."
+theme = &"grasslands"
 waves = Array[ExtResource("3_fv6xd")]([SubResource("Resource_r7t64"), SubResource("Resource_u12mc"), SubResource("Resource_5fffk"), SubResource("Resource_kgbju"), SubResource("Resource_brhak")])
 start_gold = 4
 start_level = 1

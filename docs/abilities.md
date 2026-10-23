@@ -1,6 +1,6 @@
 # Abilities: one per unit (plan)
 
-Status: **chunks 1-3 built** (2026-10-23): 52 units cast for real (`Scripts/abilities.gd`, `tools/ability_checks`). Chunk 4 (13 units) still casts the placeholder. Spell effects (VFX) come after the abilities, and the bot balance pass waits until all 65 are in (user decisions). Roadmap item 1. If this doc and the code disagree, the code wins.
+Status: **all four chunks built** (2026-10-23): every one of the 65 units casts its own ability (`Scripts/abilities.gd`, `tools/ability_checks`). Still to do: spell effects (VFX), then the bot balance pass (chunk 5; user decisions: VFX after the abilities, no balance runs until all are in). Roadmap item 1. If this doc and the code disagree, the code wins.
 
 Every one of the 65 units gets its own ability, themed on its animal, its class and its origin. Today a full mana bar casts a placeholder (`Ability.cast` does nothing and a "CAST" word floats up). This plan says what each cast does, the rules all abilities share, the new combat mechanics they need, and the order to build them in.
 
@@ -156,7 +156,7 @@ Format: **Ability name**, then the effect with values at 1★ / 2★ / 3★. Man
 1. **Toolkit and simple casts (40 units), built 2026-10-23:** the ability data format, cast time, the name popup, ability damage, direct heal, flat shields, timed buffs and debuffs, stun, silence, blind and taunt; areas, lines, clusters and multi-target picks. That covers every unit not listed in the later chunks. Checks: one per mechanic, plus a fight full of casts resolved twice (deterministic).
 2. **Movement and stealth (6), built 2026-10-23:** leap, teleport and dash with tile claiming, untargetable. Scout, Nightblade, Assassin, Warlord, Nightstalker, Seraph.
 3. **Summons and zones (6), built 2026-10-23:** temporary units, persistent areas, thorns. Necromancer, Demonologist, Beastmaster, Plague Doctor, Druid, Runesmith.
-4. **Special rules (13):** mana grant and burn, link, parry, delayed damage, root, charm, raise, the Thief's gold, eruptions and refunds. Minstrel, Zen Master, Paladin, Duelist, Archdemon, Treant, Faerie Queen, Deathlord, Thief, Magma Guard, Reaper, Phoenix, Frost Queen.
+4. **Special rules (13), built 2026-10-23:** mana grant and burn, link, parry, delayed damage, root, charm, raise, the Thief's gold, eruptions and refunds. Minstrel, Zen Master, Paladin, Duelist, Archdemon, Treant, Faerie Queen, Deathlord, Thief, Magma Guard, Reaper, Phoenix, Frost Queen.
 5. **UI and balance:** ability text in the inspector, shop and planner tooltips (`Tip.wrap`, checked by `tooltip_checks`); a combat speed check; a bot retune of every campaign level's `enemy_stat_mult` (casts make both sides stronger, but waves are hand-built, so expect the clear rates to move).
 
 **Data format (as built):** like `Synergies.DEFS`, the abilities are a table in code, `Abilities.DEFS` in `Scripts/abilities.gd`, keyed by unit name: the name, the text and the numbers (a plain number scales with stars x1 / x1.8 / x3.2, rounded to 5; an array is per star as written). What each one does is a short entry in `Abilities.cast()`. Balance changes are edits to the table. The `Ability` resource and `UnitData.ability` stay for the units not built yet.
@@ -227,3 +227,34 @@ A charmed unit must be obvious at a glance for the whole time it is charmed:
 - **Thorns** (Rune Ward): attackers take the thorns damage on each attack while it lasts. Thorns damage isn't an attack, so it never bounces back.
 - **Death hook:** `Unit.on_death` runs once when a unit dies (the Pact Demon's explosion). A revive doesn't trigger it.
 - **Choices:** with two demons out, the Demonologist heals both fully instead of summoning a third. The Beastmaster tops its pack back up to two.
+
+## Chunk 4 as built (2026-10-23)
+
+- **Units casting:** Thief, Minstrel, Paladin, Duelist, Magma Guard, Zen Master, Deathlord, Phoenix, Archdemon, Frost Queen, Faerie Queen, Reaper, Treant. With this, all 65 units have their own ability.
+- **Mechanics in `unit.gd`:**
+  - link (`link_to`, Loyal Guard)
+  - parry (`parry_left`, Riposte)
+  - doom (`doom_left`; `Abilities.pass_doom` when its holder dies first)
+  - root (`apply_root`; rooted units can't step or leap)
+  - charm (`apply_charm`, `foe_team()`)
+  - raising (`raised_left`; Army of the Dead)
+  - the Molten Shell eruption (`erupt_dmg`, `_erupt`)
+  - the Sunfire Nova heal (`nova_left`, `nova_pool`)
+  - Dying now goes through `_fall()`.
+- **Eternal Winter** is a GameManager zone of kind "winter" covering every enemy, wherever it stands. When it ends, enemies below half HP are stunned for 1.5 s.
+- **Choices made while building:**
+  - **Thief:** the gold only comes when Pickpocket itself lands the killing blow and the Thief is yours (1 gold per kill, no cap). An enemy Thief gives nobody gold.
+  - **Paladin:** the guarded ally's half goes through the Paladin's own armour and shield. If the Paladin is itself the weakest, it heals itself and guards no one.
+  - **Deathlord:** with nobody fallen, it strikes (and keeps the raise for later). Raised units drop with no revive when their 5 s end. Summons aren't raised.
+  - **Minstrel:** Encore skips units without mana (summons). A stunned or silenced ally gains nothing from it.
+  - **Reaper:** only kills from that cast refund mana; it is the one cast that gives mana.
+  - **Phoenix:** the burn is 6% of max HP per second for 6 s. Each tick, every ally heals 10% of the burn damage the Phoenix dealt (its trait burns count too while the nova runs).
+  - **Faerie Queen:** charmed units pick targets on their own side and don't cast while charmed. Their allies don't fight back; the charm's other side keeps attacking them. "The two that dealt the most" is damage dealt this fight (then attack damage, then tile).
+- **Charm visuals (built):**
+  - a turning pink-violet hex sigil above the unit (still with Reduce motion)
+  - its team ring turns pink-violet
+  - a thin pink-violet thread to the Faerie Queen
+  - "CHARMED" and "FREED" popups
+  - the inspector line "Charmed: fighting for the other side (2.1 s)"
+  - The model tint is left for the VFX pass.
+- **Other popups:** "RISE" when a unit is raised, "PARRY" on a parried attack, "+1 GOLD" on a Pickpocket kill.
