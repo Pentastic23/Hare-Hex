@@ -74,6 +74,14 @@ class Driver extends Node:
 		press("Back")
 		await get_tree().process_frame
 		chk("Back returns to the menu", find_button(scene(), "Free Play") != null)
+		chk("the front menu has Credits but no Keybinds button", find_button(scene(), "Credits") != null and find_button(scene(), "Keybinds") == null)
+		press("Credits")
+		await get_tree().process_frame
+		var credit_link: LinkButton = scene().credits_panel.find_child("MusicLink", true, false)
+		chk("Credits shows the music credit with a link", scene().credits_panel.get_parent().visible and labels(scene()).has("Music By Joe Gallagher") and credit_link != null and credit_link.uri == "https://soundcloud.com/joe-gallagher-620567095")
+		press("Back")
+		await get_tree().process_frame
+		chk("Back from Credits returns to the menu", find_button(scene(), "Free Play") != null)
 
 		# Async PvP starts a free-play run against ghosts (isolated snapshot folder: nothing of yours is touched)
 		LocalSnapshotStore.root = "user://menu_test_snapshots"

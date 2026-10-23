@@ -23,9 +23,10 @@ func _run():
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 
 	print("--- defaults and a full round trip")
+	Settings.reset_options()   # the game already loaded your real settings.cfg at startup; start from the defaults
 	Settings._loaded = false
 	Settings.load_settings()
-	chk("no file: defaults (windowed, VSync on, no cap, High preset)", Settings.display_mode == "windowed" and Settings.vsync_mode == "on" and Settings.fps_cap == 0 and Settings.graphics_preset == "high" and Settings.shadows == "low")
+	chk("no file: defaults (windowed, VSync on, no cap, High preset)", Settings.display_mode == "windowed" and Settings.vsync_mode == "on" and Settings.fps_cap == 0 and Settings.graphics_preset == "high" and Settings.shadows == "low", "%s %s %d %s %s" % [Settings.display_mode, Settings.vsync_mode, Settings.fps_cap, Settings.graphics_preset, Settings.shadows])
 	Settings.display_mode = "exclusive"
 	Settings.window_size = Vector2i(1600, 900)
 	Settings.vsync_mode = "adaptive"

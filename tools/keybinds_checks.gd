@@ -69,11 +69,19 @@ func _run():
 	var menu = load("res://scenes/menu.tscn").instantiate()
 	add_child(menu)
 	await frames(3)
-	var open_btn: Button = null
+	var on_front := false
 	for b in menu.find_children("*", "Button", true, false):
 		if b.text == "Keybinds":
+			on_front = true
+	chk("no Keybinds button on the front menu (it is in Settings)", not on_front)
+	menu._show_panel(menu.settings_panel)
+	menu.settings_tab = "controls"
+	menu._fill_settings()
+	var open_btn: Button = null
+	for b in menu.settings_panel.find_children("*", "Button", true, false):
+		if b.text == "Key and button binds":
 			open_btn = b
-	chk("the main menu has a Keybinds button", open_btn != null)
+	chk("Settings > Controls has a Key and button binds button", open_btn != null)
 	open_btn.pressed.emit()
 	await frames()
 	chk("it opens the Keybinds screen", menu.keybinds_panel.get_parent().visible and not menu.main_box.get_parent().visible)
@@ -101,8 +109,12 @@ func _run():
 	await frames()
 	await pad(JOY_BUTTON_X)
 	chk("the next controller button becomes the bind (it doesn't inspect)", Keybinds.pad.reroll == JOY_BUTTON_X and Keybinds.pad.inspect == JOY_BUTTON_RIGHT_SHOULDER and (grid.get_node("reroll") as Button).text == "X")
-	menu._show_panel(null)
-	chk("Back to the main menu", not menu.keybinds_panel.get_parent().visible and menu.main_box.get_parent().visible)
+	var back: Button = null
+	for b in menu.keybinds_panel.find_children("*", "Button", true, false):
+		if b.text == "Back":
+			back = b
+	back.pressed.emit()
+	chk("Back returns to Settings", not menu.keybinds_panel.get_parent().visible and menu.settings_panel.get_parent().visible)
 	menu.queue_free()
 	await frames()
 

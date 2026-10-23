@@ -4,7 +4,7 @@ extends Control
 # The first screen: title, Continue (saved chapter run), then two sections:
 #   SINGLE PLAYER: Tutorial, Campaign (chapters and levels), Free Play
 #   PVP: Async PvP (ghost opponents, playable) and Live PvP (coming later: opens an info panel)
-# and Settings / Keybinds / Quit. Built in code; menu.tscn is just this script on a full-screen Control.
+# and Settings / Credits / Quit (Keybinds opens from Settings). Built in code; menu.tscn is just this script on a full-screen Control.
 
 const TITLE := "Hare & Hex"
 const MAIN_SCENE := "res://scenes/main.tscn"
@@ -34,6 +34,7 @@ var settings_tab := "display"         # display, graphics, controls, accessibili
 var _built_contrast := false           # Settings.high_contrast when the menu was built
 static var _reopen_settings := ""      # after a rebuild (high-contrast text), reopen Settings on this tab
 var info_panel: PanelContainer   # "coming soon" description for the PvP modes
+var credits_panel: PanelContainer   # who made what (music, fonts)
 var confirm: ConfirmationDialog
 var _confirm_action: Callable
 
@@ -82,10 +83,7 @@ func _ready():
 	row.add_theme_constant_override("separation", 8)
 	main_box.add_child(row)
 	_button(row, "Settings", func(): _show_panel(settings_panel)).custom_minimum_size = Vector2(150, 44)
-	_button(row, "Keybinds", func():
-		_stop_listening()
-		_fill_keybinds()
-		_show_panel(keybinds_panel)).custom_minimum_size = Vector2(150, 44)
+	_button(row, "Credits", func(): _show_panel(credits_panel)).custom_minimum_size = Vector2(150, 44)
 	if OS.get_name() != "Web":
 		_button(row, "Quit", func(): get_tree().quit()).custom_minimum_size = Vector2(150, 44)
 
@@ -93,6 +91,7 @@ func _ready():
 	settings_panel = _build_settings_panel()
 	keybinds_panel = _build_keybinds_panel()
 	info_panel = _build_info_panel()
+	credits_panel = _build_credits_panel()
 	confirm = ConfirmationDialog.new()
 	confirm.confirmed.connect(func(): _confirm_action.call())
 	add_child(confirm)
@@ -107,7 +106,7 @@ func _ready():
 
 func _unhandled_input(event):
 	if event.is_action_pressed("ui_cancel") and _panel_open():
-		_show_panel(null)
+		_show_panel(settings_panel if keybinds_panel.get_parent().visible else null)   # Keybinds goes back to Settings
 		get_viewport().set_input_as_handled()
 
 # --- starting a run ---------------------------------------------------------------------------
@@ -153,12 +152,12 @@ func _start_chapter(chapter: CampaignChapter):
 func _show_panel(panel: Control):
 	main_box.get_parent().visible = panel == null
 	_stop_listening()
-	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel]:
+	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel]:
 		p.get_parent().visible = panel == p
 	_refresh()
 
 func _panel_open() -> bool:
-	return [campaign_panel, settings_panel, keybinds_panel, info_panel].any(func(p): return p.get_parent().visible)
+	return [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel].any(func(p): return p.get_parent().visible)
 
 func _refresh():
 	var saved := _saved_level()
@@ -195,6 +194,32 @@ func _show_info(title: String, text: String):
 	box.get_node("Title").text = title
 	box.get_node("Body").text = text
 	_show_panel(info_panel)
+
+const MUSIC_URL := "https://soundcloud.com/joe-gallagher-620567095"
+
+# Credits: the music (with a link to the composer's page) and the fonts.
+func _build_credits_panel() -> PanelContainer:
+	var panel := _panel()
+	var box := panel.get_child(0) as VBoxContainer
+	box.add_child(_heading("Credits"))
+	box.add_child(_label("MUSIC", 12, GREY))
+	box.add_child(_label("Music By Joe Gallagher", 18, HudStyle.INK))
+	var link := LinkButton.new()
+	link.name = "MusicLink"
+	link.text = MUSIC_URL
+	link.uri = MUSIC_URL
+	link.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	link.add_theme_font_override("font", HudStyle.label_font())
+	link.add_theme_font_size_override("font_size", 13)
+	for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+		link.add_theme_color_override(c, HudStyle.GOLD)
+	link.tooltip_text = Tip.wrap("Opens the composer's SoundCloud page in your browser.")
+	box.add_child(link)
+	box.add_child(_spacer(6))
+	box.add_child(_label("FONTS", 12, GREY))
+	box.add_child(_label("Jersey 10 and Atkinson Hyperlegible (SIL Open Font License)", 14, HudStyle.INK))
+	_button(box, "Back", func(): _show_panel(null))
+	return panel
 
 func _build_campaign_panel() -> PanelContainer:
 	var panel := _panel()
@@ -591,7 +616,7 @@ func _build_keybinds_panel() -> PanelContainer:
 		_ask("Put every keyboard and controller bind back to the default?", func():
 			Keybinds.reset_defaults()
 			_fill_keybinds()))
-	_button(box, "Back", func(): _show_panel(null))
+	_button(box, "Back", func(): _show_panel(settings_panel))   # Keybinds opens from Settings
 	return panel
 
 func _fill_keybinds():
