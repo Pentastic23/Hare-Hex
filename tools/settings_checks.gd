@@ -105,6 +105,25 @@ func _run():
 	chk("shadows on the run's light follow the setting", off and light.shadow_enabled)
 	light.free()
 
+	print("--- music")
+	Settings.music_volume = 0.4
+	Settings.save_settings()
+	Settings.music_volume = 0.7
+	Settings._loaded = false
+	Settings.load_settings()
+	chk("music volume comes back from disk", is_equal_approx(Settings.music_volume, 0.4))
+	Settings.apply()
+	var bus := AudioServer.get_bus_index("Music")
+	chk("the Music bus exists, sends to Master and follows the slider", bus > 0 and AudioServer.get_bus_send(bus) == &"Master" and is_equal_approx(AudioServer.get_bus_volume_db(bus), linear_to_db(0.4)), "bus %d" % bus)
+	Settings.music_volume = 0.0
+	Settings.apply()
+	chk("music at 0 mutes the Music bus only", AudioServer.is_bus_mute(bus) and not AudioServer.is_bus_mute(0))
+	Music.play("menu")
+	var menu_stream := Music.playing_stream()
+	Music.play("boss")
+	chk("Music plays the menu and boss tracks, looping", menu_stream == Music.TRACKS["menu"] and Music.playing_stream() == Music.TRACKS["boss"] and (Music.TRACKS["boss"] as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_FORWARD)
+	Music.stop()
+
 	Settings.reset_options()
 	Settings.apply()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))

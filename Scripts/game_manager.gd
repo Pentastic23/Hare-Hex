@@ -71,6 +71,7 @@ func _enter(p: int):
 			board.merge_all()
 			GameState.me.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
+			Music.play("boss" if is_boss_round() else "game")   # Final Struggle for the boss round, else Aspiration Woods
 			if opponents != null:
 				opponents.prepare(GameState.round_number)   # async PvP picks this round's ghost now
 				Events.opponent_announced.emit(opponents.describe_next())
@@ -588,6 +589,13 @@ func end_prep_early():
 		return
 	prep_left = 0.0
 	_enter(Events.Phase.COMBAT)
+
+# The boss round gets the boss music: a chapter level's last wave (the tutorial has no boss) or
+# free play's (and async PvP's) final round.
+func is_boss_round() -> bool:
+	if GameState.round_number != GameState.total_rounds():
+		return false
+	return GameState.run_level == null or _in_chapter(GameState.run_level)
 
 # True when the level is part of a campaign chapter (the tutorial isn't), so chapter runs apply.
 func _in_chapter(lvl: CampaignLevel) -> bool:

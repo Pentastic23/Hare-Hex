@@ -41,6 +41,7 @@ func _ready():
 	get_window().title = TITLE   # the window's own title (config/name stays "Azerothtactics": the save folder is named after it)
 	Settings.ensure_loaded()
 	Settings.apply()
+	Music.play("menu")   # Lost Kingdom
 	if ResourceLoader.exists(CAMPAIGN_PATH):
 		campaign = load(CAMPAIGN_PATH)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -413,7 +414,9 @@ func _fill_settings() -> void:
 			rebind.custom_minimum_size = Vector2(280, 40)
 		"audio":
 			var vol := _setting_slider("volume", "Volume", Settings.master_volume, func(v): Settings.master_volume = v, 0.0, 1.0, 0.05, true)
-			vol.tooltip_text = Tip.wrap("No sound in the game yet.")
+			vol.tooltip_text = Tip.wrap("Overall volume of everything in the game.")
+			var mus := _setting_slider("music", "Music", Settings.music_volume, func(v): Settings.music_volume = v, 0.0, 1.0, 0.05, true)
+			mus.tooltip_text = Tip.wrap("Volume of the soundtrack: the menu, the run and boss fights.")
 
 # Saves and applies after a change; `rebuild` refreshes the tab (rows that depend on the change).
 func _settings_changed(rebuild := false) -> void:

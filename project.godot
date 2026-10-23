@@ -23,6 +23,7 @@ Events="*uid://detatr85kmhx1"
 TouchControls="*res://Scripts/touch_controls.gd"
 GamepadControls="*res://Scripts/gamepad_controls.gd"
 ScreenFilter="*res://Scripts/screen_filter.gd"
+Music="*res://Scripts/music.gd"
 
 [display]
 

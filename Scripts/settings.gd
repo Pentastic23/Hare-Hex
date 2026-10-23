@@ -52,6 +52,7 @@ static var high_contrast := false   # brighter secondary text and a dark outline
 static var reduce_motion := false   # no zoom easing, tile pop-in or floating combat words
 # audio
 static var master_volume := 0.8   # 0..1
+static var music_volume := 0.7    # 0..1, the Music bus (the soundtrack, music.gd)
 # HUD state, remembered between sessions
 static var show_damage_meter := true   # the Damage button's window
 static var dock_collapsed := false     # left box (synergies / items) folded to its rail
@@ -79,6 +80,7 @@ static func reset_options() -> void:
 	high_contrast = false
 	reduce_motion = false
 	master_volume = 0.8
+	music_volume = 0.7
 
 static func load_settings() -> void:
 	_loaded = true
@@ -108,6 +110,7 @@ static func load_settings() -> void:
 	high_contrast = bool(cfg.get_value("accessibility", "high_contrast", high_contrast))
 	reduce_motion = bool(cfg.get_value("accessibility", "reduce_motion", reduce_motion))
 	master_volume = clampf(float(cfg.get_value("audio", "master_volume", master_volume)), 0.0, 1.0)
+	music_volume = clampf(float(cfg.get_value("audio", "music_volume", music_volume)), 0.0, 1.0)
 	show_damage_meter = bool(cfg.get_value("hud", "show_damage_meter", show_damage_meter))
 	dock_collapsed = bool(cfg.get_value("hud", "dock_collapsed", dock_collapsed))
 	dock_tab = str(cfg.get_value("hud", "dock_tab", dock_tab))
@@ -132,6 +135,7 @@ static func save_settings() -> void:
 	cfg.set_value("accessibility", "high_contrast", high_contrast)
 	cfg.set_value("accessibility", "reduce_motion", reduce_motion)
 	cfg.set_value("audio", "master_volume", master_volume)
+	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("hud", "show_damage_meter", show_damage_meter)
 	cfg.set_value("hud", "dock_collapsed", dock_collapsed)
 	cfg.set_value("hud", "dock_tab", dock_tab)
@@ -166,12 +170,25 @@ static func monitor_hz() -> int:
 static func effective_fps_cap() -> int:
 	return monitor_hz() if fps_cap == -1 else fps_cap
 
+# The "Music" bus (made on first use, sent to Master); the soundtrack plays on it.
+static func music_bus() -> int:
+	var idx := AudioServer.get_bus_index("Music")
+	if idx == -1:
+		AudioServer.add_bus()
+		idx = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, "Music")
+		AudioServer.set_bus_send(idx, "Master")
+	return idx
+
 # Everything that isn't tied to a scene: audio, window, sync, frame cap, render scale and
 # anti-aliasing (on the root viewport) and the colour filter. High-contrast text is applied where
 # labels are made (HudStyle / DockKit call contrast() and text_color()), so it shows once a screen is rebuilt.
 static func apply() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(master_volume, 0.0001)))
 	AudioServer.set_bus_mute(0, master_volume <= 0.0)
+	var music := music_bus()
+	AudioServer.set_bus_volume_db(music, linear_to_db(maxf(music_volume, 0.0001)))
+	AudioServer.set_bus_mute(music, music_volume <= 0.0)
 	Engine.max_fps = effective_fps_cap()
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:

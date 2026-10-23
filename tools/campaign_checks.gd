@@ -145,6 +145,11 @@ func _run():
 	chk("level modifiers: start gold 4, level 1, hp 100", GameState.me.gold == 4 and GameState.me.level == 1 and GameState.me.player_hp == 100, "gold %d" % GameState.me.gold)
 	chk("campaign loss damage from the level (6 + stars)", GameState.damage_for_loss(4) == 7)
 	chk("campaign rounds = waves", GameState.total_rounds() == 5)
+	var music_first: String = Music.current
+	GameState.round_number = 5
+	var boss_last: bool = gm.is_boss_round()
+	GameState.round_number = 1
+	chk("music: the run track on wave 1, boss music on a chapter level's last wave", music_first == "game" and not gm.is_boss_round() and boss_last)
 	chk("item drop rounds from level", GameState.item_drop_rounds() == [2, 4])
 	var tracker = main.get_node("UI/TopBar").rounds
 	chk("round tracker shows the wave", tracker.stage_label.text == "WAVE" and tracker.count_label.text == "1/5" and tracker.pips.states.size() == 5 and tracker.pips.states[0] == "current" and tracker.pips.states[4] == "boss", "%s %s %s" % [tracker.stage_label.text, tracker.count_label.text, tracker.pips.states])
@@ -312,6 +317,10 @@ Wave 1/6: Scouts"), tip2.replace("
 	var ft = main.get_node("UI/TopBar").rounds
 	var free_text: String = "%s %s" % [ft.stage_label.text, ft.count_label.text]
 	chk("free play: RandomOpponents, 39 rounds, normal start", gm.opponents is RandomOpponents and GameState.total_rounds() == 39 and GameState.me.gold == 2 and free_text == "STAGE 1 1-1" and ft.pips.states.size() == 3 and ft.tooltip_text == "", free_text)
+	GameState.round_number = 39
+	var free_boss: bool = gm.is_boss_round()
+	GameState.round_number = 1
+	chk("music: free play's final round is the boss round", free_boss and not gm.is_boss_round())
 	var free_opp = main.get_node("UI/Standings").opponent_row()
 	chk("free play standings: you and Random enemies", free_opp.name_text == "Random enemies" and free_opp.hp_lbl.text == "" and main.get_node("UI/Standings").you_row().hp_lbl.text == "100")
 	var rb: EnemyBoard = gm.opponents.board_for_round(1)

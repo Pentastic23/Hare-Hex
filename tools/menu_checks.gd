@@ -56,6 +56,7 @@ class Driver extends Node:
 		await to_menu()
 		var texts := labels(scene())
 		chk("menu shows the title Hare & Hex", texts.has("Hare & Hex"))
+		chk("the menu plays Lost Kingdom", Music.current == "menu" and Music.playing_stream() == Music.TRACKS["menu"])
 		chk("menu buttons: Campaign, Free Play, Settings, Quit", find_button(scene(), "Campaign") != null and find_button(scene(), "Free Play") != null and find_button(scene(), "Settings") != null and find_button(scene(), "Quit") != null)
 		chk("no saved run: Continue hidden", find_button(scene(), "Continue") == null)
 		chk("sections: SINGLE PLAYER and PVP", texts.has("SINGLE PLAYER") and texts.has("PVP"))
@@ -103,6 +104,7 @@ class Driver extends Node:
 		await wait(0.5)
 		var gm = scene().get_node("Game Manager")
 		chk("Free Play starts free play", scene().name == "Main" and GameState.run_level == null and gm.opponents is RandomOpponents and GameState.launched_from_menu)
+		chk("a run plays Aspiration Woods", Music.current == "game" and Music.playing_stream() == Music.TRACKS["game"])
 
 		# Esc pauses, Esc resumes
 		await esc()
