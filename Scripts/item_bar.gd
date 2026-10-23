@@ -5,7 +5,7 @@ extends VBoxContainer
 # own (icon in a well with an edge in the item's colour, name, description, "x2" for duplicates),
 # then a hint. Press a row and drag onto a unit to equip it: the row emits
 # Events.item_drag_started(index into GameState.me.items) and drag_controller.gd does the rest, as
-# before. The item's icon (and name) follows the mouse while dragging.
+# before. The item's image follows the mouse while dragging.
 
 const ICON := 34.0
 const SLOT := 38.0
@@ -15,9 +15,8 @@ var hint: Label
 var resonance_list: VBoxContainer   # "Knight: Flurry, Bulwark", one line per unit with a resonance
 var book_button: Button
 var book: PanelContainer           # all 16 resonances (toggle_book)
-var _ghost: PanelContainer   # follows the mouse while an item is being dragged: the icon and its name
-var _ghost_icon: TextureRect
-var _ghost_name: Label
+var _ghost: TextureRect   # the item's image, following the mouse while an item is being dragged
+const GHOST := 52.0      # its size in px
 
 func _ready():
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -144,41 +143,29 @@ func _row(item: ItemData, n: int, index: int) -> Control:
 	return row
 
 func _process(_delta):
-	_ghost.position = get_viewport().get_mouse_position() + Vector2(16, 16)
+	_ghost.position = get_viewport().get_mouse_position() - Vector2(GHOST, GHOST) / 2.0   # centred on the pointer
 
 func _on_drag_started(index: int):
 	if index < 0 or index >= GameState.me.items.size():
 		return
 	var item: ItemData = GameState.me.items[index]
 	if _ghost == null:
-		# The item's icon in a small well with its name under it; ignores the mouse so it never
-		# blocks the drop target under the pointer.
-		_ghost = PanelContainer.new()
+		# Just the item's image under the pointer; ignores the mouse so it never blocks the drop
+		# target under it.
+		_ghost = TextureRect.new()
 		_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_ghost.z_index = 10
-		var v := VBoxContainer.new()
-		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		v.add_theme_constant_override("separation", 2)
-		_ghost.add_child(v)
-		_ghost_icon = TextureRect.new()
-		_ghost_icon.custom_minimum_size = Vector2(44, 44)
-		_ghost_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_ghost_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_ghost_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		_ghost_icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		_ghost_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		v.add_child(_ghost_icon)
-		_ghost_name = DockKit.text(10, HudStyle.INK)
-		_ghost_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		v.add_child(_ghost_name)
+		_ghost.size = Vector2(GHOST, GHOST)
+		_ghost.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_ghost.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_ghost.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_ui_root().add_child(_ghost)
-	_ghost_icon.texture = DockKit.item_icon(item)
-	_ghost_name.text = item.display_name
-	var s := DockKit.flat(Color(DockKit.WELL, 0.9), 3, Vector4(4, 6, 4, 6))
-	s.border_width_bottom = 3
-	s.border_color = item.color
-	_ghost.add_theme_stylebox_override("panel", s)
-	_ghost.reset_size()
+	_ghost.texture = DockKit.item_icon(item)
+	_ghost.self_modulate = Color.WHITE if _ghost.texture != null else item.color
+	if _ghost.texture == null:   # no icon yet: a square in the item's colour
+		var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		_ghost.texture = ImageTexture.create_from_image(img)
 	_ghost.visible = true
 	set_process(true)
 

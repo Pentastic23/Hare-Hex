@@ -79,9 +79,12 @@ var item_as := 0.0
 var item_mana := 0.0
 var item_dr := 0.0
 var item_lifesteal := 0.0
-var item_icons: Node3D   # row of item models above the health bar, one per item (ItemModel)
-const ICON_STEP := 0.42    # spacing between item models
-const ICON_HEIGHT := 0.42  # how far above the health bar the row sits (its middle)
+var item_icons: Node3D   # row of item icons above the health bar, one per item
+static var _icon_tex: ImageTexture   # plain white square (items without an icon)
+const ICON_PX := 16
+const ICON_SIZE := 0.6     # world size of one item icon (readable, a row of 3 stays about one tile wide)
+const ICON_STEP := 0.58    # spacing between item icons
+const ICON_HEIGHT := 0.45  # how far above the health bar the row sits (its middle)
 
 const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2}
 const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45}
@@ -201,7 +204,6 @@ func _process(delta):
 			visible = false   # the death animation has played
 	if item_icons != null:
 		item_icons.global_position = global_position + Vector3(0, bar_height + ICON_HEIGHT, 0)
-		_spin_items(delta)
 	if data == null or bar_fill == null:
 		return
 
@@ -608,9 +610,10 @@ func _recalc_items() -> void:
 		item_lifesteal += it.lifesteal
 	_update_item_icons()
 
-# The items as small voxel models (ItemModel) in a row above the health bar, slowly turning (not with
-# Reduce motion). Bound items show their stack count; items in an active resonance glow. The row is
-# top_level so it stays level when the unit turns; _process moves it along with the unit.
+# The items as their icon images (textures/ui/items/<id>.png) in a row above the health bar: flat,
+# always facing the camera, drawn over the models. Bound items show their stack count (resonances are listed
+# in the inspector and the Items tab, not on the board). The row is top_level so it stays level when the unit
+# turns; _process moves it along with the unit.
 func _update_item_icons() -> void:
 	if item_icons == null:
 		item_icons = Node3D.new()
@@ -621,38 +624,45 @@ func _update_item_icons() -> void:
 	for c in item_icons.get_children():
 		item_icons.remove_child(c)
 		c.queue_free()
-	var resonating := {}   # elements in an active pair resonance on this unit
-	for k in Resonance.keys_for(items):
-		for e in k.split("+"):
-			resonating[StringName(e)] = true
 	var n := items.size()
 	for i in n:
 		var it: ItemData = items[i]
-		var m := MeshInstance3D.new()
-		m.mesh = ItemModel.mesh_for(it)
-		m.material_override = ItemModel.material(resonating.has(it.element) or (it.kind == &"crystal" and not resonating.is_empty()))
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.position = Vector3((i - (n - 1) / 2.0) * ICON_STEP, 0, 0)
-		m.rotation.y = i * 0.7   # not all facing the same way
-		item_icons.add_child(m)
+		var pos := Vector3((i - (n - 1) / 2.0) * ICON_STEP, 0, 0)
+		var s := Sprite3D.new()
+		var tex := DockKit.item_icon(it)
+		if tex != null:
+			s.texture = tex
+			s.pixel_size = ICON_SIZE / tex.get_width()
+		else:   # no icon yet: a square in the item's colour
+			s.texture = _white_square()
+			s.pixel_size = ICON_SIZE * 0.6 / ICON_PX
+			s.modulate = it.color
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		s.shaded = false
+		s.no_depth_test = true   # draw over the model
+		s.render_priority = 2
+		s.position = pos
+		item_icons.add_child(s)
 		if it.kind == &"bound":
-			var s := Label3D.new()
-			s.text = str(stacks_of(it))
-			s.font_size = 40
-			s.pixel_size = 0.006
-			s.outline_size = 10
-			s.modulate = HudStyle.GOLD
-			s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			s.no_depth_test = true
-			s.position = m.position + Vector3(0.14, -0.12, 0)
-			item_icons.add_child(s)
+			var l := Label3D.new()
+			l.text = str(stacks_of(it))
+			l.font_size = 48
+			l.pixel_size = 0.006
+			l.outline_size = 12
+			l.modulate = HudStyle.GOLD
+			l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			l.no_depth_test = true
+			l.render_priority = 3
+			l.position = pos + Vector3(ICON_SIZE * 0.36, -ICON_SIZE * 0.3, 0)
+			item_icons.add_child(l)
 
-func _spin_items(delta: float) -> void:
-	if item_icons == null or Settings.reduce_motion:
-		return
-	for c in item_icons.get_children():
-		if c is MeshInstance3D:
-			c.rotation.y += delta * 1.2
+static func _white_square() -> ImageTexture:
+	if _icon_tex == null:
+		var img := Image.create(ICON_PX, ICON_PX, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		_icon_tex = ImageTexture.create_from_image(img)
+	return _icon_tex
 
 func _ability() -> Ability:
 	if data.ability != null:

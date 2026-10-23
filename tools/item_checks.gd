@@ -255,9 +255,9 @@ func _run():
 	w.equip(I("longsword"))
 	w.equip(I("quick_bow"))
 	w.equip(I("heros_blade"))
-	var models := w.item_icons.get_children().filter(func(c): return c is MeshInstance3D)
-	chk("each item on a unit is a model above it, the bound one with its stack count", models.size() == 3 and models.all(func(m): return m.mesh != null) and w.item_icons.get_children().any(func(c): return c is Label3D and c.text == "0"))
-	chk("items in an active resonance glow", (models[0] as MeshInstance3D).material_override == ItemModel.material(true) and (models[2] as MeshInstance3D).material_override == ItemModel.material(true))
+	var icons := w.item_icons.get_children().filter(func(c): return c is Sprite3D and c.render_priority == 2)
+	chk("each item on a unit is its icon image above it (bigger, static), the bound one with its stack count", icons.size() == 3 and icons.all(func(s): return s.texture != null and s.billboard == BaseMaterial3D.BILLBOARD_ENABLED and is_equal_approx(s.pixel_size * s.texture.get_width(), Unit.ICON_SIZE)) and w.item_icons.get_children().any(func(c): return c is Label3D and c.text == "0"))
+	chk("no coloured square behind the icons, resonance or not", w.item_icons.get_children().filter(func(c): return c is Sprite3D and c.render_priority == 1).is_empty())
 	var bar = main.get_node("UI").find_children("*", "VBoxContainer", true, false).filter(func(n): return n.has_method("toggle_book"))[0]
 	GameState.me.items.append(I("blood_fang"))
 	Events.items_changed.emit()
