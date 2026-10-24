@@ -24,6 +24,8 @@ TouchControls="*res://Scripts/touch_controls.gd"
 GamepadControls="*res://Scripts/gamepad_controls.gd"
 ScreenFilter="*res://Scripts/screen_filter.gd"
 Music="*res://Scripts/music.gd"
+Sfx="*res://Scripts/sfx.gd"
+LobbyNet="*res://Scripts/lobby/lobby_net.gd"
 
 [display]
 

@@ -34,10 +34,15 @@ func _ready():
 	menu_button.pressed.connect(func(): GameState.go_to_menu())
 	add_child(menu_button)
 	var note := DockKit.wrapping(11, HudStyle.MUTED, 180)
-	note.text = "In a campaign, your run continues from the start of this level."
+	note.text = "In a campaign, your run is saved: Continue on the main menu picks it up at this round."
+	if LobbyNet.in_lobby():
+		note.text = "Leaving a lobby game hands your seat to a bot." if LobbyNet.can_pause() else "The game keeps going while this is open. Leaving hands your seat to a bot."
 	add_child(note)
 	quit_button = DockKit.secondary_button("Quit game")
-	quit_button.pressed.connect(func(): get_tree().quit())
+	quit_button.pressed.connect(func():
+		get_tree().call_group("game_manager", "save_mid_run")   # a chapter run in PREP is saved as it is
+		LobbyNet.leave()   # a lobby seat is handed to a bot
+		get_tree().quit())
 	quit_button.visible = OS.get_name() != "Web"
 	add_child(quit_button)
 	pad_help = _pad_help()

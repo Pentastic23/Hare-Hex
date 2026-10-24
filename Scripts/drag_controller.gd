@@ -60,58 +60,36 @@ func _pick():
 	dragging = u
 	origin_coord = u.coord
 	origin_bench = board.bench.find(u)
+	Sfx.play(&"pickup")
 
 func _drop():
 	if dragging == null: return
 	var u := dragging
 	dragging = null
-
-	var ob := origin_bench
-	var oc := origin_coord
 	origin_bench = -1
-	origin_coord = Vector2i(-1, -1)
+	origin_coord = Vector2i(-1, -1)   # PlayerRules.move reads the origin from the board (the drag only moved the model)
 
 	var ground := _ground_pos()
+	var lobby: LobbyGame = get_node("../Game Manager").lobby
 	if board.is_over_sell_zone(ground):
-		board.sell_unit(u)
+		if lobby != null:
+			lobby.sell(u)
+		else:
+			board.sell_unit(u)
 		return
 	var bench_i := board.bench_slot_near(ground)
-	var tile: Tile = null
-	if bench_i == -1:
-		tile = board.nearest_tile(ground)
-		if not in_prep:
-			tile = null
-		elif tile != null and not board.is_player_side(tile.coord):
-			tile = null   # your units only go on your half; the drop falls back to the origin spot
-	board.detach(u)   # u's origin slot is now free
+	var tile: Tile = board.nearest_tile(ground) if bench_i == -1 else null
+	if lobby != null:   # a lobby: ask the server; the unit goes back until it answers
+		lobby.move(u, bench_i, tile.coord if tile != null else Vector2i(-1, -1))
+		Sfx.play(&"place")
+		return
+	var result := _rules().move(u, bench_i, tile.coord if tile != null else Vector2i(-1, -1), in_prep)
+	if result == "limit":
+		Events.board_limit_hit.emit()
+	Sfx.play(&"place")
 
-	if bench_i != -1:
-		var other := board.bench[bench_i]
-		if other:
-			board.detach(other)
-			_place_at_origin(other, ob, oc)
-		board.put_on_bench(u, bench_i)
-	elif tile:
-		var other := tile.occupant
-		if other == null and ob != -1 and board.units_on_board() >= GameState.me.max_board_units():
-			_place_at_origin(u, ob, oc)
-			Events.board_limit_hit.emit()
-		else:
-			if other:
-				board.detach(other)
-				_place_at_origin(other, ob, oc)
-			board.put_on_tile(u, tile.coord)
-	else:
-		_place_at_origin(u, ob, oc)
-
-	if in_prep:
-		board.merge_all()
-
-func _place_at_origin(u: Unit, ob: int, oc: Vector2i):
-	if ob != -1:
-		board.put_on_bench(u, ob)
-	else:
-		board.put_on_tile(u, oc)
+func _rules() -> PlayerRules:
+	return get_node("../Game Manager").rules
 
 func _on_item_drag_started(index: int):
 	if index >= 0 and index < GameState.me.items.size():
@@ -136,15 +114,13 @@ func _drop_item():
 	equip_item_on(hit.collider.get_parent() as Unit, item)
 
 func equip_item_on(u: Unit, item: ItemData) -> bool:
-	var index := GameState.me.items.find(item)
-	if index == -1 or u == null or u.team != 0 or u.summoned:
+	var lobby: LobbyGame = get_node("../Game Manager").lobby
+	if lobby != null:
+		return lobby.equip(u, item)
+	if u == null or not _rules().equip(u, item, in_prep, not in_prep and u.coord.x >= 0):
 		return false
-	if item.kind == &"remover":
-		return use_tongs_on(u, item)
-	if not u.equip(item, not in_prep and u.coord.x >= 0):
-		return false
-	GameState.me.items.remove_at(index)
-	Events.items_changed.emit()
+	if item.kind != &"remover":
+		Sfx.play(&"equip")
 	return true
 
 func _sell_with_key():
@@ -158,7 +134,14 @@ func _sell_with_key():
 		origin_coord = Vector2i(-1, -1)
 	else:
 		u = _unit_near_mouse()
-	if u != null:
+	if u == null:
+		return
+	var lobby: LobbyGame = get_node("../Game Manager").lobby
+	if lobby != null:
+		var slot := board.bench.find(u)
+		u.position = board.bench_local(slot) if slot != -1 else board.grid_to_world(u.coord)   # back in place until the server answers
+		lobby.sell(u)
+	else:
 		board.sell_unit(u)
 
 func _unit_near_mouse() -> Unit:
@@ -194,16 +177,6 @@ func _cancel_drag():
 		if slot != -1:
 			board.put_on_bench(u, slot)
 
-# Tinker's Tongs (items v2): during prep, every item on one of your units goes back to the inventory
-# (bound items lose their stacks) and the Tongs are used up. Nothing happens on a unit without items.
+# Tinker's Tongs (items v2): PlayerRules.use_tongs.
 func use_tongs_on(u: Unit, tongs: ItemData) -> bool:
-	if not in_prep or u == null or u.team != 0 or u.dead or u.items.is_empty():
-		return false
-	var index := GameState.me.items.find(tongs)
-	if index == -1:
-		return false
-	GameState.me.items.remove_at(index)
-	GameState.me.items.append_array(u.take_items())
-	u.health = u.max_hp()
-	Events.items_changed.emit()
-	return true
+	return _rules().use_tongs(u, tongs, in_prep)

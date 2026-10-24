@@ -149,7 +149,7 @@ static func cast(u: Unit, t: Unit) -> float:
 	match u.data.display_name:
 		"Cleric":
 			for a in lowest_hp_allies(u, 2):
-				a.heal(amt(u, "a"))
+				mend(a, amt(u, "a"))
 		"Archer":
 			for e in nearest_enemies(u, u.coord, 3):
 				hit(u, e, amt(u, "a"))
@@ -157,6 +157,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			hit(u, t, amt(u, "a"))
 			t.apply_stun(1.0)
 		"Militia":
+			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
 			u.add_timed_shield(amt(u, "a"), 4.0)
 			for e in enemies_within(u, u.coord, 1):
 				e.apply_taunt(u, 2.0)
@@ -181,8 +182,9 @@ static func cast(u: Unit, t: Unit) -> float:
 				hit_list.append(next)
 				last = next
 		"Skeleton":
-			u.heal(hit(u, t, amt(u, "a")) * 0.5)
+			mend(u, hit(u, t, amt(u, "a")) * 0.5)
 		"Imp":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 2):
 				hit(u, e, amt(u, "a"))
 				e.apply_chill(0.3, 3.0)
@@ -190,10 +192,12 @@ static func cast(u: Unit, t: Unit) -> float:
 			hit(u, t, amt(u, "a"))
 			t.apply_silence(amt(u, "b"))
 		"Firebrand":
+			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 1):
 				hit(u, e, amt(u, "a"))
 				e.apply_burn(0.03 * e.max_hp(), u)
 		"Frostling":
+			Vfx.area(u, u.board, t.coord, 1, Vfx.color_of(u))
 			var around := enemies_within(u, t.coord, 1)
 			hit(u, t, amt(u, "a"))
 			for e in around:
@@ -206,21 +210,24 @@ static func cast(u: Unit, t: Unit) -> float:
 			for i in 5:
 				u.queue_action(0.1 * i, func(): _strike(u, d))
 		"Guardian":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			u.add_buff("Shell Up", "dr", 0.5, 3.0)
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_taunt(u, 2.0)
 		"Bard":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for a in allies_within(u, u.coord, 2):
 				a.add_buff("Dawn Chorus", "as", amt(u, "b") / 100.0, 4.0)
 		"Alchemist":
 			for a in lowest_hp_allies(u, 1):
-				a.heal(amt(u, "a"))
+				mend(a, amt(u, "a"))
 				a.add_buff("Tonic Flask", "as", 0.2, 3.0)
 		"Ghoul":
 			hit(u, t, amt(u, "a"))
 			if t.dead or t.health < t.max_hp() * 0.3:
-				u.heal(amt(u, "b"))
+				mend(u, amt(u, "b"))
 		"Sparkcaller":
+			Vfx.beam(u, Vfx._chest(u), Vfx._chest(t), Vfx.color_of(u), 0.35, 0.22)
 			for e in enemies_in_line(u, t, 3):
 				hit(u, e, amt(u, "a"))
 		"Frost Archer":
@@ -235,7 +242,7 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Monk":
 			lock = 1.0
 			u.next_attack_stun = 1.0
-			u.queue_action(1.0, func(): u.heal(u.max_hp() * 0.25))
+			u.queue_action(1.0, func(): mend(u, u.max_hp() * 0.25))
 		"Cultist":
 			u.health = maxf(1.0, u.health * 0.9)
 			for e in nearest_enemies(u, u.coord, 2):
@@ -251,24 +258,29 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Pyromancer":
 			var c := cluster(u)
 			if c != null:
+				Vfx.area(u, u.board, c.coord, 1, Vfx.color_of(u))
 				for e in enemies_within(u, c.coord, 1):
 					hit(u, e, amt(u, "a"))
 					e.apply_burn(0.06 * e.max_hp(), u, 4.0)
 		"Ice Mage":
 			var c := cluster(u)
 			if c != null:
+				Vfx.area(u, u.board, c.coord, 1, Vfx.color_of(u))
 				for e in enemies_within(u, c.coord, 1):
 					hit(u, e, amt(u, "a"))
 					e.apply_stun(1.25)
 		"Dryad":
+			Vfx.area(u, u.board, u.coord, 3, Vfx.color_of(u))
 			for a in allies(u):
-				a.heal(amt(u, "a"))
+				mend(a, amt(u, "a"))
 				a.add_buff("Eucalyptus Bloom", "regen", 0.01, 4.0)
 		"Skald":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for a in allies_within(u, u.coord, 2):
 				a.add_buff("War Chant", "dmg", amt(u, "b") / 100.0, 4.0)
 			u.add_timed_shield(amt(u, "c"), 4.0)
 		"Shadowfist":
+			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 1):
 				hit(u, e, amt(u, "a"))
 				e.apply_blind(2)
@@ -283,6 +295,7 @@ static func cast(u: Unit, t: Unit) -> float:
 						if last and not e.dead:
 							e.apply_stun(1.0))
 		"Winter Knight":
+			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 1):
 				e.apply_chill(0.5, 3.0)
 			u.add_buff("Frozen Bulwark", "dr", 0.25, 4.0)
@@ -301,37 +314,44 @@ static func cast(u: Unit, t: Unit) -> float:
 			for i in 6:
 				u.queue_action(0.25 * (i + 1), func():
 					if not t.dead:
-						u.heal(hit(u, t, d) * 0.3))
+						mend(u, hit(u, t, d) * 0.3))
 		"Frost Giant":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 2):
 				hit(u, e, amt(u, "a"))
 				e.apply_stun(1.5)
 		"Dwarf Gunner":
+			Vfx.area(u, u.board, t.coord, 1, Vfx.color_of(u))
 			for e in enemies_within(u, t.coord, 1):
 				hit(u, e, amt(u, "a"))
 				e.apply_curse(0.1, 4.0)
 		"Archmage":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_stun(1.0)
 			for e in nearest_enemies(u, u.coord, 3):
 				hit(u, e, amt(u, "a"))
 		"Herald":
+			Vfx.area(u, u.board, u.coord, 3, Vfx.color_of(u))
 			for a in allies(u):
 				a.add_buff("Rallying Cry", "dr", 0.2, 4.0)
 				a.add_buff("Rallying Cry speed", "as", 0.15, 4.0)
 				if a.data.tags.has(&"Order"):
-					a.heal(amt(u, "a"))
+					mend(a, amt(u, "a"))
 		"Hellknight":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_taunt(u, 2.0)
 			u.add_buff("Red Fury", "vamp", 0.3, 4.0)
 			u.add_buff("Red Fury guard", "dr", 0.2, 4.0)
 		"Dragon":
+			Vfx.beam(u, Vfx._chest(u), Vfx._chest(t), Color("ff7a2e"), 0.5, 0.6)
 			for e in enemies_in_cone(u, t):
 				hit(u, e, amt(u, "a"))
 				e.apply_burn(0.03 * e.max_hp(), u)
 			u.add_timed_shield(amt(u, "b"), 4.0)
 		"Titan":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for e in enemies(u):
 				e.apply_stun(1.0)
 				if Board.hex_distance(u.coord, e.coord) <= 2:
@@ -374,9 +394,11 @@ static func cast(u: Unit, t: Unit) -> float:
 							hit(u, e, amt(u, "a"))
 							e.apply_stun(1.0)
 							break
+				Vfx.trail(u, u.board, path, Vfx.color_of(u))
 				if not path.is_empty():
 					u.leap_to(path[-1], 0.1 * path.size())
 		"Nightstalker":
+			Vfx.ring(u, u.global_position + Vector3(0, 0.08, 0), 1.2, 0.3, Color("2a1f3d"), 0.5)
 			u.untargetable_left = 2.0
 			u.empower_hits = 1
 			u.empower_dmg = amt(u, "a") * u.damage_bonus()
@@ -385,7 +407,7 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Seraph":
 			var low := lowest_hp_allies(u, 1)
 			for a in allies(u):
-				a.heal(amt(u, "a"))
+				mend(a, amt(u, "a"))
 			for a in low:
 				a.untargetable_left = maxf(a.untargetable_left, 1.5)
 		"Necromancer":
@@ -393,7 +415,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			if alive.is_empty():
 				summon(u, "Bone Thrall", "a", "b")
 			else:
-				alive[0].heal(alive[0].max_hp())
+				mend(alive[0], alive[0].max_hp())
 		"Demonologist":
 			var alive := living_summons(u)
 			if alive.size() < 2:
@@ -405,7 +427,7 @@ static func cast(u: Unit, t: Unit) -> float:
 							hit(demon, e, burst)
 			else:
 				for s in alive:
-					s.heal(s.max_hp())
+					mend(s, s.max_hp())
 		"Beastmaster":
 			for i in 2 - living_summons(u).size():
 				summon(u, "Jungle Beast", "a", "b")
@@ -415,6 +437,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			if c != null and gm != null:
 				gm.add_zone("miasma", c.coord, 1, 4.0, u.team, amt(u, "a") * u.damage_bonus(), u)
 		"Druid":
+			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
 			var gm = _gm(u)
 			if gm != null:
 				gm.add_zone("grove", u.coord, 1, 4.0, u.team, amt(u, "b") / 100.0, u)
@@ -426,9 +449,12 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Thief":
 			var was_alive := not t.dead
 			hit(u, t, amt(u, "a"))
-			if was_alive and t.dead and u.team == 0 and not u.summoned:
-				GameState.me.gold += 1   # 1 gold per Pickpocket kill (user decision: no cap)
-				u._popup("+1 GOLD", Color(1.0, 0.85, 0.3))
+			if was_alive and t.dead and not u.summoned:
+				var fight = _gm(u)
+				if fight is CombatRunner and fight.gold_sink.is_valid():
+					fight.credit_gold(u.team, 1)   # 1 gold per Pickpocket kill (user decision: no cap), to the thief's owner
+					if u.team == 0 or fight.board.runner_credits_both:
+						u._popup("+1 GOLD", Color(1.0, 0.85, 0.3))
 		"Minstrel":
 			var fans: Array[Unit] = []
 			for a in allies(u):
@@ -439,10 +465,11 @@ static func cast(u: Unit, t: Unit) -> float:
 				var rb: float = b.mana / b.data.max_mana
 				return ra > rb or (ra == rb and Board.tile_order(a.coord) < Board.tile_order(b.coord)))
 			for a in _first(fans, 2):
+				Vfx.beam(u, Vfx._chest(u), Vfx._chest(a), Vfx.color_of(u), 0.5)
 				a.gain_mana(amt(u, "b"))
 		"Paladin":
 			for a in lowest_hp_allies(u, 1):
-				a.heal(amt(u, "a"))
+				mend(a, amt(u, "a"))
 				if a != u:
 					a.link_to = u
 					a.link_left = 4.0
@@ -472,6 +499,7 @@ static func cast(u: Unit, t: Unit) -> float:
 					_raise(u, o)
 		"Phoenix":
 			for e in enemies(u):
+				Vfx.impact(u, e)
 				e.apply_burn(0.06 * e.max_hp(), u, 6.0)
 			u.nova_left = 6.0
 		"Archdemon":
@@ -483,6 +511,7 @@ static func cast(u: Unit, t: Unit) -> float:
 				big.doom_left = 4.0
 				big.doom_dmg = amt(u, "a") * u.damage_bonus()
 				big.doom_by = u
+				Vfx.beam(u, Vfx._chest(u), Vfx._chest(big), Color("b0306a"), 0.5)
 		"Frost Queen":
 			var gm = _gm(u)
 			if gm != null:
@@ -496,8 +525,10 @@ static func cast(u: Unit, t: Unit) -> float:
 					return a.damage() > b.damage()
 				return Board.tile_order(a.coord) < Board.tile_order(b.coord))
 			for e in _first(list, 2):
+				Vfx.beam(u, Vfx._chest(u), Vfx._chest(e), Unit.CHARM_COLOR, 0.5)
 				e.apply_charm(u, amt(u, "b"))
 		"Reaper":
+			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
 			var kills := 0
 			for e in enemies_within(u, u.coord, 1):
 				hit(u, e, amt(u, "a"))
@@ -508,10 +539,11 @@ static func cast(u: Unit, t: Unit) -> float:
 			if kills > 0:
 				u.mana = minf(u.mana + 40.0 * kills, u.data.max_mana)   # the one cast that refunds mana
 		"Treant":
+			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_root(2.0)
 				hit(u, e, amt(u, "a"))
-			u.heal(u.max_hp() * 0.2)
+			mend(u, u.max_hp() * 0.2)
 	return lock
 
 # Army of the Dead: a fallen ally stands up where it fell (or the nearest free hex) at 30% HP for 5 s.
@@ -534,6 +566,7 @@ static func _raise(u: Unit, o: Unit) -> void:
 	if o.model_view != null:
 		o.model_view.on_fight_over(false)   # back on its feet (idle)
 	o._popup("RISE", Color(0.75, 0.95, 0.8))
+	Vfx.puff(o)
 
 # Doom: its holder died before it went off, so it jumps to the nearest of the holder's allies.
 static func pass_doom(holder: Unit) -> void:
@@ -547,7 +580,11 @@ static func pass_doom(holder: Unit) -> void:
 		next.doom_by = holder.doom_by
 	holder.doom_left = 0.0
 
+# The fight the unit is in: its board's CombatRunner (zones, summons, gold), so fights on several
+# boards (the lobby server's arenas) never reach each other. Falls back to the GameManager.
 static func _gm(u: Unit):
+	if u.board != null and u.board.runner != null:
+		return u.board.runner
 	return u.get_tree().get_first_node_in_group("game_manager") if u.is_inside_tree() else null
 
 static func living_summons(u: Unit) -> Array[Unit]:
@@ -590,6 +627,7 @@ static func summon(u: Unit, sname: String, hp_key: String, dmg_key: String) -> U
 	s.position = u.board.grid_to_world(spot)
 	s.begin_combat()
 	u.summons.append(s)
+	Vfx.puff(s)
 	gm.add_summon(s)
 	return s
 
@@ -665,9 +703,17 @@ static func _gap(c: Vector2i, foes: Array[Unit]) -> int:
 
 # Ability damage: scaled by the caster's damage bonus, reduced like an attack, not an attack (no
 # crit, dodge or on-hit effects, no mana). Omnivamp heals from it. Returns the HP removed.
+# Heals from an ability, with green motes (regen and omnivamp heal quietly). Returns the HP restored.
+static func mend(a: Unit, amount: float) -> float:
+	var healed := a.heal(amount)
+	if healed > 0.0:
+		Vfx.heal(a)
+	return healed
+
 static func hit(u: Unit, e: Unit, amount: float) -> float:
 	if e == null or e.dead:
 		return 0.0
+	Vfx.impact(u, e)
 	var removed := e.take_damage(amount * u.damage_bonus(), u)
 	u.damage_dealt += removed
 	var steal := u.omnivamp()

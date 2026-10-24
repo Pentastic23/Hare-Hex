@@ -18,6 +18,7 @@ var vs_tag: PanelContainer
 var hp_lbl: Label
 var bar: Bar
 var _strike: ColorRect
+var _compact := false
 
 class Bar extends Control:
 	var ratio := 0.0
@@ -116,8 +117,20 @@ func _apply() -> void:
 		hp_lbl.text = str(hp)
 	else:
 		hp_lbl.text = ""
-	hp_lbl.add_theme_font_size_override("font_size", 17 if number_text != "" and not out else 22)
+	hp_lbl.add_theme_font_size_override("font_size", 16 if _compact else (17 if number_text != "" and not out else 22))
 	var low := hp >= 0 and number_text == "" and not out and float(hp) <= 0.25 * max_hp
 	hp_lbl.add_theme_color_override("font_color", HudStyle.RED if low else (HudStyle.MUTED if out else HudStyle.INK))
 	var bar_color: Color = HudStyle.YOU if role == "you" else (HudStyle.ENEMY if role == "opponent" else HudStyle.NEUTRAL)
 	bar.set_state(0.0 if out or hp < 0 or number_text != "" else float(hp) / max_hp, bar_color)
+
+# A shorter row for a full lobby (8 players): less padding, a smaller number and a thinner bar.
+func set_compact(on: bool) -> void:
+	if on:
+		setup_plate(1, 8, 3)
+	else:
+		setup_plate(6, 10, 7)
+	(get_child(0) as VBoxContainer).add_theme_constant_override("separation", 2 if on else 5)
+	bar.custom_minimum_size = Vector2(0, 4 if on else 6)
+	hp_lbl.add_theme_font_size_override("font_size", 16 if on else 22)
+	_compact = on
+	_apply()

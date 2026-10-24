@@ -141,7 +141,7 @@ func _show(p: String) -> void:
 	if p == "damage":
 		damage._refresh()
 	if p == "menu":
-		get_tree().paused = true
+		get_tree().paused = LobbyNet.can_pause()   # a LAN game keeps going for everyone else
 		dim.visible = true
 		menu.resume_button.grab_focus.call_deferred()
 	elif was == "menu":

@@ -64,13 +64,14 @@ class Driver extends Node:
 		var menu_h: float = scene().main_box.get_combined_minimum_size().y
 		chk("menu fits a 648 px tall window", menu_h <= 620, "height %d" % menu_h)
 
-		# Live PvP is still a placeholder with an info panel
+		# PvP: Async PvP, and the Lobby screen (2-8 players: bots here, or a LAN game)
 		var async_btn := find_button(scene(), "Async PvP")
 		chk("Async PvP is a real button now (no 'coming soon')", async_btn != null and not async_btn.text.contains("coming soon") and async_btn.tooltip_text.contains("ghost"))
-		press("Live PvP")
+		press("Lobby")
 		await get_tree().process_frame
-		var info = scene().info_panel
-		chk("Live PvP opens its coming-soon panel", info.get_parent().visible and info.get_child(0).get_node("Title").text == "Live PvP" and find_button(scene(), "Free Play") == null)
+		var lp = scene().lobby_panel
+		chk("Lobby opens its screen: play vs bots, host, join", lp.get_parent().visible and find_button(scene(), "Play vs bots") != null and find_button(scene(), "Host a game") != null and find_button(scene(), "Join a game") != null and find_button(scene(), "Free Play") == null)
+		chk("the Lobby screen fits a 648 px tall window", lp.get_combined_minimum_size().y <= 620, "height %d" % lp.get_combined_minimum_size().y)
 		press("Back")
 		await get_tree().process_frame
 		chk("Back returns to the menu", find_button(scene(), "Free Play") != null)
@@ -181,7 +182,9 @@ class Driver extends Node:
 		chk("starting over a saved run asks for confirmation", dlg.visible and dlg.dialog_text.contains("abandons your current run at Shadows in the Wood"), dlg.dialog_text)
 		dlg.confirmed.emit()
 		await wait(0.5)
-		chk("confirming clears the saved run and starts level 1", GameState.run_level == l1 and not GameState.run_carried and SaveGame.chapter_run().is_empty())
+		var fresh := SaveGame.chapter_run()   # the new run saves itself at its first PREP (mid-level saves)
+		chk("confirming clears the saved run and starts level 1", GameState.run_level == l1 and not GameState.run_carried
+			and str(fresh.get("level", "")) == "ch1_l1" and int(fresh.get("mid", {}).get("round", 0)) == 1 and (fresh.get("units", []) as Array).is_empty(), JSON.stringify(fresh).left(160))
 
 		# Settings
 		await to_menu()

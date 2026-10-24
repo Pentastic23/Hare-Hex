@@ -258,3 +258,57 @@ A charmed unit must be obvious at a glance for the whole time it is charmed:
   - the inspector line "Charmed: fighting for the other side (2.1 s)"
   - The model tint is left for the VFX pass.
 - **Other popups:** "RISE" when a unit is raised, "PARRY" on a parried attack, "+1 GOLD" on a Pickpocket kill.
+
+## Spell effects (VFX), built 2026-10-23
+
+All visual only (`Scripts/vfx.gd`, class Vfx, plus the status marks in `unit.gd`); nothing in combat reads them, so fights stay deterministic. They are built from small glowing cubes, to match the voxel units and tiles. Each unit's spells take the colour of its origin (Order gold, Ember orange, Frost ice blue, Shadow violet and so on: `Vfx.color_of`).
+
+- **On every cast:** a ring of light at the caster's feet (`cast_flash`) and the ability's name popup.
+- **Hits** (`Abilities.hit`): a glowing bolt flies from the caster when the target is more than a hex away, otherwise a burst on the target (`impact`).
+- **Heals from abilities** (`Abilities.mend`): green motes rise from the healed unit. Regen and omnivamp heal quietly.
+- **Areas:** a hex-sized ring over the area and a burst in its middle (`area`).
+- **Lines and charges:** a beam (Arc Lash), bursts along the Warlord's path (`trail`).
+- **Breath:** a wide beam (Dragon).
+- **Beams:** links to allies and targets (Encore, Doom, Moonlit Charm).
+- **Leaps:** a burst where the unit takes off and a ring where it lands.
+- **Summons and raised units:** a puff.
+- **Zones:** a translucent hex disc that pulses for the zone's time (Miasma green, Antler Grove light green). Eternal Winter frosts every hex of the frozen side and snows on it.
+- **Molten Shell and Doom:** a fiery burst when the shell erupts, a magenta burst when the Doom goes off.
+- **Status marks** (read from the unit's state each frame, gone when it ends):
+  - stun: three yellow cubes circling the head
+  - root: a green ring at the feet
+  - silence: a violet cross
+  - taunt: a red "!"
+  - blind: a grey cloud
+  - doom: "DOOM 3" counting down
+  - Loyal Guard: a gold thread to the Paladin
+  - Riposte: crossed blades
+  - thorns: a spiked ring
+  - hidden: a dark ring
+  - raised: a pale ring
+  - buffs: a ring in the buff's colour (attack speed yellow, damage red, reduction blue, omnivamp crimson, regen green)
+  - ability shields: a bubble
+  - The charm keeps its own hex sigil, ring and thread.
+- **Reduce motion:** fewer cubes, nothing flies or turns.
+- **Headless runs** (tests, the bot) skip the effects (`Vfx.enabled`). `tools/ability_checks` turns them on and casts every ability once to check them.
+- **`tools/vfx_shots`** renders a fight full of casters to one sheet (it needs a window).
+
+## Balance pass (2026-10-23, all abilities in)
+
+`tools/bot_playtest -- chapter`, 12 bot chapter runs per chapter:
+
+| | Before the retune | After it (final run) |
+|---|---|---|
+| Chapter 1 | 7/12 | 9/12 (another run at the same settings: 7/12) |
+| Chapter 2 | 1/12 | 5/12 |
+| Chapter 3 | 1/12 | 4/12 (the run before: 7/12 at 0.76 for its last level) |
+
+The values that changed:
+- ch2_l2: 1.12 to 1.06
+- ch2_l3: 0.9 to 0.835 (a cliff: 0.82 cleared 7/12, 0.85 cleared 2/12)
+- ch3_l2: 0.6 to 0.5
+- ch3_l3: 0.88 to 0.78
+
+Chapter 1 stays as it was (ch1_l3 1.1 from chunk 1).
+
+The difficulty still steps down across the chapters. The samples are noisy, so hand play should decide finer tuning. Per-ability numbers weren't changed; the bot's losses are spread across the boss waves rather than tied to one ability.

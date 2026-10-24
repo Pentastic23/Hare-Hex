@@ -53,6 +53,7 @@ static var reduce_motion := false   # no zoom easing, tile pop-in or floating co
 # audio
 static var master_volume := 0.8   # 0..1
 static var music_volume := 0.7    # 0..1, the Music bus (the soundtrack, music.gd)
+static var sfx_volume := 0.8      # 0..1, the SFX bus (sound effects, sfx.gd)
 # HUD state, remembered between sessions
 static var show_damage_meter := true   # the Damage button's window
 static var dock_collapsed := false     # left box (synergies / items) folded to its rail
@@ -81,6 +82,7 @@ static func reset_options() -> void:
 	reduce_motion = false
 	master_volume = 0.8
 	music_volume = 0.7
+	sfx_volume = 0.8
 
 static func load_settings() -> void:
 	_loaded = true
@@ -111,6 +113,7 @@ static func load_settings() -> void:
 	reduce_motion = bool(cfg.get_value("accessibility", "reduce_motion", reduce_motion))
 	master_volume = clampf(float(cfg.get_value("audio", "master_volume", master_volume)), 0.0, 1.0)
 	music_volume = clampf(float(cfg.get_value("audio", "music_volume", music_volume)), 0.0, 1.0)
+	sfx_volume = clampf(float(cfg.get_value("audio", "sfx_volume", sfx_volume)), 0.0, 1.0)
 	show_damage_meter = bool(cfg.get_value("hud", "show_damage_meter", show_damage_meter))
 	dock_collapsed = bool(cfg.get_value("hud", "dock_collapsed", dock_collapsed))
 	dock_tab = str(cfg.get_value("hud", "dock_tab", dock_tab))
@@ -136,6 +139,7 @@ static func save_settings() -> void:
 	cfg.set_value("accessibility", "reduce_motion", reduce_motion)
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
+	cfg.set_value("audio", "sfx_volume", sfx_volume)
 	cfg.set_value("hud", "show_damage_meter", show_damage_meter)
 	cfg.set_value("hud", "dock_collapsed", dock_collapsed)
 	cfg.set_value("hud", "dock_tab", dock_tab)
@@ -180,6 +184,16 @@ static func music_bus() -> int:
 		AudioServer.set_bus_send(idx, "Master")
 	return idx
 
+# The "SFX" bus (made on first use, sent to Master); sound effects play on it.
+static func sfx_bus() -> int:
+	var idx := AudioServer.get_bus_index("SFX")
+	if idx == -1:
+		AudioServer.add_bus()
+		idx = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, "SFX")
+		AudioServer.set_bus_send(idx, "Master")
+	return idx
+
 # Everything that isn't tied to a scene: audio, window, sync, frame cap, render scale and
 # anti-aliasing (on the root viewport) and the colour filter. High-contrast text is applied where
 # labels are made (HudStyle / DockKit call contrast() and text_color()), so it shows once a screen is rebuilt.
@@ -189,6 +203,9 @@ static func apply() -> void:
 	var music := music_bus()
 	AudioServer.set_bus_volume_db(music, linear_to_db(maxf(music_volume, 0.0001)))
 	AudioServer.set_bus_mute(music, music_volume <= 0.0)
+	var sfx := sfx_bus()
+	AudioServer.set_bus_volume_db(sfx, linear_to_db(maxf(sfx_volume, 0.0001)))
+	AudioServer.set_bus_mute(sfx, sfx_volume <= 0.0)
 	Engine.max_fps = effective_fps_cap()
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:

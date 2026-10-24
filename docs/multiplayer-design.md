@@ -1,6 +1,6 @@
 # Multiplayer design: async PvP and live lobbies
 
-Design only, written 2026-10-21 with Opus 5.5. Nothing here is built yet. Part 1 (local-first async PvP) is the next thing to build; Part 2 (live 8-player lobbies) is the longer-term plan.
+Written 2026-10-21 with Opus 5.5. Part 1 (local-first async PvP) was built 2026-10-21. Part 2 (live 2-8 player lobbies) was built 2026-10-23: playable offline against bots and over LAN, with a dedicated-server mode ready for hosting. See "Part 2: as built" below; the original plan follows it.
 
 ## What's already in place
 
@@ -77,7 +77,49 @@ func fetch(round: int, player_level: int, balance: String, rng: RandomNumberGene
 
 ---
 
-## Part 2: Live 8-player lobbies (design only)
+## Part 2: as built (2026-10-23)
+
+**Status:** working end to end, checked by `tools/lobby_checks` (56 checks). The main menu's **Lobby (2-8 players)** button opens a screen with **Play vs bots** (you + 1-7 bots, all in this game), **Host a game** (a LAN game: this game runs the server and others join) and **Join a game** (address and port), then a waiting room where the host adds or removes bots and starts.
+
+**Decisions taken** (the four questions at the end of this doc):
+1. Mid-fight items: **allowed**, recorded as timed inputs. The server accepts the drop, schedules it `Arena.INPUT_DELAY` (15) ticks ahead and sends it to both players, so every copy of the fight applies it on the same tick.
+2. Lobby size: **2-8 players**, no bots unless the host adds them (offline: you choose how many). A player who disconnects mid-game keeps their seat, idle: their board still fights each round as they left it, but nobody shops or levels for them until they rejoin (decided 2026-10-23: no bot takes over). With an odd number alive, one player fights a **ghost** (a copy of another player's board; only that player's result counts).
+3. Hosting and 4. accounts: **not decided yet**. Nothing built depends on them (see "Plugging in a server").
+
+### How it fits together
+
+| Piece | File | What it does |
+|---|---|---|
+| Fight loop per board | `Scripts/combat_runner.gd` (`CombatRunner`) | The fixed tick, acting order, zones, summons, timed inputs and end check, owned by a board. Single player uses one on the visible board; the server has one per arena. Abilities find the runner of their own board (`Board.runner`). |
+| Shared rules | `Scripts/player_rules.gd` (`PlayerRules`) | Every player action (buy, sell, move, reroll, Buy XP, lock, equip, Tongs) and the round economy, for one `PlayerState` + `Board`. Single player and the server both call it, so they can't drift apart. Strict mode (server): a buy must be on offer and affordable. |
+| Fight description | `Scripts/lobby/arena.gd` (`Arena`) | A fight as JSON-safe data (both sides' units by uid, name, star, items, stacks, tile; the enemy tiles to open; PvE strength) and the one `setup()` that builds it on a board. The server and both clients run the same description through the same setup, so they get the same fight. |
+| Server | `Scripts/lobby/lobby_server.gd` (`LobbyServer`) | Authoritative: seats (`PlayerState`, hidden `Board`, `PlayerRules`), the lobby-wide `UnitPool`, the phase timer, pairings (no repeat opponent when avoidable), PvE stage 1 (rounds 1-3), PvP from round 4, damage, eliminations, placements, bots (only for seats the host adds), idle seats for disconnected players, rejoin by token. Knows nothing about networking: `receive(peer, msg)` in, `endpoint` out. |
+| Messages | `Scripts/lobby/lobby_protocol.gd` (`LobbyProtocol`) | Every message type and its fields (the file header is the reference), `VERSION`, JSON encode/decode. A client and server only talk when `VERSION` and the balance hash match. |
+| Transport | `Scripts/lobby/lobby_net.gd` (autoload `LobbyNet`) | Modes OFFLINE (in-process link), HOST (server here + ENet), CLIENT (ENet), DEDICATED (`--server`). JSON over a `MultiplayerPeer`'s raw reliable packets, no RPCs or node paths. `_make_peer()` is the one place to swap in `WebSocketMultiplayerPeer`. |
+| Client | `Scripts/lobby/lobby_client.gd` (`LobbyClient`) | Keeps the latest of everything the server said and sends this player's intents. |
+| Game view | `Scripts/lobby/lobby_game.gd` (`LobbyGame`, `GameManager.lobby`) | The game scene in lobby mode: copies your state into `GameState.me`, matches board units to the server's by uid, replays your fight in real time (turned around when you're the away side), shows standings and your placement. Your clicks become requests; nothing is decided here. |
+| Bots | `Scripts/lobby/lobby_bot.gd` (`LobbyBot`) | Plays a seat through `PlayerRules`; deterministic, so a seeded lobby of bots replays exactly. |
+
+Rules are free play's (up to 39 rounds, shared pool, items, Tinker's Tongs). A lost fight costs 5 HP per stage plus a quarter of the winner's standing stars; a draw (time out) costs both sides. The pause menu pauses an offline game (bots wait for you) but not a LAN or online one (`LobbyNet.can_pause()`).
+
+### Plugging in a server
+
+Everything a hosted server needs is in place; what's missing is a machine to run it on.
+1. **Run it:** export a Linux build (or use the Godot binary) and start `Godot --headless --path <project> -- --server --port 7777`. It prints one line per lobby change. One process is one lobby of up to 8.
+2. **Open the port:** UDP 7777 (or the `--port` you chose) on the machine's firewall / provider.
+3. **Join:** players use Lobby > Join a game with the server's address and port. The first player to join is the host (adds bots, starts); if they leave, the next player becomes host.
+4. **Later, if wanted:**
+   - a matchmaker (a small web service that starts one server process per lobby and hands out address + port);
+   - `WebSocketMultiplayerPeer` behind TLS for a web build (change `LobbyNet._make_peer()`);
+   - accounts instead of anonymous names;
+   - saving the rejoin token on the client, so a player can rejoin after restarting the game. The server already accepts tokens; the client only keeps one while it is running.
+
+### Not done
+- Rejoining after closing the game (see above). Reconnecting while the game is still open works.
+- Spectating, chat, and a lobby browser (LAN games are joined by address).
+- Tested on one machine only (ENet over localhost in `lobby_checks`); a real two-PC LAN test is still to do.
+
+## Part 2: Live 8-player lobbies (original design)
 
 ### Architecture
 
@@ -112,7 +154,7 @@ The `UnitPool` becomes lobby-wide on the server (TFT's contested pool): one play
 
 ### Disconnects and cheating
 
-- **Disconnect:** the seat keeps playing as a simple bot (the `tools/bot_playtest` logic: buy, place, equip) until the player reconnects; on reconnect the server sends the full `PlayerState` and board.
+- **Disconnect** (as built: the seat stays idle instead, see "Decisions taken"): the seat keeps playing as a simple bot (the `tools/bot_playtest` logic: buy, place, equip) until the player reconnects; on reconnect the server sends the full `PlayerState` and board.
 - **Cheating:** clients never decide results; the server validates every intent and computes every fight. Client replays are only visual.
 
 ### Hosting

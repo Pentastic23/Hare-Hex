@@ -3,7 +3,8 @@ extends Control
 
 # The first screen: title, Continue (saved chapter run), then two sections:
 #   SINGLE PLAYER: Tutorial, Campaign (chapters and levels), Free Play
-#   PVP: Async PvP (ghost opponents, playable) and Live PvP (coming later: opens an info panel)
+#   PVP: Async PvP (ghost opponents, playable) and Lobby (2-8 players: you against bots here, or a LAN
+#   game you host or join; the Lobby and room screens below, lobby code in Scripts/lobby/)
 # and Settings / Credits / Quit (Keybinds opens from Settings). Built in code; menu.tscn is just this script on a full-screen Control.
 
 const TITLE := "Hare & Hex"
@@ -14,7 +15,6 @@ const GOLD := HudStyle.GOLD
 const GREY := HudStyle.MUTED
 const PVP_TINT := HudStyle.YOU
 const ASYNC_PVP_TIP := "Free play against ghosts: boards saved from earlier runs. Your own boards are saved too. No ghosts yet? You meet random enemies."
-const LIVE_PVP_TEXT := "Real-time matches with up to 8 players on a server: one shared unit pool, a fight against another player every round, last one standing wins.\n\nComing later. Async PvP comes first."
 
 var campaign: Campaign
 var main_box: VBoxContainer
@@ -34,6 +34,19 @@ var settings_tab := "display"         # display, graphics, controls, accessibili
 var _built_contrast := false           # Settings.high_contrast when the menu was built
 static var _reopen_settings := ""      # after a rebuild (high-contrast text), reopen Settings on this tab
 var info_panel: PanelContainer   # "coming soon" description for the PvP modes
+var lobby_panel: PanelContainer  # Lobby: play against bots, host a LAN game, join one
+var room_panel: PanelContainer   # the lobby room: seats, Add bot, Start (host), Leave
+var lobby_name: LineEdit
+var lobby_bots: SpinBox
+var lobby_port: LineEdit
+var lobby_address: LineEdit
+var lobby_status: Label
+var room_info: Label
+var room_seats: VBoxContainer
+var room_add: Button
+var room_start: Button
+const LOBBY_CFG := "user://lobby.cfg"
+const LOBBY_TIP := "Up to 8 players, a shared unit pool, a fight against another player every round; the last one standing wins. Play against bots here, or host or join a game on your local network."
 var credits_panel: PanelContainer   # who made what (music, fonts)
 var confirm: ConfirmationDialog
 var _confirm_action: Callable
@@ -73,7 +86,8 @@ func _ready():
 	main_box.add_child(_section("PVP"))
 	var async_btn := _button(main_box, "Async PvP", func(): _start(null, {}, true))
 	async_btn.tooltip_text = Tip.wrap(ASYNC_PVP_TIP)
-	var live_btn := _button(main_box, "Live PvP   (coming soon)", func(): _show_info("Live PvP", LIVE_PVP_TEXT))
+	var live_btn := _button(main_box, "Lobby   (2-8 players)", func(): _show_panel(lobby_panel))
+	live_btn.tooltip_text = Tip.wrap(LOBBY_TIP)
 	for b in [async_btn, live_btn]:
 		_tint_button(b, HudStyle.YOU_EDGE, PVP_TINT)
 
@@ -92,6 +106,10 @@ func _ready():
 	keybinds_panel = _build_keybinds_panel()
 	info_panel = _build_info_panel()
 	credits_panel = _build_credits_panel()
+	lobby_panel = _build_lobby_panel()
+	room_panel = _build_room_panel()
+	LobbyNet.failed.connect(_on_lobby_failed)
+	LobbyNet.joined.connect(_on_lobby_joined)
 	confirm = ConfirmationDialog.new()
 	confirm.confirmed.connect(func(): _confirm_action.call())
 	add_child(confirm)
@@ -131,6 +149,15 @@ func _saved_level() -> CampaignLevel:
 		return null
 	return campaign.find_level(StringName(str(saved.get("level", ""))))
 
+# "Continue: Mossy Hollow (90 HP)" at the start of a level; partway through one (a mid-level save),
+# "Continue: Mossy Hollow, wave 3/5 (72 HP)".
+static func continue_text(level: CampaignLevel, run: Dictionary) -> String:
+	var hp := int(run.get("hp", 0))
+	var mid := SaveGame.mid_level(run, maxi(level.waves.size(), 1))
+	if mid.is_empty():
+		return "Continue: %s (%d HP)" % [level.display_name, hp]
+	return "Continue: %s, wave %d/%d (%d HP)" % [level.display_name, int(mid.round), level.waves.size(), hp]
+
 func _on_continue():
 	var level := _saved_level()
 	if level != null:
@@ -152,18 +179,18 @@ func _start_chapter(chapter: CampaignChapter):
 func _show_panel(panel: Control):
 	main_box.get_parent().visible = panel == null
 	_stop_listening()
-	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel]:
+	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel]:
 		p.get_parent().visible = panel == p
 	_refresh()
 
 func _panel_open() -> bool:
-	return [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel].any(func(p): return p.get_parent().visible)
+	return [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel].any(func(p): return p.get_parent().visible)
 
 func _refresh():
 	var saved := _saved_level()
 	continue_button.visible = saved != null
 	if saved != null:
-		continue_button.text = "Continue: %s (%d HP)" % [saved.display_name, int(SaveGame.chapter_run().get("hp", 0))]
+		continue_button.text = continue_text(saved, SaveGame.chapter_run())
 	if SaveGame.is_level_complete(&"tutorial"):
 		tutorial_button.text = "Tutorial   (done)"
 	elif SaveGame.data().completed_levels.is_empty():
@@ -194,6 +221,174 @@ func _show_info(title: String, text: String):
 	box.get_node("Title").text = title
 	box.get_node("Body").text = text
 	_show_panel(info_panel)
+
+# --- lobby ---------------------------------------------------------------------------------------
+
+func _build_lobby_panel() -> PanelContainer:
+	var panel := _panel()
+	var box := panel.get_child(0) as VBoxContainer
+	box.add_child(_heading("Lobby", PVP_TINT))
+	var cfg := ConfigFile.new()
+	cfg.load(LOBBY_CFG)
+	lobby_name = _field(box, "Your name", str(cfg.get_value("lobby", "name", "Player")), "LobbyName")
+	lobby_name.max_length = LobbyProtocol.NAME_MAX
+	box.add_child(_section("AGAINST BOTS"))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	box.add_child(row)
+	row.add_child(_label("Bots", 14, HudStyle.INK))
+	lobby_bots = SpinBox.new()
+	lobby_bots.name = "LobbyBots"
+	lobby_bots.min_value = 1
+	lobby_bots.max_value = LobbyServer.MAX_SEATS - 1
+	lobby_bots.value = int(cfg.get_value("lobby", "bots", 7))
+	row.add_child(lobby_bots)
+	_button(row, "Play vs bots", _play_bots, true).custom_minimum_size = Vector2(200, 42)
+	box.add_child(_section("LOCAL NETWORK"))
+	lobby_port = _field(box, "Port", str(cfg.get_value("lobby", "port", LobbyProtocol.DEFAULT_PORT)), "LobbyPort", "Host a game", _host_lobby)
+	lobby_address = _field(box, "Host address", str(cfg.get_value("lobby", "address", "127.0.0.1")), "LobbyAddress", "Join a game", _join_lobby)
+	lobby_status = _label("", 13, GREY)
+	lobby_status.name = "LobbyStatus"
+	lobby_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lobby_status.custom_minimum_size = Vector2(500, 0)
+	box.add_child(lobby_status)
+	_button(box, "Back", func(): _show_panel(null))
+	return panel
+
+# A labelled text field (and a button after it, if `button_text` is given).
+func _field(box: VBoxContainer, text: String, value: String, node_name: String, button_text := "", action := Callable()) -> LineEdit:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 10)
+	box.add_child(row)
+	var l := _label(text, 14, HudStyle.INK)
+	l.custom_minimum_size = Vector2(120, 0)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(l)
+	var e := LineEdit.new()
+	e.name = node_name
+	e.text = value
+	e.custom_minimum_size = Vector2(200 if button_text != "" else 240, 36)
+	row.add_child(e)
+	if button_text != "":
+		_button(row, button_text, action).custom_minimum_size = Vector2(170, 38)
+	return e
+
+func _save_lobby_fields() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("lobby", "name", lobby_name.text)
+	cfg.set_value("lobby", "bots", int(lobby_bots.value))
+	cfg.set_value("lobby", "port", lobby_port.text)
+	cfg.set_value("lobby", "address", lobby_address.text)
+	cfg.save(LOBBY_CFG)
+
+func _lobby_port() -> int:
+	var p := int(lobby_port.text)
+	return p if p > 0 and p < 65536 else LobbyProtocol.DEFAULT_PORT
+
+func _player_name() -> String:
+	var n := LobbyProtocol.clean_name(lobby_name.text)
+	return n if n != "" else "Player"
+
+# You and `bots` bots, right away (the game scene loads once the server starts the game).
+func _play_bots() -> void:
+	_save_lobby_fields()
+	lobby_status.text = "Starting..."
+	LobbyNet.start_offline(_player_name(), int(lobby_bots.value))
+
+func _host_lobby() -> void:
+	_save_lobby_fields()
+	var err := LobbyNet.host(_player_name(), _lobby_port())
+	if err != OK:
+		lobby_status.text = "Couldn't host on port %d (%s). Try another port." % [_lobby_port(), error_string(err)]
+		return
+	lobby_status.text = ""
+
+func _join_lobby() -> void:
+	_save_lobby_fields()
+	var address := lobby_address.text.strip_edges()
+	if address == "":
+		lobby_status.text = "Type the host's address (shown in the host's lobby room)."
+		return
+	var err := LobbyNet.join(_player_name(), address, _lobby_port())
+	if err != OK:
+		lobby_status.text = "Couldn't connect (%s)." % error_string(err)
+		return
+	lobby_status.text = "Connecting to %s:%d..." % [address, _lobby_port()]
+
+func _on_lobby_failed(text: String) -> void:
+	lobby_status.text = text
+	_show_panel(lobby_panel)
+
+func _on_lobby_joined() -> void:
+	if LobbyNet.mode == LobbyNet.Mode.OFFLINE:
+		return   # straight into the game
+	var c := LobbyNet.client
+	if not c.lobby_changed.is_connected(_fill_room):
+		c.lobby_changed.connect(_fill_room)
+		c.welcomed.connect(_fill_room)
+	_fill_room()
+	_show_panel(room_panel)
+
+func _build_room_panel() -> PanelContainer:
+	var panel := _panel()
+	var box := panel.get_child(0) as VBoxContainer
+	box.add_child(_heading("Lobby room", PVP_TINT))
+	room_info = _label("", 13, GREY)
+	room_info.name = "RoomInfo"
+	room_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	room_info.custom_minimum_size = Vector2(500, 0)
+	box.add_child(room_info)
+	room_seats = VBoxContainer.new()
+	room_seats.name = "RoomSeats"
+	room_seats.add_theme_constant_override("separation", 4)
+	box.add_child(room_seats)
+	room_add = _button(box, "Add a bot", func(): LobbyNet.client.add_bot())
+	room_start = _button(box, "Start", func(): LobbyNet.client.start(), true)
+	_button(box, "Leave", func():
+		LobbyNet.leave()
+		_show_panel(lobby_panel))
+	return panel
+
+func _fill_room() -> void:
+	var c := LobbyNet.client
+	if c == null or room_seats == null:
+		return
+	for ch in room_seats.get_children():
+		ch.queue_free()
+	var seats: Array = c.lobby.get("seats", [])
+	for e in seats:
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_theme_constant_override("separation", 10)
+		var tag := " (bot)" if bool(e.bot) else (" (host)" if bool(e.host) else "")
+		var you := "  <- you" if int(e.seat) == c.seat else ""
+		var l := _label("%d. %s%s%s" % [int(e.seat) + 1, str(e.name), tag, you], 15, HudStyle.INK if not bool(e.bot) else GREY)
+		l.custom_minimum_size = Vector2(300, 0)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.add_child(l)
+		if c.host and bool(e.bot):
+			var seat_i := int(e.seat)
+			var rm := DockKit.secondary_button("Remove")
+			rm.custom_minimum_size = Vector2(90, 30)
+			rm.pressed.connect(func(): c.remove_bot(seat_i))
+			row.add_child(rm)
+		elif c.host:
+			var gap := Control.new()   # keeps the names lined up with the bots' rows
+			gap.custom_minimum_size = Vector2(90, 30)
+			row.add_child(gap)
+		room_seats.add_child(row)
+	room_add.visible = c.host
+	room_start.visible = c.host
+	room_add.disabled = seats.size() >= LobbyServer.MAX_SEATS
+	room_start.disabled = seats.size() < 2
+	var lines: Array[String] = []
+	if LobbyNet.mode == LobbyNet.Mode.HOST:
+		var ips: Array = Array(IP.get_local_addresses()).filter(func(a): return a.count(".") == 3 and not a.begins_with("127.") and not a.begins_with("169.254."))
+		lines.append("Hosting on port %d. On the same network, others join with: %s" % [LobbyNet.port, ", ".join(ips) if not ips.is_empty() else "this computer's address"])
+	lines.append("%d of %d seats. %s" % [seats.size(), LobbyServer.MAX_SEATS, "Add bots or wait for players, then Start (2 or more)." if c.host else "Waiting for the host to start."])
+	room_info.text = "\n".join(lines)
 
 const MUSIC_URL := "https://soundcloud.com/joe-gallagher-620567095"
 
@@ -442,6 +637,8 @@ func _fill_settings() -> void:
 			vol.tooltip_text = Tip.wrap("Overall volume of everything in the game.")
 			var mus := _setting_slider("music", "Music", Settings.music_volume, func(v): Settings.music_volume = v, 0.0, 1.0, 0.05, true)
 			mus.tooltip_text = Tip.wrap("Volume of the soundtrack: the menu, the run and boss fights.")
+			var sfx := _setting_slider("sfx", "Sound effects", Settings.sfx_volume, func(v): Settings.sfx_volume = v, 0.0, 1.0, 0.05, true)
+			sfx.tooltip_text = Tip.wrap("Volume of the sound effects: the shop, merging, fighting.")
 
 # Saves and applies after a change; `rebuild` refreshes the tab (rows that depend on the change).
 func _settings_changed(rebuild := false) -> void:

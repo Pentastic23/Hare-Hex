@@ -12,6 +12,19 @@ class_name SaveGame extends RefCounted
 #     "chapter_run": {} or the carried state at the start of the next level (see GameManager.make_carry),
 #     "team_plan": [ "<unit display name>", ... ] }
 # Version 1 files (no chapter_run) and files without team_plan load fine.
+#
+# Mid-level saves: while a chapter level is being played, chapter_run is rewritten at the start of every
+# PREP, at the start of every fight, and when you leave during PREP (pause menu, quit, closing the window).
+# It is then the carry for the level being played (hp, gold, units... as they are now) plus a "mid" block
+# (GameManager.make_mid_save):
+#   "mid": { "version": 1, "round": int, "phase": "prep" | "combat", "seed": int,
+#            "rng": "<GameManager.rng state>", "player_rng": "<GameState.me.rng state>",   (strings: int64)
+#            "win_streak": int, "loss_streak": int, "last_won": bool, "dropped": { "<item id>": int },
+#            "free_rerolls": int, "cheap_shop": bool, "offers": [ "<unit name>", ... ], "locked": bool,
+#            "rolled": bool, "pool": { "<unit name>": copies left }, "saved": unix }
+# "prep" resumes into that round's PREP (same shop, a full timer, no second income); "combat" replays the
+# fight from its start with the same board, which gives the same result (fights are deterministic).
+# Losing clears chapter_run; winning the level replaces it with the next level's carry (no "mid").
 
 const VERSION := 2
 const DEFAULT_PATH := "user://save.json"
@@ -134,6 +147,21 @@ static func chapter_run() -> Dictionary:
 static func set_chapter_run(carry: Dictionary) -> void:
 	data().chapter_run = carry
 	save_game()
+
+# The "mid" block of a saved chapter run when it is one this build can resume (version, a round within
+# the level's `total_rounds`, a known phase, the RNG states); {} otherwise.
+const MID_VERSION := 1
+static func mid_level(run: Dictionary, total_rounds: int) -> Dictionary:
+	var mid = run.get("mid")
+	if not mid is Dictionary or int(mid.get("version", 0)) != MID_VERSION:
+		return {}
+	var r := int(mid.get("round", 0))
+	if r < 1 or r > total_rounds or not str(mid.get("phase", "")) in ["prep", "combat"]:
+		return {}
+	for key in ["seed", "rng", "player_rng", "pool"]:
+		if not mid.has(key):
+			return {}
+	return mid
 
 static func clear_chapter_run() -> void:
 	if not data().chapter_run.is_empty():

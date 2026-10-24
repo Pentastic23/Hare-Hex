@@ -2,8 +2,16 @@
 extends Node
 
 var phase: int = Events.Phase.PREP
-var fighting := false
-var combat_time := 0.0
+# The fight on the visible board (combat_runner.gd). The fields below read and write it, so the HUD
+# and the tests can keep using gm.fighting, gm.combatants, gm.combat_ticks...
+var runner: CombatRunner
+var fighting: bool:
+	get: return runner != null and runner.fighting
+	set(v):
+		if runner != null:
+			runner.fighting = v
+var combat_time: float:
+	get: return runner.time if runner != null else 0.0
 var snapshot := {}   # Unit -> Vector2i
 var snapshot_store: SnapshotStore   # async PvP boards; null in campaign levels
 var balance_hash := ""              # BoardSnapshot.balance_hash of the roster and items
@@ -16,8 +24,8 @@ var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
 @export var only_units_with_models := false
 @export var item_roster: Array[ItemData] = []   # items that can drop; also resolves ids when loading saves
 @export_range(0.0, 1.0) var enemy_variation_chance := 0.3   # 30% of rounds get +1 or -1
-const REROLL_COST := 2
-const BUY_XP_COST := 4
+const REROLL_COST := PlayerRules.REROLL_COST
+const BUY_XP_COST := PlayerRules.BUY_XP_COST
 @export var enemy_base_scale := 0.6        # round 1 enemies are 60% strength
 @export var enemy_scale_per_round := 0.08  # +8% each round
 var game_over := false
@@ -30,36 +38,33 @@ const DEFAULT_CAMPAIGN := "res://tres/campaign/campaign.tres"
 var roster: Array[UnitData] = []   # units the shop can offer: unit_pool, or the level's allowed_units
 var opponents: OpponentProvider
 var current_board: EnemyBoard      # the enemy board of the current/last fight (for its hp_reward)
-const COMBAT_TICK := 1.0 / 60.0   # seconds of fight per tick
-const COMBAT_MAX_TICKS := 3600    # 60 s; reaching it counts as a loss
-var combatants: Array[Unit] = []  # fixed acting order for the current fight (_combat_order)
-var new_summons: Array[Unit] = []   # summoned this tick; they join `combatants` (at the end) after it
-var zones: Array = []   # ground effects from abilities this fight (add_zone): ticked before the units act
-var combat_ticks := 0
+const COMBAT_TICK := CombatRunner.TICK            # seconds of fight per tick
+const COMBAT_MAX_TICKS := CombatRunner.MAX_TICKS  # 60 s; reaching it counts as a loss
+var combatants: Array[Unit]:   # fixed acting order for the current fight
+	get: return runner.combatants if runner != null else _no_units
+var new_summons: Array[Unit]:
+	get: return runner.new_summons if runner != null else _no_units
+var zones: Array:   # ground effects from abilities this fight (add_zone)
+	get: return runner.zones if runner != null else []
+var combat_ticks: int:
+	get: return runner.ticks if runner != null else 0
+var _no_units: Array[Unit] = []
 var prep_left := 0.0   # seconds of PREP left; 0 when not in PREP
 var rng := RandomNumberGenerator.new()   # run RNG (seeded): random enemies and placement. Shop and drops use GameState.me.rng.
 var shared_pool: UnitPool
+var rules: PlayerRules   # the local player's actions and round economy (player_rules.gd), shared with the lobby server
+var lobby: LobbyGame   # lobby mode (LobbyNet.in_lobby()): this scene shows a lobby game, see lobby_game.gd
+var _resume := {}   # the "mid" block of the saved chapter run being resumed; {} = the level starts normally
 
 
 
 func _on_unit_bought(d: UnitData):
+	if lobby != null:
+		lobby.buy(d)
+		return
 	if game_over: return
 	# Outside PREP a purchase only goes to the bench: no merges while units are fighting.
-	var in_prep := phase == Events.Phase.PREP
-	var slot = board.first_free_bench()
-	if slot == -1 and not (in_prep and board.would_complete_merge(d)): return
-	GameState.me.gold -= d.cost
-	GameState.me.shop_offers.erase(d)   # stays out of the pool; it's ours now
-	var u := unit_scene.instantiate() as Unit
-	board.get_node("Units").add_child(u)
-	u.setup(d, 0)
-	if slot != -1:
-		board.put_on_bench(u, slot)
-	else:
-		board.merge_pending_unit(u)
-		return
-	if in_prep:
-		board.merge_all()   # merges that were skipped during combat run at the next PREP start
+	rules.buy(d, phase == Events.Phase.PREP, false)
 
 func _enter(p: int):
 	if game_over: return
@@ -67,20 +72,17 @@ func _enter(p: int):
 	Events.phase_changed.emit(p)
 	match p:
 		Events.Phase.PREP:
-			GameState.me.gold += GameState.me.total_income_for_round(GameState.round_number) + item_income()   # + Coin Purses on the board
-			GameState.me.free_rerolls = item_free_rerolls()   # Merchant's Ledger
-			_drop_item()
-			board.merge_all()
-			GameState.me.cheap_shop = (GameState.round_number == 1 and not GameState.run_carried)
+			# Income (+ Coin Purses), free rerolls (Merchant's Ledger), the item drop, merges, the shop: PlayerRules.
+			rules.start_prep(GameState.round_number, GameState.round_number == 1 and not GameState.run_carried)
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
 			Music.play("boss" if is_boss_round() else "game")   # Final Struggle for the boss round, else Aspiration Woods
 			if opponents != null:
 				opponents.prepare(GameState.round_number)   # async PvP picks this round's ghost now
 				Events.opponent_announced.emit(opponents.describe_next())
-			if not GameState.me.shop_locked or not GameState.me.shop_has_rolled:
-				roll_shop()
 			prep_left = float(prep_time)   # counted down in _process, so the timer label can show it and pausing stops it
+			_write_mid("prep")   # a chapter run is saved at the start of every PREP...
 		Events.Phase.COMBAT:
+			_write_mid("combat")   # ...and of every fight, with the board as it fights (so quitting can't dodge a loss)
 			start_combat()
 		Events.Phase.RESULT:
 			if GameState.me.player_hp <= 0:
@@ -100,15 +102,30 @@ func _enter(p: int):
 			
 func _ready():
 	add_to_group("game_manager")   # shop_slot.gd finds us by group; the node name has a space
+	runner = CombatRunner.new(board)
+	runner.on_finish = func(alive: Array, stars: Array): _end_combat(alive[1] == 0 and alive[0] > 0, stars[1])
+	runner.gold_sink = func(team: int, amount: int):
+		if team == 0:
+			GameState.me.gold += amount   # your Pickpocket kills; enemy boards earn nothing
 	Settings.ensure_loaded()
 	Settings.apply_light(get_node_or_null("../DirectionalLight3D") as DirectionalLight3D)   # shadows (Settings > Graphics)
+	if LobbyNet.in_lobby():
+		lobby = LobbyGame.new(self)
+		Events.unit_bought.connect(_on_unit_bought)
+		Events.reroll_pressed.connect(_on_reroll)
+		Events.buy_xp_pressed.connect(_on_buy_xp)
+		await get_tree().process_frame   # the HUD is ready
+		lobby.begin()
+		return
 	_begin_run()
 	Events.unit_bought.connect(_on_unit_bought)
-	Events.unit_sold.connect(_on_unit_sold)
 	Events.reroll_pressed.connect(_on_reroll)
 	Events.buy_xp_pressed.connect(_on_buy_xp)
 	await get_tree().process_frame
-	_enter(Events.Phase.PREP)
+	if _resume.is_empty():
+		_enter(Events.Phase.PREP)
+	else:
+		_resume_run()   # a mid-level save: back into its PREP or fight
 
 # Sets up free play or the campaign level: run modifiers, shop roster, opponent provider, and the
 # player's carried board when this level continues a chapter run.
@@ -147,8 +164,16 @@ func _begin_run():
 	if lvl != null and lvl.prep_time > 0:
 		prep_time = lvl.prep_time
 	shared_pool = UnitPool.new(roster)
+	rules = PlayerRules.new(GameState.me, board, shared_pool, roster, item_roster)
+	rules.drop_rounds = GameState.item_drop_rounds()
+	rules.tongs_rounds = GameState.TONGS_ROUNDS if lvl == null else []   # Tongs: free play and async PvP only
+	rules.drop_stage_fixed = drop_stage() if lvl != null else 0
+	_resume = {}
 	if not carry.is_empty():
 		_restore_carry(carry)
+		if carry.has("mid"):   # GameState.begin_run kept it, so it is valid
+			_resume = carry.mid
+			_restore_mid(_resume)
 	if lvl != null:
 		for problem in lvl.validate():
 			push_warning(problem)
@@ -219,9 +244,7 @@ func _restore_carry(carry: Dictionary) -> void:
 		if d == null:
 			push_warning("Carried unit '%s' is not in the roster; skipped" % e.get("unit", ""))
 			continue
-		var u := unit_scene.instantiate() as Unit
-		board.get_node("Units").add_child(u)
-		u.setup(d, 0)
+		var u := board.make_unit(d, unit_scene)
 		var star := clampi(int(e.get("star", 1)), 1, 3)
 		if star > 1:
 			u.set_star(star)
@@ -251,41 +274,130 @@ func _restore_carry(carry: Dictionary) -> void:
 		else:
 			board.put_on_tile(u, tile)   # falls back to the bench if the tile is taken
 
+# --- mid-level saves (chapter levels only; the format is in save_game.gd) -----------------------------
+
+# True while this run writes mid-level saves: a chapter level (not the tutorial, not free play) that
+# isn't over.
+func saves_mid_level() -> bool:
+	var lvl := GameState.run_level
+	return not game_over and lvl != null and lvl.id != &"" and _in_chapter(lvl)
+
+# The saved chapter run as of now: the carry for this level plus the "mid" block. `phase_name`: "prep"
+# or "combat" (written just before the fight starts, with the board that will fight).
+func make_mid_save(phase_name: String) -> Dictionary:
+	var me := GameState.me
+	var save := make_carry(GameState.run_level)
+	var pool := {}
+	for key in shared_pool.remaining:
+		pool[(key as UnitData).display_name] = int(shared_pool.remaining[key])
+	var dropped := {}
+	for id in me.dropped:
+		dropped[String(id)] = int(me.dropped[id])
+	save["mid"] = {
+		"version": SaveGame.MID_VERSION,
+		"round": GameState.round_number,
+		"phase": phase_name,
+		"seed": GameState.run_seed,
+		"rng": str(rng.state),            # int64: as text, JSON numbers would round it
+		"player_rng": str(me.rng.state),
+		"win_streak": me.win_streak,
+		"loss_streak": me.loss_streak,
+		"last_won": me.last_combat_won,
+		"dropped": dropped,
+		"free_rerolls": me.free_rerolls,
+		"cheap_shop": me.cheap_shop,
+		"offers": me.shop_offers.map(func(d): return d.display_name),
+		"locked": me.shop_locked,
+		"rolled": me.shop_has_rolled,
+		"pool": pool,
+		"saved": int(Time.get_unix_time_from_system()),
+	}
+	return save
+
+func _write_mid(phase_name: String) -> void:
+	if saves_mid_level():
+		SaveGame.set_chapter_run(make_mid_save(phase_name))
+
+# Saves the run as it is now if it is in PREP (pause menu > Main menu, Quit game, closing the window).
+# Mid-fight the save from the fight's start stands; between rounds there is nothing new to save.
+func save_mid_run() -> void:
+	if phase == Events.Phase.PREP and not fighting:
+		_write_mid("prep")
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_mid_run()
+
+# Puts back what the carry doesn't hold (_restore_carry has rebuilt the units and items): RNG states,
+# streaks, drops, the shop and the shared pool. GameState.begin_run already set the seed and round.
+func _restore_mid(mid: Dictionary) -> void:
+	var me := GameState.me
+	rng.state = str(mid.rng).to_int()
+	me.rng.state = str(mid.player_rng).to_int()
+	me.win_streak = maxi(int(mid.get("win_streak", 0)), 0)
+	me.loss_streak = maxi(int(mid.get("loss_streak", 0)), 0)
+	me.last_combat_won = bool(mid.get("last_won", false))
+	me.free_rerolls = maxi(int(mid.get("free_rerolls", 0)), 0)
+	me.cheap_shop = bool(mid.get("cheap_shop", false))
+	me.dropped.clear()
+	var dropped = mid.get("dropped", {})
+	if dropped is Dictionary:
+		for id in dropped:
+			me.dropped[StringName(str(id))] = int(dropped[id])
+	# The pool as saved (it already excludes owned units and the shop's offers); keys keep the roster's
+	# order, which UnitPool.pick depends on.
+	var pool = mid.get("pool", {})
+	for key in shared_pool.remaining:
+		var d := key as UnitData
+		if pool is Dictionary and pool.has(d.display_name):
+			shared_pool.remaining[d] = clampi(int(pool[d.display_name]), 0, UnitPool.COPIES_PER_COST.get(d.cost, 0))
+	me.shop_offers.clear()
+	for n in mid.get("offers", []):
+		var d := EnemyBoard.lookup_unit(roster, str(n))
+		if d != null:
+			me.shop_offers.append(d)
+	me.shop_locked = bool(mid.get("locked", false))
+	me.shop_has_rolled = bool(mid.get("rolled", not me.shop_offers.is_empty()))
+
+# Resumes a mid-level save in its phase. "prep": that round's PREP without a second income, drop or shop
+# roll, with a full timer. "combat": the fight replays from its start.
+func _resume_run() -> void:
+	var me := GameState.me
+	var resume_phase := str(_resume.get("phase", "prep"))
+	_resume = {}
+	# The HUD may have read the state before it was restored: tell it everything once.
+	Events.gold_changed.emit(me.gold)
+	Events.hp_changed.emit(me.player_hp)
+	Events.xp_changed.emit(me.level, me.xp, me.xp_needed())
+	Events.streak_changed.emit(me.win_streak, me.loss_streak)
+	Events.items_changed.emit()
+	Events.shop_lock_changed.emit(me.shop_locked)
+	if resume_phase == "combat":
+		Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
+		Music.play("boss" if is_boss_round() else "game")
+		_enter(Events.Phase.COMBAT)
+		return
+	phase = Events.Phase.PREP
+	Events.phase_changed.emit(phase)
+	Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
+	Music.play("boss" if is_boss_round() else "game")
+	if opponents != null:
+		opponents.prepare(GameState.round_number)
+		Events.opponent_announced.emit(opponents.describe_next())
+	Events.shop_rolled.emit(me.shop_offers.duplicate())
+	prep_left = float(prep_time)
+
 func set_shop_locked(on: bool):
-	GameState.me.shop_locked = on
-	Events.shop_lock_changed.emit(on)
+	if lobby != null:
+		lobby.lock(on)
+		return
+	rules.set_locked(on)
 
 func roll_shop():
-	if roster.is_empty(): return
-	GameState.me.shop_has_rolled = true
-	_return_offers()
-	var offers: Array = []
-	for i in 5:
-		var tier: int = 1 if GameState.me.cheap_shop else _pick_cost_tier()
-		var d: UnitData = _random_unit_of_cost(tier)
-		if d != null and shared_pool.take(d):
-			offers.append(d)
-			GameState.me.shop_offers.append(d)
-	Events.shop_rolled.emit(offers)
+	rules.roll_shop()
 
 func _drop_item():
-	if item_roster.is_empty():
-		return
-	var me := GameState.me
-	var dropped := false
-	if GameState.item_drop_rounds().has(GameState.round_number):
-		var item := pick_drop(drop_stage(), me.rng, me.dropped)
-		if item != null:
-			me.items.append(item)
-			me.dropped[item.id] = int(me.dropped.get(item.id, 0)) + 1
-			dropped = true
-	if GameState.run_level == null and GameState.TONGS_ROUNDS.has(GameState.round_number):
-		var tongs := EnemyBoard.lookup_item(item_roster, &"tinkers_tongs")
-		if tongs != null:
-			me.items.append(tongs)
-			dropped = true
-	if dropped:
-		Events.items_changed.emit()
+	rules.drop_item(GameState.round_number)
 
 # The stage the drop table uses: the real stage in free play; in a campaign the chapter decides
 # (chapter 1 = stage 2, chapter 2 = stage 4, chapter 3 = stage 6; the tutorial = stage 1).
@@ -300,108 +412,42 @@ func drop_stage() -> int:
 				return mini(2 + i * 2, 7)
 	return 1
 
-# One random drop for `stage` (items v2): basic items, and from stage 3 a SPECIAL_DROP_CHANCE of a
-# special one (weighted by drop_weight, only those whose min_stage has come; synergy benders at most
-# once a run). Tinker's Tongs never drop at random. Uses the player's seeded RNG.
-func pick_drop(stage: int, rng: RandomNumberGenerator, dropped: Dictionary) -> ItemData:
-	var basic: Array = item_roster.filter(func(i): return i != null and i.kind == &"basic" and i.min_stage <= stage)
-	var special: Array = item_roster.filter(func(i): return i != null and i.is_special() and i.drop_weight > 0.0 and i.min_stage <= stage and not (i.kind == &"bender" and dropped.has(i.id)))
-	var pool := basic
-	if stage >= 3 and not special.is_empty() and rng.randf() < GameState.SPECIAL_DROP_CHANCE:
-		pool = special
-	if pool.is_empty():
-		return null
-	var total := 0.0
-	for i in pool:
-		total += i.drop_weight
-	var roll := rng.randf() * total
-	for i in pool:
-		roll -= i.drop_weight
-		if roll < 0.0:
-			return i
-	return pool.back()
+# One random drop for `stage` (PlayerRules.pick_drop).
+func pick_drop(stage: int, drop_rng: RandomNumberGenerator, dropped: Dictionary) -> ItemData:
+	return rules.pick_drop(stage, drop_rng, dropped)
 
 # Gold the items on your board pay each round (Coin Purse; items v2).
 func item_income() -> int:
-	var n := 0
-	for u in board.all_player_units():
-		if u.coord.x >= 0:
-			for it in u.items:
-				n += it.gold_per_round
-	return n
+	return rules.item_income() if rules != null else 0
 
-# Free rerolls this round from items on your board (Merchant's Ledger: the first reroll is free).
+# Free rerolls this round from items on your board (Merchant's Ledger).
 func item_free_rerolls() -> int:
-	var n := 0
-	for u in board.all_player_units():
-		if u.coord.x >= 0:
-			for it in u.items:
-				n = maxi(n, it.free_rerolls)
-	return n
-
-func _return_offers():
-	for d in GameState.me.shop_offers:
-		shared_pool.give_back(d)
-	GameState.me.shop_offers.clear()
-
-func _on_unit_sold(d: UnitData, star: int, _refund: int):
-	shared_pool.give_back(d, UnitPool.copies_in(star))
-
-func _pick_cost_tier() -> int:
-	var odds: Array = GameState.odds_for_level(GameState.me.level)
-	var r := GameState.me.rng.randf() * 100.0   # the player's own shop RNG
-	var acc := 0.0
-	for i in odds.size():
-		acc += odds[i]
-		if r < acc:
-			return i + 1
-	return 1
-
-func _random_unit_of_cost(tier: int) -> UnitData:
-	var d := shared_pool.pick(tier, GameState.me.rng)
-	if d != null:
-		return d
-	# No copies left at this cost: fall back to the nearest cost that has some.
-	for off in range(1, 6):
-		for t in [tier - off, tier + off]:
-			d = shared_pool.pick(t, GameState.me.rng)
-			if d != null:
-				return d
-	return null
+	return rules.item_free_rerolls()
 
 func _on_reroll():
-	var me := GameState.me
-	var free := me.free_rerolls > 0
-	if me.shop_locked or phase != Events.Phase.PREP or (not free and me.gold < REROLL_COST): return   # unlock to reroll
-	if free:
-		me.free_rerolls -= 1   # Merchant's Ledger
-		Events.gold_changed.emit(me.gold)   # the reroll price on the shop bar updates
-	else:
-		me.gold -= REROLL_COST
-	GameState.me.cheap_shop = false
-	roll_shop()
+	if lobby != null:
+		lobby.reroll()
+		return
+	if not rules.reroll(phase == Events.Phase.PREP):   # locked, outside PREP, or not enough gold
+		Sfx.play(&"error")
+		return
+	Sfx.play(&"reroll")
 
 func _on_buy_xp():
-	if game_over or GameState.me.gold < BUY_XP_COST: return
-	GameState.me.gold -= BUY_XP_COST
-	GameState.me.add_xp(4)
+	if lobby != null:
+		lobby.buy_xp()
+		return
+	if game_over: return
+	if not rules.buy_xp():
+		Sfx.play(&"error")
+		return
+	Sfx.play(&"xp")
 
 
 func start_combat():
-	# Safety: if somehow over the limit, send the extras back to the bench.
-	var over := board.units_on_board() - GameState.me.max_board_units()
-	if over > 0:
-		for t in board.tiles.values():
-			if over <= 0: break
-			var bu: Unit = t.occupant
-			if bu != null and bu.team == 0:
-				var slot := board.first_free_bench()
-				if slot == -1: break
-				board.detach(bu)
-				board.put_on_bench(bu, slot)
-				over -= 1
-	# Free board slots are filled from the bench (leftmost first), before the snapshot, so they stay on the board.
-	board.auto_fill(GameState.me.max_board_units())
+	# Over the cap: extras back to the bench; free board slots fill from the bench (leftmost first),
+	# before the snapshot, so they stay on the board.
+	rules.ready_board_for_fight()
 	snapshot.clear()
 	var units_node := board.get_node("Units")
 	for n in units_node.get_children():
@@ -423,29 +469,11 @@ func start_combat():
 		var u := n as Unit
 		if u and u.coord.x >= 0:
 			u.begin_combat()
-	combatants = _combat_order()
-	new_summons.clear()
-	zones.clear()
-	combat_ticks = 0
-	combat_time = 0.0
-	fighting = true
+	runner.start()
 
-# Fixed acting order for a fight: each side sorted by tile (row, then column), then interleaved
-# player/enemy so neither side always acts first. Node order never matters.
+# Fixed acting order for a fight (CombatRunner.order).
 func _combat_order() -> Array[Unit]:
-	var sides := [[], []]
-	for n in board.get_node("Units").get_children():
-		var u := n as Unit
-		if u != null and u.data != null and u.coord.x >= 0 and not u.is_queued_for_deletion():
-			sides[clampi(u.team, 0, 1)].append(u)
-	for side in sides:
-		side.sort_custom(func(a, b): return Board.tile_order(a.coord) < Board.tile_order(b.coord))
-	var order: Array[Unit] = []
-	for i in maxi(sides[0].size(), sides[1].size()):
-		for side in sides:
-			if i < side.size():
-				order.append(side[i])
-	return order
+	return runner.order()
 
 func _spawn_enemies():
 	current_board = opponents.board_for_round(GameState.round_number) if opponents != null else null
@@ -521,74 +549,24 @@ func _physics_process(_delta):
 		combat_tick()
 
 func combat_tick():
-	combat_ticks += 1
-	combat_time = combat_ticks * COMBAT_TICK
-	_tick_zones()
-	for u in combatants:
-		if is_instance_valid(u) and not u.dead and u.coord.x >= 0:
-			u.combat_step(COMBAT_TICK)
-	if not new_summons.is_empty():
-		combatants.append_array(new_summons)   # they act from the next tick
-		new_summons.clear()
-	var alive_p := 0
-	var alive_e := 0
-	var enemy_stars := 0
-	for u in combatants:
-		if not is_instance_valid(u) or u.dead or u.coord.x < 0:
-			continue
-		if u.team == 0:
-			alive_p += 1
-		else:
-			alive_e += 1
-			if not u.summoned:
-				enemy_stars += u.star   # summons don't add to the loss damage
-	if alive_p == 0 or alive_e == 0 or combat_ticks >= COMBAT_MAX_TICKS:
-		_end_combat(alive_e == 0 and alive_p > 0, enemy_stars)
+	runner.tick()
 
-# A ground effect from an ability (Miasma, Antler Grove): every tick for `secs`, the units within
-# `radius` of `center` are affected. kind "miasma": enemies of `team` take `amount` per second and are
-# cursed 15%; kind "grove": allies of `team` regenerate `amount` of their max HP per second; kind
-# "winter": enemies take `amount` per second and are chilled 50%, and when it ends those below half
-# HP are frozen (stunned) for 1.5 s. It stays
-# if its caster dies; `by` gets the damage credit while it lives.
+# Ground effects and summons from abilities (Abilities reaches the board's runner; these stay for callers).
 func add_zone(kind: String, center: Vector2i, radius: int, secs: float, team: int, amount: float, by: Unit) -> void:
-	zones.append({"kind": kind, "center": center, "radius": radius, "left": secs, "team": team, "amount": amount, "by": by})
+	runner.add_zone(kind, center, radius, secs, team, amount, by)
+
+func add_summon(u: Unit) -> void:
+	runner.add_summon(u)
 
 func _tick_zones() -> void:
-	if zones.is_empty():
-		return
-	for z in zones:
-		z.left -= COMBAT_TICK
-		var by: Unit = z.by if is_instance_valid(z.by) else null
-		for u in combatants:
-			if not is_instance_valid(u) or u.dead or u.coord.x < 0 or Board.hex_distance(z.center, u.coord) > z.radius:
-				continue
-			if z.kind == "miasma" and u.team != z.team:
-				var removed := u.take_damage(z.amount * COMBAT_TICK, by)
-				if by != null:
-					by.damage_dealt += removed
-				u.apply_curse(0.15, 0.25)
-			elif z.kind == "winter" and u.team != z.team:
-				var cold := u.take_damage(z.amount * COMBAT_TICK, by)
-				if by != null:
-					by.damage_dealt += cold
-				u.apply_chill(0.5, 0.25)
-			elif z.kind == "grove" and u.team == z.team:
-				u.heal(u.max_hp() * z.amount * COMBAT_TICK)
-		if z.kind == "winter" and z.left <= 0.0001:   # Eternal Winter ends: the weakened freeze
-			for u in combatants:
-				if is_instance_valid(u) and not u.dead and u.coord.x >= 0 and u.team != z.team and u.health < u.max_hp() * 0.5:
-					u.apply_stun(1.5)
-	zones = zones.filter(func(z): return z.left > 0.0001)   # (float steps: 240 ticks of 1/60 leave a crumb)
-
-# Adds a summoned unit to the fight; it acts from the next tick (see combat_tick).
-func add_summon(u: Unit) -> void:
-	new_summons.append(u)
+	runner._tick_zones()
 
 # Runs the current fight to the end immediately (tests now; a PvP server or replays later).
 func resolve_combat() -> bool:
+	Sfx.muted += 1   # a whole fight in an instant: no sound
 	while fighting:
 		combat_tick()
+	Sfx.muted -= 1
 	return GameState.me.last_combat_won
 
 # Fisher-Yates with the run's seeded RNG (Array.shuffle uses the global one).
@@ -601,10 +579,8 @@ func _shuffle(arr: Array) -> void:
 
 func _end_combat(player_won: bool, enemy_stars: int):
 	if not fighting: return
-	fighting = false
+	runner.stop()
 	GameState.me.last_combat_won = player_won
-	zones.clear()
-	new_summons.clear()
 	for n in board.get_node("Units").get_children():
 		var u := n as Unit
 		if u and (u.team == 1 or u.summoned):
@@ -628,6 +604,9 @@ func _end_combat(player_won: bool, enemy_stars: int):
 # The PREP countdown. Fights have their own fixed ticks (_physics_process); this only runs the
 # preparation timer, and stops while the tree is paused.
 func _process(delta):
+	if lobby != null:   # the server's timer decides; this one only counts down for the top bar
+		prep_left = maxf(prep_left - delta, 0.0) if phase == Events.Phase.PREP else 0.0
+		return
 	if phase != Events.Phase.PREP or game_over or prep_left <= 0.0:
 		return
 	prep_left -= delta
@@ -637,7 +616,7 @@ func _process(delta):
 
 # Ends PREP now instead of waiting for the timer (the tutorial's Start fight button).
 func end_prep_early():
-	if game_over or phase != Events.Phase.PREP:
+	if lobby != null or game_over or phase != Events.Phase.PREP:
 		return
 	prep_left = 0.0
 	_enter(Events.Phase.COMBAT)

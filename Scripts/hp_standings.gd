@@ -28,10 +28,17 @@ func _ready():
 # [name, role, hp, max hp, number text] per row, sorted.
 func entries() -> Array:
 	var out: Array = []
+	var lobby := LobbyNet.in_lobby()
+	var foe := _lobby_opponent() if lobby else -1
 	for p in GameState.players:
 		var ps := p as PlayerState
-		out.append(["You" if ps.is_local else "Player %d" % ps.id, "you" if ps.is_local else "other", ps.player_hp, ps.start_hp, ""])
-	out.append(_opponent())
+		var role := "you" if ps.is_local else "other"
+		if lobby and not ps.is_local:
+			role = "out" if ps.player_hp <= 0 else ("opponent" if ps.id == foe else "other")
+		var label := "You" if ps.is_local else (ps.display_name if lobby else "Player %d" % ps.id)
+		out.append([label, role, ps.player_hp, ps.start_hp, ""])
+	if not lobby:
+		out.append(_opponent())   # a lobby's opponent is one of the players above
 	out.sort_custom(func(a, b):
 		var a_out: bool = a[2] == 0 and a[1] != "opponent"
 		var b_out: bool = b[2] == 0 and b[1] != "opponent"
@@ -39,6 +46,15 @@ func entries() -> Array:
 			return b_out
 		return int(a[2]) > int(b[2]))
 	return out
+
+# The seat you fight this round in a lobby (-1: none yet, or a PvE wave).
+func _lobby_opponent() -> int:
+	var c: LobbyClient = LobbyNet.client
+	if c == null or c.fight.is_empty():
+		return -1
+	var home := int(c.fight.get("home", -1))
+	var away := int(c.fight.get("away", -1))
+	return away if home == c.seat else home
 
 func _opponent() -> Array:
 	var gm = get_tree().get_first_node_in_group("game_manager")
@@ -62,8 +78,12 @@ func refresh() -> void:
 		rows.append(r)
 	while rows.size() > list.size():
 		rows.pop_back().queue_free()
+	var compact := list.size() > 5   # a full lobby: eight short rows fit above the bench
+	add_theme_constant_override("separation", 3 if compact else 6)
 	for i in list.size():
 		var e: Array = list[i]
+		if rows[i]._compact != compact:
+			rows[i].set_compact(compact)
 		rows[i].show_player(e[1], e[0], e[2], e[3], e[4])
 
 # The row of this round's opponent (tests, later the lobby).

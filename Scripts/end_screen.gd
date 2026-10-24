@@ -122,3 +122,14 @@ func _restart():
 		SaveGame.clear_chapter_run()
 	GameState.reset()
 	get_tree().reload_current_scene()
+
+# A lobby game's end for you (lobby_game.gd): your placement, or that the connection was lost. The
+# only way on is the main menu (which leaves the lobby).
+func show_lobby(place: int, _total: int, title_text: String, detail_text: String) -> void:
+	title.text = title_text
+	title.modulate = Color(0.4, 0.9, 0.4) if place == 1 else (Color(0.95, 0.85, 0.4) if place > 0 and place <= 4 else Color(0.95, 0.4, 0.4))
+	detail.text = detail_text
+	restart_button.visible = false
+	next_button.visible = false
+	menu_button.visible = true
+	visible = true

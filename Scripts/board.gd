@@ -12,7 +12,7 @@ const NO_STEP := Vector2i(-99, -99)
 const DIRS_EVEN := [Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, -1), Vector2i(-1, 0), Vector2i(-1, 1), Vector2i(0, 1)]
 const DIRS_ODD := [Vector2i(1, 0), Vector2i(1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(1, 1)]
 const BORDER_R := 0.95   # matches the tile mesh radius; lower it if the line sits outside the tile edge
-
+const KING_ROWS := [5, 2]   # the row each side's king stands on (index = team): the second row of its half
 
 var tile_scene: PackedScene = preload("res://scenes/Tiles.tscn")
 var tiles := {}          # Vector2i -> Tile
@@ -20,8 +20,20 @@ var bench: Array[Unit]   # fixed size, null = empty
 var unlocked := {}   # Vector2i -> true
 var player_order: Array[Vector2i] = []
 var enemy_order: Array[Vector2i] = []
+var kings: Array[King] = []   # index = team (0 you, 1 the enemy): the extra hex left of each side, see king.gd
 var _border_mat: StandardMaterial3D
 var theme: StringName = &""   # the board look (BoardThemes); set by apply_theme
+var runner: CombatRunner      # the fight on this board (set by CombatRunner.new(board)); Abilities find it here
+# Whose board this is: gold from selling, items given back. The visible board is the local player's
+# (GameState.me); the lobby server's seat boards belong to their seats. Signals (Events) only fire for
+# the local player, so a server board never moves the HUD.
+var player: PlayerState
+var pool: UnitPool   # sold units go back here (the run's or the lobby's shared pool); null: nowhere
+# false for the lobby server's hidden boards: no kings, bench and sell hexes, borders, themes or unit
+# models, and no listening to the local player's level or phase. Set before the board enters the tree.
+var visual := true
+var _next_uid := 1   # Unit.uid for the units made on this board (the lobby protocol names units by it)
+var runner_credits_both := false   # a lobby arena: both teams belong to players (Pickpocket gold for either side)
 var _bench_tiles: Array[Node3D] = []
 var _sell_tile: Node3D
 static var _prism: ArrayMesh   # the hex block every tile, bench slot and sell hex shares
@@ -94,8 +106,36 @@ func vacate(u: Unit):
 		tiles[u.coord].occupant = null
 
 
+# A board made in code (the scene's Board has these children in main.tscn): for the lobby server.
+static func make(is_visual := true) -> Board:
+	var b := Board.new()
+	b.visual = is_visual
+	for n in ["Bench", "Units", "Tiles"]:
+		var child := Node3D.new()
+		child.name = n
+		b.add_child(child)
+	return b
+
+func next_uid() -> int:
+	_next_uid += 1
+	return _next_uid - 1
+
+# Makes a unit of this board's side 0 (bought, carried, restored), with a fresh uid.
+func make_unit(d: UnitData, scene: PackedScene) -> Unit:
+	var u := scene.instantiate() as Unit
+	$Units.add_child(u)
+	u.uid = next_uid()
+	u.setup(d, 0)
+	return u
+
+func _local() -> bool:
+	return player != null and player.is_local
+
 func _ready():
-	add_to_group("board")
+	if player == null:
+		player = GameState.me
+	if visual:
+		add_to_group("board")
 	bench.resize(BENCH_SLOTS)
 	for r in ROWS:
 		for c in COLS:
@@ -106,7 +146,11 @@ func _ready():
 			tiles[t.coord] = t
 	player_order = _order_for(true)
 	enemy_order = _order_for(false)
-	refresh_unlocks(GameState.me.level, false)
+	if visual:
+		_build_kings()
+	refresh_unlocks(player.level, false)
+	if not visual:
+		return
 	Events.xp_changed.connect(_on_xp_changed)
 	Events.phase_changed.connect(_on_phase_for_unlocks)
 	_build_bench_slots()
@@ -117,6 +161,8 @@ func _ready():
 # the layers on its sides), board tiles pick one of three top variations by their coord, and the
 # backdrop takes the theme's colour. Visual only.
 func apply_theme(id: StringName) -> void:
+	if not visual:
+		return
 	if not BoardThemes.has(id):
 		id = BoardThemes.ORDER[1]
 	theme = id
@@ -126,6 +172,8 @@ func apply_theme(id: StringName) -> void:
 		_skin(t, "board_%d" % v, "board_side")
 	for s in _bench_tiles:
 		_skin(s, "bench", "bench_side")
+	for k in kings:
+		_skin(k, "board_2", "board_side")
 	if _sell_tile != null:
 		_skin(_sell_tile, "sell", "sell_side")
 	RenderingServer.set_default_clear_color(BoardThemes.backdrop(id))
@@ -202,6 +250,8 @@ func _build_border():
 	holder = Node3D.new()
 	holder.name = "Border"
 	add_child(holder)
+	if view_flipped:
+		set_view_flipped(true)
 
 	var r := BORDER_R
 	var y := 0.12
@@ -279,6 +329,8 @@ func try_merge() -> bool:
 			detach(g[i])
 			g[i].queue_free()
 		keeper.set_star(keeper.star + 1)
+		if visual:
+			Sfx.play(&"merge")
 		return true
 	return false
 
@@ -300,7 +352,7 @@ func _move_items_to(keeper: Unit, consumed: Array) -> void:
 		var cu: Unit = c
 		for item in cu.take_items():
 			if not keeper.equip(item):
-				GameState.me.items.append(item)
+				player.items.append(item)
 				returned = true
 	var regrow := false
 	for it in keeper.items:
@@ -309,7 +361,7 @@ func _move_items_to(keeper: Unit, consumed: Array) -> void:
 			regrow = true
 	if regrow:
 		keeper._recalc_items()
-	if returned:
+	if returned and _local():
 		Events.items_changed.emit()
 
 # Puts a unit's items back in the inventory (selling, or a unit removed for lack of room).
@@ -317,8 +369,9 @@ func _return_items(u: Unit) -> void:
 	var taken := u.take_items()
 	if taken.is_empty():
 		return
-	GameState.me.items.append_array(taken)
-	Events.items_changed.emit()
+	player.items.append_array(taken)
+	if _local():
+		Events.items_changed.emit()
 
 func nearest_tile(p: Vector3, max_dist := HEX * 1.2) -> Tile:
 	var best: Tile = null
@@ -335,6 +388,34 @@ func nearest_tile(p: Vector3, max_dist := HEX * 1.2) -> Tile:
 
 func grid_to_world(c: Vector2i) -> Vector3:
 	return Vector3(HEX * sqrt(3.0) * (c.x + 0.5 * (c.y & 1)), 0.05, HEX * 1.5 * c.y)
+
+# Where tile c is shown in the world (spell effects): grid_to_world as placed by the Units node, which a
+# lobby client turns around while watching a fight from the away side (set_view_flipped).
+func display_pos(c: Vector2i) -> Vector3:
+	return $Units.to_global(grid_to_world(c)) if is_inside_tree() else grid_to_world(c)
+
+# The away player's view of a lobby fight: tiles, units, kings and the border turned 180 degrees about
+# the middle of the board, so their own side (team 1, rows 0-3) is at the bottom, next to their bench.
+# The board's mirror (BoardSnapshot.mirror) is exactly this turn, so every hex lands on a hex. View only.
+var view_flipped := false
+func set_view_flipped(on: bool) -> void:
+	view_flipped = on
+	var center := Vector3(HEX * sqrt(3.0) * ((COLS - 1) / 2.0 + 0.25), 0.0, HEX * 1.5 * (ROWS - 1) / 2.0)
+	var t := Transform3D(Basis(Vector3.UP, PI), center * 2.0) if on else Transform3D.IDENTITY
+	for n in ["Tiles", "Units", "Kings", "Border"]:
+		var node := get_node_or_null(n) as Node3D
+		if node != null:
+			node.transform = t
+	for k in kings:
+		k.recolour()
+	for i in bench.size():   # bench units live in Units too, but the bench itself never turns
+		if bench[i] != null:
+			put_on_bench(bench[i], i)
+
+# Bench slot i in the Units node's own space (the same as bench_to_world unless the view is turned).
+func bench_local(i: int) -> Vector3:
+	var units := get_node_or_null("Units") as Node3D
+	return units.transform.affine_inverse() * bench_to_world(i) if units != null else bench_to_world(i)
 
 func bench_to_world(i: int) -> Vector3:
 	var w := HEX * sqrt(3.0)
@@ -414,7 +495,8 @@ func put_on_bench(u: Unit, i: int):
 			return
 	bench[i] = u
 	u.coord = Vector2i(-1, -1)
-	u.position = bench_to_world(i)
+	u.position = bench_local(i)
+	u.rotation.y = PI if view_flipped else 0.0   # facing the board either way
 
 
 # Fills free board slots from the bench when a fight starts: the leftmost bench unit goes first, while
@@ -484,8 +566,11 @@ func sell_unit(u: Unit):
 	_return_items(u)
 	detach(u)
 	u.queue_free()
-	GameState.me.gold += refund
-	Events.unit_sold.emit(d, star, refund)
+	player.gold += refund
+	if pool != null:
+		pool.give_back(d, UnitPool.copies_in(star))
+	if _local():
+		Events.unit_sold.emit(d, star, refund)
 
 func _build_sell_zone():
 	var s: Node3D = tile_scene.instantiate()
@@ -552,7 +637,52 @@ func refresh_unlocks(level: int, animate := true):
 			if open:
 				unlocked[c] = true
 			tiles[c].set_unlocked(open, animate)
-	_build_border()
+	if visual:
+		_build_border()
+	_place_kings(animate)
+
+# --- the kings (king.gd) ---------------------------------------------------------------------------
+
+func _build_kings() -> void:
+	var holder := Node3D.new()
+	holder.name = "Kings"
+	add_child(holder)
+	for team in 2:
+		var k := King.new()
+		holder.add_child(k)
+		k.setup(team)
+		kings.append(k)
+
+func king_of(team: int) -> King:
+	return kings[team] if team >= 0 and team < kings.size() else null
+
+func _place_kings(animate: bool) -> void:
+	for team in kings.size():
+		kings[team].move_to(king_spot(team), animate)
+
+# Where a side's king stands (world position): in its row (KING_ROWS), one hex left of the leftmost open
+# tile of that row, so it sits right at the left edge of the board and moves outwards as the board grows.
+# While that row has no open tile yet (the first level only opens the start row) it hangs off the nearest
+# row that has one, half a hex further left: still touching the edge, and never on an open tile.
+func king_spot(team: int) -> Vector3:
+	var row: int = KING_ROWS[team]
+	var w := HEX * sqrt(3.0)
+	var left := {}   # row -> world x of its leftmost open tile (on this side)
+	for c in unlocked:
+		if is_player_side(c) != (team == 0):
+			continue
+		var x := grid_to_world(c).x
+		left[c.y] = minf(float(left.get(c.y, INF)), x)
+	var ref := -1
+	for r in left:
+		if ref < 0 or absi(r - row) < absi(ref - row):
+			ref = r
+	var base := Vector3(0.0, 0.05, HEX * 1.5 * row)
+	if ref < 0:
+		base.x = -w   # nothing open at all (never happens: the start tiles are always open)
+		return base
+	base.x = float(left[ref]) - (w if ref == row else w * 0.5)
+	return base
 
 static func tiles_open_for_level(level: int) -> int:   # per side; static so campaign validation can use it
 	var per_side := ROWS / 2 * COLS   # 28
@@ -576,4 +706,27 @@ func _on_xp_changed(l: int, _x: int, _n: int):
 func _on_phase_for_unlocks(p: int):
 	_in_prep = (p == Events.Phase.PREP)
 	if _in_prep:
-		refresh_unlocks(GameState.me.level, true)
+		refresh_unlocks(player.level, true)
+
+# A lobby fight (Arena): your half opens as many tiles as `home_level` gives, the enemy half exactly
+# `enemy_open` (enemy-half coords: the mirror images of the tiles the other player has open, so their
+# mirrored board always lands on open tiles; a PvE wave's own tiles).
+func set_fight_unlocks(home_level: int, enemy_open: Array) -> void:
+	var n: int = tiles_open_for_level(home_level)
+	unlocked.clear()
+	for i in player_order.size():
+		if i < n:
+			unlocked[player_order[i]] = true
+	for c in enemy_open:
+		if tiles.has(c) and not is_player_side(c):
+			unlocked[c] = true
+	for c in tiles:
+		tiles[c].set_unlocked(unlocked.has(c), false)
+	if visual:
+		_build_border()
+	_place_kings(false)
+
+# The tiles of your half open at `level` (the lobby sends them with each fight).
+func open_player_tiles(level: int) -> Array:
+	var n: int = tiles_open_for_level(level)
+	return player_order.slice(0, n)

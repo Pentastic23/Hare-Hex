@@ -94,9 +94,11 @@ func _run():
 	await frames()
 	bad += scan(menu, "campaign panel")
 	menu._show_panel(menu.settings_panel)
-	menu._show_info("Live PvP", menu.LIVE_PVP_TEXT)
 	await frames()
-	bad += scan(menu, "settings and info panels")
+	bad += scan(menu, "settings panel")
+	menu._show_panel(menu.lobby_panel)
+	await frames()
+	bad += scan(menu, "lobby panel")
 	menu.free()
 	chk("main menu: every tooltip fits", bad == 0)
 

@@ -55,16 +55,24 @@ func total_rounds() -> int:
 		return run_level.waves.size()   # campaign: one round per wave
 	return FIRST_STAGE_ROUNDS + (TOTAL_STAGES - 1) * ROUNDS_PER_STAGE   # 39
 
-@warning_ignore("integer_division")
 func stage() -> int:
-	if round_number <= FIRST_STAGE_ROUNDS:
-		return 1
-	return 2 + (round_number - FIRST_STAGE_ROUNDS - 1) / ROUNDS_PER_STAGE
+	return stage_for(round_number)
 
 func round_in_stage() -> int:
-	if round_number <= FIRST_STAGE_ROUNDS:
-		return round_number
-	return (round_number - FIRST_STAGE_ROUNDS - 1) % ROUNDS_PER_STAGE + 1
+	return round_in_stage_for(round_number)
+
+# The stage of round r (free-play numbering: 3 rounds in stage 1, then 6 per stage). The lobby server
+# keeps its own round, so the rules take it as an argument.
+@warning_ignore("integer_division")
+static func stage_for(r: int) -> int:
+	if r <= FIRST_STAGE_ROUNDS:
+		return 1
+	return 2 + (r - FIRST_STAGE_ROUNDS - 1) / ROUNDS_PER_STAGE
+
+static func round_in_stage_for(r: int) -> int:
+	if r <= FIRST_STAGE_ROUNDS:
+		return r
+	return (r - FIRST_STAGE_ROUNDS - 1) % ROUNDS_PER_STAGE + 1
 
 @warning_ignore("integer_division")
 func rounds_in_current_stage() -> int:
@@ -113,17 +121,26 @@ func reset():
 # chapter run for this level, the local player's gold, level, XP and HP come from it (plus the
 # level's start_heal); otherwise the level's start modifiers apply. Returns the carry used (empty
 # if none) so GameManager can rebuild the board, bench and items. run_level / run_campaign survive reset().
+#
+# A carry with a valid "mid" block (SaveGame.mid_level) is a save from partway through this level: the
+# run keeps that save's seed and round, and the start heal is not given again (it was, when the level
+# began). GameManager restores the rest of it (_restore_mid) and resumes the saved phase.
 func begin_run(lvl: CampaignLevel = null, campaign: Campaign = null) -> Dictionary:
 	run_level = lvl
 	run_campaign = campaign
-	run_seed = next_seed if next_seed != 0 else (randi() | 1)
-	next_seed = 0
-	for p in players:
-		p.rng.seed = hash([run_seed, p.id])   # each player's shop rolls differently, all from one seed
 	var carry: Dictionary = {}
 	if lvl != null and str(run_carry.get("level", "")) == String(lvl.id):
 		carry = run_carry
 	run_carry = {}
+	var mid := SaveGame.mid_level(carry, total_rounds())
+	if carry.has("mid") and mid.is_empty():
+		carry.erase("mid")   # unreadable or from another build: start the level from its carried state
+	if not mid.is_empty():
+		next_seed = int(mid.seed)
+	run_seed = next_seed if next_seed != 0 else (randi() | 1)
+	next_seed = 0
+	for p in players:
+		p.rng.seed = hash([run_seed, p.id])   # each player's shop rolls differently, all from one seed
 	run_carried = not carry.is_empty()
 	if run_carried:
 		me.start_hp = int(carry.get("max_hp", MAX_HP))
@@ -135,7 +152,10 @@ func begin_run(lvl: CampaignLevel = null, campaign: Campaign = null) -> Dictiona
 		me.level = int(carry.get("player_level", 1))
 		me.xp = int(carry.get("xp", 0))
 		me.player_hp = int(carry.get("hp", me.start_hp))
-		me.heal(lvl.start_heal)
+		if mid.is_empty():
+			me.heal(lvl.start_heal)
+		else:
+			round_number = int(mid.round)
 	elif lvl != null:
 		me.gold = lvl.start_gold
 		me.level = lvl.start_level
@@ -143,9 +163,11 @@ func begin_run(lvl: CampaignLevel = null, campaign: Campaign = null) -> Dictiona
 	Events.xp_changed.emit(me.level, me.xp, me.xp_needed())
 	return carry
 
-# Leaves the current run for the main menu. A campaign chapter run stays saved as of the start of
-# the current level, so the menu's Continue resumes it there.
+# Leaves the current run for the main menu. A campaign chapter run stays saved (during PREP it is saved
+# as it is now; mid-fight, as the fight began), so the menu's Continue resumes it there.
 func go_to_menu():
+	get_tree().call_group("game_manager", "save_mid_run")   # before reset() wipes the state
+	LobbyNet.leave()   # out of a lobby (in a game still running, the seat stays, idle, until you rejoin)
 	get_tree().paused = false
 	ghost_mode = false
 	run_level = null

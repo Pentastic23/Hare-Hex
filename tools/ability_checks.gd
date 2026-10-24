@@ -589,6 +589,48 @@ func _run():
 			hexed_left += 1
 	chk("nothing is left charmed or raised after the fight", hexed_left == 0)
 
+	print("--- spell effects (turned on in a headless run)")
+	Vfx.enabled = true
+	var before := main.get_child_count()
+	var cast_errors := 0
+	for d in roster:
+		var fx_caster := (load("res://scenes/unit.tscn").instantiate() as Unit)
+		board.get_node("Units").add_child(fx_caster)
+		fx_caster.setup(d, 0)
+		board.put_on_tile(fx_caster, Vector2i(3, 5))
+		fx_caster.begin_combat()
+		var buddy2 := place("knight", Vector2i(2, 5))
+		var foes2: Array[Unit] = [place("guardian", Vector2i(3, 4), 1), place("thief", Vector2i(4, 3), 1), place("archer", Vector2i(2, 1), 1)]
+		buddy2.health = 100.0
+		gm.combatants.assign([fx_caster, buddy2] + foes2)
+		fx_caster._cast(foes2[0])
+		for i in 30:
+			gm._tick_zones()
+		await get_tree().process_frame
+		if not is_instance_valid(fx_caster):
+			cast_errors += 1
+		clear_units()
+		gm.zones.clear()
+		gm.new_summons.clear()
+	await get_tree().process_frame
+	chk("every ability casts with its effects on, without errors", cast_errors == 0)
+	chk("the effects are made as nodes in the world", main.get_child_count() > before, "%d -> %d" % [before, main.get_child_count()])
+	var st := place("knight", Vector2i(3, 5))
+	st.apply_stun(1.0)
+	st.add_buff("Test", "as", 0.2, 2.0)
+	st.add_timed_shield(100.0, 2.0)
+	st.doom_left = 3.0
+	await get_tree().process_frame
+	chk("status marks follow the unit's state (stun, buff, shield, doom)", st._status != null and st._status.get_node("stun").visible and st._status.get_node("buff").visible and st._status.get_node("shield").visible and (st._status.get_node("doom") as Label3D).text == "DOOM 3")
+	st.stun_left = 0.0
+	st.buffs.clear()
+	st.ab_shield = 0.0
+	st.doom_left = 0.0
+	await get_tree().process_frame
+	chk("and go away when it ends", st._status == null)
+	clear_units()
+	Vfx.enabled = false
+
 	print("--- in the inspector")
 	var dr := place("dragon", Vector2i(3, 5), 0, 2)
 	var its: Array[ItemData] = []

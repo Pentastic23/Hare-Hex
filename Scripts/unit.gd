@@ -4,6 +4,12 @@ class_name Unit extends Node3D
 @export var data: UnitData
 var team := 0
 var coord := Vector2i(-1, -1)   # (-1,-1) = on bench
+var uid := -1          # this unit's id on its board (Board.make_unit); the lobby protocol names units by it
+var source_uid := -1   # a lobby fight copy (Arena): the uid of the seat unit it was copied from...
+var source_seat := -1  # ...and that seat (-1: not a copy, or a PvE enemy)
+# Which team the viewer plays (the visible board's colours: yours blue and green, theirs orange and red).
+# 1 while a lobby client watches a fight from the away side; game logic never reads it.
+static var viewer_team := 0
 var star := 1
 var health: float
 var mana := 0.0
@@ -251,6 +257,7 @@ func _place_bars():
 func _process(delta):
 	if _charm_fx != null:
 		_update_charm_fx(delta)
+	_update_status(delta)
 	if _hide_in > 0.0:
 		_hide_in -= delta
 		if _hide_in <= 0.0 and dead:
@@ -272,7 +279,7 @@ func _process(delta):
 		_last_shield = sh
 		shield_fill.visible = sh > 0.0
 		shield_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * sh, 0.01), BAR_PX_H)
-	var base_col := Color(0.3, 0.85, 0.3) if team == 0 else Color(0.9, 0.25, 0.25)
+	var base_col := Color(0.3, 0.85, 0.3) if mine() else Color(0.9, 0.25, 0.25)
 	bar_fill.modulate = base_col.lerp(Color(1.0, 0.55, 0.1), 0.6) if burn_left > 0.0 else base_col   # burning: orange tint
 	if item_icons != null:
 		item_icons.visible = not dead
@@ -292,14 +299,15 @@ func setup(d: UnitData, t: int):
 	data = d
 	team = t
 	if bar_fill:
-		bar_fill.modulate = Color(0.3, 0.85, 0.3) if team == 0 else Color(0.9, 0.25, 0.25)
+		bar_fill.modulate = Color(0.3, 0.85, 0.3) if mine() else Color(0.9, 0.25, 0.25)
 	health = d.max_health
 	var holder := get_node_or_null("ModelHolder")
 	if holder == null:
 		push_error("Unit was not created from unit.tscn (no ModelHolder)")
 		return
 	rotation.y = PI if team == 1 else 0.0   # face the other side of the board
-	if d.model:
+	var b := get_parent().get_parent() as Board if get_parent() != null else null
+	if d.model and (b == null or b.visual):   # the lobby server's hidden boards skip models (visual only)
 		var body := d.model.instantiate()
 		holder.add_child(body)
 		model_view = body as UnitModel
@@ -310,13 +318,17 @@ func setup(d: UnitData, t: int):
 		_place_bars()
 		_make_ring()
 	else:
-		if team == 1:
+		if not mine():
 			var mat := StandardMaterial3D.new()
 			mat.albedo_color = Color(0.9, 0.25, 0.25)
 			for m in holder.find_children("*", "MeshInstance3D", true, false):
 				m.material_override = mat
 		_make_letter()
 	mana = d.start_mana
+
+# On the viewer's side (blue ring, green bar)?
+func mine() -> bool:
+	return team == viewer_team
 
 # A flat ring at a model's feet in the team colour (the capsule is painted red for enemies instead).
 func _make_ring():
@@ -330,7 +342,7 @@ func _make_ring():
 	ring.position.y = 0.04
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = RING_COLORS[team]
+	mat.albedo_color = RING_COLORS[0 if mine() else 1]
 	ring.material_override = mat
 	_ring_mat = mat
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -522,12 +534,15 @@ func _attack(t: Unit, fixed := -1.0):
 		return
 	var dmg := fixed if fixed >= 0.0 else damage()
 	var crit := crit_every > 0 and attacks_made % crit_every == 0
+	if fixed < 0.0:
+		Sfx.play(&"swing")
 	if empower_hits > 0 and not (empower_after_stealth and untargetable_left > 0.0):
 		empower_hits -= 1
 		dmg += empower_dmg
 		crit = crit or empower_crit
 	if crit:
 		dmg *= 2.0
+	Sfx.play(&"crit" if crit else &"hit")
 	damage_dealt += t.take_damage(dmg, self, true)
 	var steal := omnivamp()
 	if steal > 0.0:
@@ -613,6 +628,8 @@ func heal(amount: float) -> float:
 func leap_to(c: Vector2i, secs := 0.25):
 	if c == coord or root_left > 0.0:
 		return
+	Vfx.burst(self, global_position + Vector3(0, 0.4, 0), Vfx.color_of(self), 6, 0.5)
+	Vfx.ring(self, board.display_pos(c) + Vector3(0, 0.08, 0), 0.3, 0.9, Vfx.color_of(self), 0.4)
 	board.claim(self, c)
 	moving = true
 	move_from = position
@@ -678,6 +695,7 @@ func _tick_effects(delta: float):
 		if doom_left <= 0.0001:
 			doom_left = 0.0
 			var dby: Unit = doom_by if is_instance_valid(doom_by) else null
+			Vfx.burst(self, global_position + Vector3(0, 1.0, 0), Color("b0306a"), 12, 1.0)
 			var removed := take_damage(doom_dmg, dby)
 			if dby != null:
 				dby.damage_dealt += removed
@@ -760,6 +778,7 @@ func take_damage(amount: float, by: Unit = null, attack := false, pierce := fals
 # Dies now (no revive): leaves its tile, passes on a Doom, runs on_death, then the model falls.
 func _fall():
 	dead = true
+	Sfx.play(&"death")
 	raised_left = 0.0
 	board.vacate(self)
 	if charm_left > 0.0:
@@ -779,6 +798,7 @@ func _fall():
 func _erupt():
 	var d := erupt_dmg
 	erupt_dmg = 0.0
+	Vfx.area(self, board, coord, 1, Color("ff6a1f"))
 	for e in Abilities.enemies_within(self, coord, 1):
 		Abilities.hit(self, e, d)
 		e.apply_burn(0.03 * e.max_hp(), self)
@@ -806,7 +826,7 @@ func apply_charm(by: Unit, secs: float):
 # pink-violet, and a faint thread runs to the Faerie Queen. Reduce motion: the sigil stands still.
 func _show_charm(on: bool):
 	if _ring_mat != null:
-		_ring_mat.albedo_color = CHARM_COLOR if on else RING_COLORS[team]
+		_ring_mat.albedo_color = CHARM_COLOR if on else RING_COLORS[0 if mine() else 1]
 	if _charm_fx != null:
 		_charm_fx.queue_free()
 		_charm_fx = null
@@ -844,6 +864,164 @@ func _show_charm(on: bool):
 	thread.top_level = true
 	thread.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_charm_fx.add_child(thread)
+
+# Status marks (visual only), read from the unit's state each frame:
+# stunned (stars circling the head), rooted (vines ring), silenced (a violet cross), taunted (a red
+# "!"), blinded (a grey cloud), doomed (a countdown), guarded by a Paladin (a gold thread), parrying
+# (crossed blades), thorns (a spiked ring), hidden (a dark ring), raised (a pale ring), buffed (a ring
+# in the buff's colour) and an ability shield (a bubble). Reduce motion: nothing turns.
+var _status: Node3D
+var _status_t := 0.0
+const BUFF_COLORS := {"as": Color("ffe066"), "dmg": Color("ff6b5a"), "dr": Color("6cb4ff"), "vamp": Color("d0304a"), "regen": Color("7dff9a")}
+
+func _update_status(delta: float):
+	if not Vfx.enabled:
+		return
+	var active := not dead and (stun_left > 0.0 or root_left > 0.0 or silence_left > 0.0 or taunt_left > 0.0 \
+		or blind_hits > 0 or doom_left > 0.0 or link_left > 0.0 or parry_left > 0.0 or thorns_left > 0.0 \
+		or untargetable_left > 0.0 or raised_left > 0.0 or not buffs.is_empty() or ab_shield > 0.0)
+	if not active:
+		if _status != null:
+			_status.queue_free()
+			_status = null
+		return
+	if _status == null:
+		_status = Node3D.new()
+		_status.top_level = true
+		add_child(_status)
+	_status_t += delta if not Settings.reduce_motion else 0.0
+	_status.global_position = global_position
+	var head := bar_height + 0.55
+	_piece("stun", stun_left > 0.0, func():
+		var n := Node3D.new()
+		for i in 3:
+			var s := Vfx.cube(0.14, Color("ffe066"))
+			s.position = Vector3(cos(i * TAU / 3) * 0.35, 0, sin(i * TAU / 3) * 0.35)
+			n.add_child(s)
+		return [n, Vector3(0, head, 0), true])
+	_piece("root", root_left > 0.0, func(): return [_flat_ring(Color("4f9a3a"), 0.75), Vector3(0, 0.1, 0), false])
+	_piece("silence", silence_left > 0.0, func():
+		var n := Node3D.new()
+		for a in [PI / 4, -PI / 4]:
+			var bar := Vfx.cube(1.0, Color("b07cff"))
+			bar.scale = Vector3(0.5, 0.09, 0.09)
+			bar.rotation.z = a
+			n.add_child(bar)
+		return [n, Vector3(-0.45, head, 0), false])
+	_piece("taunt", taunt_left > 0.0, func():
+		var l := Label3D.new()
+		l.text = "!"
+		l.font_size = 96
+		l.pixel_size = 0.01
+		l.outline_size = 18
+		l.modulate = Color("ff4a3a")
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.no_depth_test = true
+		return [l, Vector3(0.45, head, 0), false])
+	_piece("blind", blind_hits > 0, func():
+		var n := Node3D.new()
+		for i in 4:
+			var s := Vfx.cube(0.2, Color(0.35, 0.35, 0.4, 0.8))
+			s.position = Vector3(cos(i * 1.6) * 0.25, 0.08 * i, sin(i * 1.6) * 0.25)
+			n.add_child(s)
+		return [n, Vector3(0, bar_height - 0.2, 0), true])
+	_piece("doom", doom_left > 0.0, func():
+		var l := Label3D.new()
+		l.font_size = 64
+		l.pixel_size = 0.01
+		l.outline_size = 16
+		l.modulate = Color("e04a9a")
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.no_depth_test = true
+		return [l, Vector3(0, head + 0.35, 0), false])
+	if _status.has_node("doom"):
+		(_status.get_node("doom") as Label3D).text = "DOOM %d" % ceili(doom_left)
+	_piece("parry", parry_left > 0.0, func():
+		var n := Node3D.new()
+		for a in [PI / 5, -PI / 5]:
+			var blade := Vfx.cube(1.0, Color("fff0b0"))
+			blade.scale = Vector3(0.08, 0.7, 0.04)
+			blade.rotation.z = a
+			n.add_child(blade)
+		return [n, Vector3(0, 1.0, 0), true])
+	_piece("thorns", thorns_left > 0.0, func():
+		var n := Node3D.new()
+		for i in 8:
+			var spike := Vfx.cube(0.14, Color("b98a4a"))
+			spike.position = Vector3(cos(i * TAU / 8) * 0.8, 0.1, sin(i * TAU / 8) * 0.8)
+			spike.rotation = Vector3(0.6, i, 0.6)
+			n.add_child(spike)
+		return [n, Vector3.ZERO, true])
+	_piece("hidden", untargetable_left > 0.0, func(): return [_flat_ring(Color(0.15, 0.1, 0.25, 0.85), 0.9), Vector3(0, 0.12, 0), false])
+	_piece("raised", raised_left > 0.0, func(): return [_flat_ring(Color("cfffe0"), 0.95), Vector3(0, 0.14, 0), false])
+	var buff_stat := ""
+	for b in buffs.values():
+		buff_stat = b[0]
+	_piece("buff", buff_stat != "", func(): return [_flat_ring(Color.WHITE, 0.65), Vector3(0, 0.16, 0), false])
+	if _status.has_node("buff") and buff_stat != "":
+		((_status.get_node("buff") as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = BUFF_COLORS.get(buff_stat, Color.WHITE)
+	_piece("shield", ab_shield > 0.0, func():
+		var m := MeshInstance3D.new()
+		var sph := SphereMesh.new()
+		sph.radius = 0.85
+		sph.height = 1.9
+		sph.radial_segments = 12
+		sph.rings = 6
+		m.mesh = sph
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(0.75, 0.9, 1.0, 0.18)
+		m.material_override = mat
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return [m, Vector3(0, 0.95, 0), false])
+	_piece("link", link_left > 0.0 and is_instance_valid(link_to) and not link_to.dead, func():
+		var m := Vfx.cube(1.0, Color(1.0, 0.85, 0.4, 0.6))
+		m.top_level = true
+		return [m, Vector3.ZERO, false])
+	if _status.has_node("link"):
+		var lk := _status.get_node("link") as Node3D
+		if lk.visible:
+			var a := global_position + Vector3(0, 1.0, 0)
+			var b := link_to.global_position + Vector3(0, 1.0, 0)
+			lk.global_position = (a + b) * 0.5
+			if a.distance_to(b) > 0.01:
+				lk.look_at(b)
+			lk.scale = Vector3(0.05, 0.05, a.distance_to(b))
+
+# One status mark: made on first use (make returns [node, offset, spins]), shown while `on`.
+func _piece(id: String, on: bool, make: Callable):
+	var n := _status.get_node_or_null(id) as Node3D
+	if n == null:
+		if not on:
+			return
+		var made: Array = make.call()
+		n = made[0]
+		n.name = id
+		n.position = made[1]
+		n.set_meta("spins", made[2])
+		_status.add_child(n)
+	n.visible = on
+	if on and n.get_meta("spins", false):
+		n.rotation.y = _status_t * 3.0
+
+func _flat_ring(c: Color, r: float) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	var tor := TorusMesh.new()
+	tor.inner_radius = r - 0.12
+	tor.outer_radius = r
+	tor.rings = 24
+	tor.ring_segments = 6
+	m.mesh = tor
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = c
+	if c.a < 1.0:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.material_override = mat
+	m.scale = Vector3(1, 0.2, 1)
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return m
 
 func _update_charm_fx(delta: float):
 	var sigil := _charm_fx.get_node("Sigil") as Node3D
@@ -1037,10 +1215,12 @@ func _cast(target_unit: Unit):
 		if Abilities.enabled:
 			shown = Abilities.name_of(data)
 			cast_lock = Abilities.cast(self, target_unit)   # locked while casting (longer for channels)
+			Vfx.cast_flash(self)
 	else:
 		_ability().cast(self, target_unit)   # units whose ability isn't built yet: the placeholder
 	if model_view != null:
 		model_view.on_cast()
+	Sfx.play(&"cast")
 	_popup(shown, Color(0.55, 0.85, 1.0))
 
 # A word that floats up from the unit and fades ("CAST", "MISS", "REVIVE"). Visual only.

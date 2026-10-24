@@ -34,6 +34,7 @@ var cheap_shop := false            # round 1-1: 1-cost units only
 var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool until the next roll
 var shop_locked := false                # locked: the shop keeps its offers into the next round
 var shop_has_rolled := false
+var shop_rolls := 0                     # shops rolled this run (a lobby client refills its slots only on a new roll)
 var last_combat_won := false
 var rng := RandomNumberGenerator.new()  # this player's shop and item drops; seeded per run
 
