@@ -186,6 +186,8 @@ func _on_tutorial_resized() -> void:
 	_shrink.call_deferred()
 
 func _input(event):
+	if BugReporter.is_open:
+		return   # Esc closes the bug report first (BugReportUI.gd)
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	if current == "menu":

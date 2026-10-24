@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://bdx82jigu3kx2"]
+
+[ext_resource type="Script" uid="uid://di87s0548uhwi" path="res://Scripts/BugReportUI.gd" id="1_hnq7e"]
+
+[node name="BugReportUI" type="CanvasLayer" unique_id=156538685]
+script = ExtResource("1_hnq7e")
+
+[node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=1130838855]

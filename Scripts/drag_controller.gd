@@ -18,7 +18,7 @@ func _on_phase_changed(p: int):
 	_cancel_drag()
 
 func _input(event):
-	if Keybinds.pressed(event, "sell_unit"):   # F by default (main menu > Keybinds)
+	if Keybinds.pressed(event, "sell_unit") and not BugReporter.typing():   # F by default (main menu > Keybinds); not while typing a bug report
 		_sell_with_key()
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:

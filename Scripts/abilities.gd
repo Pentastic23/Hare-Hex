@@ -97,7 +97,7 @@ const SUMMONS := {
 	"Pact Demon": {"model": "res://tres/units/imp.tres", "aps": 0.8, "label": "PD"},
 	"Jungle Beast": {"model": "res://tres/units/initiate.tres", "aps": 1.1, "label": "JB"},
 }
-const SUMMON_SIZE := 0.8   # summons are a little smaller than real units
+const SUMMON_SIZE := 0.5   # summons are a little smaller than real units
 
 static var enabled := true   # tests turn casts off to check other mechanics on their own
 
