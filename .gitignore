@@ -5,3 +5,6 @@
 # Bug report webhook (a secret: anyone with it can post to the Discord channel)
 bug_report_webhook.txt
 docs/bug_report_webhook.md
+
+#DISCORD_WEBHOOK
+Github release webhook.txt
