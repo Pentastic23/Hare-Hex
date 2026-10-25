@@ -163,6 +163,26 @@ func begin_run(lvl: CampaignLevel = null, campaign: Campaign = null) -> Dictiona
 	Events.xp_changed.emit(me.level, me.xp, me.xp_needed())
 	return carry
 
+# Switches to the run scene. The main menu has usually loaded it in the background (Preload); if it
+# isn't done yet, a "Loading..." card shows (two frames, so it is drawn) and the rest is waited for.
+func change_to_run() -> void:
+	if not Preload.is_ready(Preload.RUN_SCENE):
+		var here := get_tree().current_scene
+		if here != null:
+			var card := Label.new()
+			card.text = "Loading..."
+			card.add_theme_font_override("font", HudStyle.number_font())
+			card.add_theme_font_size_override("font_size", 40)
+			card.add_theme_color_override("font_color", HudStyle.GOLD)
+			card.set_anchors_preset(Control.PRESET_CENTER)
+			var layer := CanvasLayer.new()
+			layer.layer = 90
+			layer.add_child(card)
+			here.add_child(layer)   # freed with the scene it covers
+		await get_tree().process_frame
+		await get_tree().process_frame
+	get_tree().change_scene_to_packed(Preload.scene(Preload.RUN_SCENE))
+
 # Leaves the current run for the main menu. A campaign chapter run stays saved (during PREP it is saved
 # as it is now; mid-fight, as the fight began), so the menu's Continue resumes it there.
 func go_to_menu():

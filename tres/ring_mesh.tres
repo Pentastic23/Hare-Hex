@@ -1,0 +1,6 @@
+[gd_resource type="TorusMesh" format=3]
+
+[resource]
+inner_radius = 0.58
+outer_radius = 0.7
+rings = 32

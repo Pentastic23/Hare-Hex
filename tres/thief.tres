@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://b2mytmpbefx1k"]
 
 [ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_fs067"]
-[ext_resource type="PackedScene" path="res://scenes/models/thief.tscn" id="2_model"]
 
 [resource]
 script = ExtResource("1_fs067")
@@ -14,5 +13,5 @@ attacks_per_second = 0.9
 move_speed = 1.5
 cost = 2
 tags = Array[StringName]([&"Shadow", &"Rogue", &"Trickster"])
-model = ExtResource("2_model")
+model_path = "res://scenes/models/thief.tscn"
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

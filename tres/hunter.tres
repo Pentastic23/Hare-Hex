@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://cxrh0yix5vapk"]
 
 [ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_g715d"]
-[ext_resource type="PackedScene" path="res://scenes/models/hunter.tscn" id="2_model"]
 
 [resource]
 script = ExtResource("1_g715d")
@@ -14,5 +13,5 @@ attacks_per_second = 0.85
 move_speed = 1.5
 cost = 4
 tags = Array[StringName]([&"Wild", &"Ranger"])
-model = ExtResource("2_model")
+model_path = "res://scenes/models/hunter.tscn"
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://b2esie1m2euni"]
 
 [ext_resource type="Script" uid="uid://bvm58bmptjbr3" path="res://Scripts/unit.gd" id="1_o7ajc"]
+[ext_resource type="Texture2D" path="res://textures/ui/bar_white.png" id="2_bar"]
+[ext_resource type="TorusMesh" path="res://tres/ring_mesh.tres" id="3_ring"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_8ib2y"]
 
@@ -23,3 +25,76 @@ collision_mask = 0
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=1302471192]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("BoxShape3D_o7ajc")
+
+[node name="Bars" type="Node3D" parent="."]
+
+[node name="BarBg" type="Sprite3D" parent="Bars"]
+transform = Transform3D(1.06, 0, 0, 0, 1.5, 0, 0, 0, 1, 0, 2.4, 0)
+modulate = Color(0.1, 0.1, 0.1, 0.85)
+offset = Vector2(-50, -5)
+pixel_size = 0.01
+billboard = 1
+shaded = false
+no_depth_test = true
+texture = ExtResource("2_bar")
+centered = false
+
+[node name="BarFill" type="Sprite3D" parent="Bars"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)
+render_priority = 1
+modulate = Color(0.3, 0.85, 0.3, 1)
+offset = Vector2(-50, -5)
+pixel_size = 0.01
+billboard = 1
+shaded = false
+no_depth_test = true
+texture = ExtResource("2_bar")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, 0, 100, 10)
+
+[node name="ShieldFill" type="Sprite3D" parent="Bars"]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 0.5, 0, 0, 0, 1, 0, 2.4, 0)
+render_priority = 2
+modulate = Color(1, 1, 1, 0.8)
+offset = Vector2(-50, -5)
+pixel_size = 0.01
+billboard = 1
+shaded = false
+no_depth_test = true
+texture = ExtResource("2_bar")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, 0, 0.01, 10)
+
+[node name="ManaBg" type="Sprite3D" parent="Bars"]
+transform = Transform3D(1.06, 0, 0, 0, 1.1, 0, 0, 0, 1, 0, 2.27, 0)
+modulate = Color(0.1, 0.1, 0.1, 0.85)
+offset = Vector2(-50, -5)
+pixel_size = 0.01
+billboard = 1
+shaded = false
+no_depth_test = true
+texture = ExtResource("2_bar")
+centered = false
+
+[node name="ManaFill" type="Sprite3D" parent="Bars"]
+transform = Transform3D(1, 0, 0, 0, 0.7, 0, 0, 0, 1, 0, 2.27, 0)
+render_priority = 1
+modulate = Color(0.3, 0.55, 1, 1)
+offset = Vector2(-50, -5)
+pixel_size = 0.01
+billboard = 1
+shaded = false
+no_depth_test = true
+texture = ExtResource("2_bar")
+centered = false
+region_enabled = true
+region_rect = Rect2(0, 0, 0.01, 10)
+
+[node name="Ring" type="MeshInstance3D" parent="."]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 0.12, 0, 0, 0, 1, 0, 0.04, 0)
+cast_shadow = 0
+mesh = ExtResource("3_ring")

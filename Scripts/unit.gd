@@ -25,14 +25,15 @@ var letter_label: Label3D   # the placeholder capsule's name tag; units with a m
 var model_view: UnitModel   # the animated model (UnitData.model), or null for the placeholder capsule
 var bar_height := BAR_HEIGHT   # where the bars sit; set from the model's height and star
 var _hide_in := -1.0   # seconds until a dead unit with a model disappears (its death animation plays first)
-var bar_bg: Sprite3D
-var bar_fill: Sprite3D
-var shield_fill: Sprite3D   # white overlay on the health bar: the shield left, as a share of max HP
+@onready var bar_bg: Sprite3D = $Bars/BarBg   # the bars are nodes in unit.tscn, sharing one white texture
+@onready var bar_fill: Sprite3D = $Bars/BarFill
+@onready var shield_fill: Sprite3D = $Bars/ShieldFill   # white overlay on the health bar: the shield left, as a share of max HP
 var _last_shield := -1.0
 var _last_ratio := -1.0
 var stat_scale := 1.0
-var mana_bg: Sprite3D
-var mana_fill: Sprite3D
+@onready var mana_bg: Sprite3D = $Bars/ManaBg
+@onready var mana_fill: Sprite3D = $Bars/ManaFill
+@onready var ring: MeshInstance3D = $Ring   # the team ring at a model's feet (hidden for the capsule)
 var _last_mana_ratio := -1.0
 var bonus_hp := 0.0
 var bonus_dmg := 0.0
@@ -113,7 +114,6 @@ var army_used := false    # the Deathlord raises the dead once per fight
 var erupt_dmg := 0.0      # Molten Shell: when its ability shield breaks or runs out, adjacent enemies take this
 var nova_left := 0.0      # Sunfire Nova: while it runs, allies heal 10% of the burn damage this unit deals
 var nova_pool := 0.0
-var _ring_mat: StandardMaterial3D
 var _charm_fx: Node3D     # the charm's sigil and thread (visual only)
 const CHARM_COLOR := Color("d98cff")
 var damage_dealt := 0.0   # this fight, HP actually removed from enemies (damage meter)
@@ -144,6 +144,13 @@ const BAR_PX_H := 10
 const BAR_HEIGHT := 2.4        # bar height for the placeholder capsule; models set bar_height from their own height
 const BAR_GAP := 0.35          # bars sit this far above a model's head
 const RING_COLORS := [Color("6cc4ff"), Color("ff8a4c")]   # team ring at a model's feet: you, enemy
+const RING_MATS := [preload("res://tres/ring_you.tres"), preload("res://tres/ring_enemy.tres")]   # shared by every unit
+const RING_CHARM := preload("res://tres/ring_charm.tres")
+const RING_MESH := preload("res://tres/ring_mesh.tres")
+const BAR_TEX := preload("res://textures/ui/bar_white.png")
+
+static func bar_texture() -> Texture2D:
+	return BAR_TEX
 const MANA_PER_ATTACK := 10.0
 const MANA_FROM_DAMAGE := 0.1   # mana per point of damage taken
 const MANA_HIT_CAP := 15.0      # max mana from a single hit
@@ -191,56 +198,6 @@ func set_star(s: int):
 		_place_bars()
 	if letter_label != null:
 		letter_label.text = data.label() + ("*".repeat(star - 1))
-
-func _ready():
-	_make_bar()
-
-func _make_bar():
-	var img := Image.create(BAR_PX_W, BAR_PX_H, false, Image.FORMAT_RGBA8)
-	img.fill(Color.WHITE)
-	var tex := ImageTexture.create_from_image(img)
-
-	bar_bg = _make_bar_sprite(tex, 0)
-	bar_bg.modulate = Color(0.1, 0.1, 0.1, 0.85)
-	bar_bg.scale = Vector3(1.06, 1.5, 1.0)   # slightly bigger = a border
-
-	bar_fill = _make_bar_sprite(tex, 1)
-	bar_fill.modulate = Color(0.3, 0.85, 0.3)
-	bar_fill.region_enabled = true
-	bar_fill.region_rect = Rect2(0, 0, BAR_PX_W, BAR_PX_H)
-
-	shield_fill = _make_bar_sprite(tex, 2)
-	shield_fill.modulate = Color(1.0, 1.0, 1.0, 0.8)
-	shield_fill.scale = Vector3(1.0, 0.5, 1.0)
-	shield_fill.region_enabled = true
-	shield_fill.region_rect = Rect2(0, 0, 0.01, BAR_PX_H)
-	shield_fill.visible = false
-
-	mana_bg = _make_bar_sprite(tex, 0)
-	mana_bg.modulate = Color(0.1, 0.1, 0.1, 0.85)
-	mana_bg.scale = Vector3(1.06, 1.1, 1.0)
-	mana_bg.position.y = BAR_HEIGHT - MANA_OFFSET
-
-	mana_fill = _make_bar_sprite(tex, 1)
-	mana_fill.modulate = Color(0.3, 0.55, 1.0)
-	mana_fill.scale = Vector3(1.0, 0.7, 1.0)
-	mana_fill.region_enabled = true
-	mana_fill.region_rect = Rect2(0, 0, 0.01, BAR_PX_H)
-	mana_fill.position.y = BAR_HEIGHT - MANA_OFFSET
-
-func _make_bar_sprite(tex: Texture2D, priority: int) -> Sprite3D:
-	var s := Sprite3D.new()
-	s.texture = tex
-	s.pixel_size = 0.01                       # 100 px wide = 1 world unit
-	s.centered = false
-	s.offset = Vector2(-BAR_PX_W / 2.0, -BAR_PX_H / 2.0)
-	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	s.shaded = false
-	s.no_depth_test = true                    # draw over the model
-	s.render_priority = priority
-	s.position = Vector3(0, BAR_HEIGHT, 0)
-	add_child(s)
-	return s
 
 # Moves the health and mana bars to bar_height (models: just above the head at the current star).
 func _place_bars():
@@ -330,23 +287,11 @@ func setup(d: UnitData, t: int):
 func mine() -> bool:
 	return team == viewer_team
 
-# A flat ring at a model's feet in the team colour (the capsule is painted red for enemies instead).
+# The flat ring at a model's feet (a node in unit.tscn) in the team colour, a shared material (the
+# capsule is painted red for enemies instead).
 func _make_ring():
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.58
-	torus.outer_radius = 0.7
-	torus.rings = 32
-	ring.mesh = torus
-	ring.scale = Vector3(1.0, 0.12, 1.0)
-	ring.position.y = 0.04
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = RING_COLORS[0 if mine() else 1]
-	ring.material_override = mat
-	_ring_mat = mat
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(ring)
+	ring.visible = true
+	ring.material_override = RING_MATS[0 if mine() else 1]
 
 func begin_combat():
 	if data == null:
@@ -825,8 +770,8 @@ func apply_charm(by: Unit, secs: float):
 # The hexed look (visual only): a turning pink-violet hex sigil above it, its team ring turns
 # pink-violet, and a faint thread runs to the Faerie Queen. Reduce motion: the sigil stands still.
 func _show_charm(on: bool):
-	if _ring_mat != null:
-		_ring_mat.albedo_color = CHARM_COLOR if on else RING_COLORS[0 if mine() else 1]
+	if ring != null and ring.visible:
+		ring.material_override = RING_CHARM if on else RING_MATS[0 if mine() else 1]
 	if _charm_fx != null:
 		_charm_fx.queue_free()
 		_charm_fx = null

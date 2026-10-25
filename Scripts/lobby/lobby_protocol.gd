@@ -118,6 +118,6 @@ static func rosters() -> Dictionary:
 				"only_units_with_models":
 					out.only_models = bool(v)
 	if out.only_models:
-		out.units = out.units.filter(func(d): return d.model != null)
+		out.units = out.units.filter(func(d): return d.has_model())
 	_rosters = out
 	return out

@@ -539,7 +539,7 @@ func _run():
 	fae._cast(star_foe)
 	chk("Moonlit Charm takes the two enemies that dealt the most", star_foe.charm_left == 3.0 and buddy.charm_left == 3.0 and meh.charm_left == 0.0)
 	chk("charmed, they turn on their own side", board.nearest_enemy(star_foe) == buddy and board.nearest_enemy(mine2) == star_foe)
-	chk("marked as hexed: sigil, thread and a pink-violet ring", star_foe._charm_fx != null and star_foe._charm_fx.get_node("Sigil") != null and (star_foe._ring_mat == null or star_foe._ring_mat.albedo_color == Unit.CHARM_COLOR))
+	chk("marked as hexed: sigil, thread and a pink-violet ring", star_foe._charm_fx != null and star_foe._charm_fx.get_node("Sigil") != null and (not star_foe.ring.visible or star_foe.ring.material_override == Unit.RING_CHARM))
 	star_foe.mana = star_foe.data.max_mana
 	var made2 := star_foe.attacks_made
 	steps([star_foe], 0.5)

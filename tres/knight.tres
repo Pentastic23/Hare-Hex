@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://bamcjn6fw8vpi"]
 
 [ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_wudis"]
-[ext_resource type="PackedScene" path="res://scenes/models/knight.tscn" id="2_model"]
 
 [resource]
 script = ExtResource("1_wudis")
@@ -14,5 +13,5 @@ attack_range = 1.0
 attacks_per_second = 0.7
 move_speed = 1.5
 tags = Array[StringName]([&"Order", &"Knight", &"Warrior"])
-model = ExtResource("2_model")
+model_path = "res://scenes/models/knight.tscn"
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

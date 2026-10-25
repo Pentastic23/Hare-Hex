@@ -133,7 +133,7 @@ func _begin_run():
 	if only_units_with_models:
 		var modelled: Array[UnitData] = []
 		for d in unit_pool:
-			if d != null and d.model != null:
+			if d != null and d.has_model():
 				modelled.append(d)
 		unit_pool = modelled
 	var camp := GameState.run_campaign
@@ -604,6 +604,8 @@ func _end_combat(player_won: bool, enemy_stars: int):
 # The PREP countdown. Fights have their own fixed ticks (_physics_process); this only runs the
 # preparation timer, and stops while the tree is paused.
 func _process(delta):
+	if Preload.busy():
+		Preload.collect()   # background loads started on the menu that finish during the run
 	if lobby != null:   # the server's timer decides; this one only counts down for the top bar
 		prep_left = maxf(prep_left - delta, 0.0) if phase == Events.Phase.PREP else 0.0
 		return

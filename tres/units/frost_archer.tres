@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="UnitData" format=3]
 
 [ext_resource type="Script" path="res://Scripts/unit_data.gd" id="1_ud"]
-[ext_resource type="PackedScene" path="res://scenes/models/frost_archer.tscn" id="2_model"]
 
 [resource]
 script = ExtResource("1_ud")
@@ -16,5 +15,5 @@ attacks_per_second = 0.8
 move_speed = 1.5
 cost = 2
 tags = Array[StringName]([&"Frost", &"Ranger"])
-model = ExtResource("2_model")
+model_path = "res://scenes/models/frost_archer.tscn"
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

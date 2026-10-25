@@ -616,7 +616,7 @@ static func summon(u: Unit, sname: String, hp_key: String, dmg_key: String) -> U
 	d.move_speed = look.move_speed
 	d.max_mana = 0.0
 	d.start_mana = 0.0
-	d.model = look.model
+	d.model_path = look.model_path
 	var s := (load("res://scenes/unit.tscn").instantiate() as Unit)
 	u.board.get_node("Units").add_child(s)
 	s.setup(d, u.team)

@@ -8,3 +8,9 @@ docs/bug_report_webhook.md
 
 #DISCORD_WEBHOOK
 Github release webhook.txt
+
+# Exported builds (too big for git; GitHub refuses files over 100 MB): attach them to a release instead
+*.exe
+*.apk
+*.apk.idsig
+*.pck

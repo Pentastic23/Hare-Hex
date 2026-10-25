@@ -13,7 +13,16 @@ class_name UnitData extends Resource
 @export var ability: Ability
 @export var cost := 1
 @export var tags: Array[StringName] = []
-@export var model: PackedScene
+# The unit's model scene (scenes/models/*.tscn), stored as a path so loading a unit's data (the roster,
+# every campaign wave) doesn't load its 3D model; `model` loads it on first use, and Preload warms
+# them in the background on the main menu.
+@export_file("*.tscn") var model_path := ""
+var model: PackedScene:
+	get:
+		return load(model_path) as PackedScene if model_path != "" else null
+
+func has_model() -> bool:
+	return model_path != ""
 
 # What shows on the unit's capsule. Every unit has its own (tools/roster_checks keeps them unique).
 func label() -> String:

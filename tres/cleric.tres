@@ -1,7 +1,6 @@
 [gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://c6cblum6v7l3s"]
 
 [ext_resource type="Script" uid="uid://cps714rkrb4e0" path="res://Scripts/unit_data.gd" id="1_jv05k"]
-[ext_resource type="PackedScene" path="res://scenes/models/cleric.tscn" id="2_model"]
 
 [resource]
 script = ExtResource("1_jv05k")
@@ -14,5 +13,5 @@ attack_range = 3.0
 attacks_per_second = 0.6
 move_speed = 1.5
 tags = Array[StringName]([&"Celestial", &"Healer", &"Caster"])
-model = ExtResource("2_model")
+model_path = "res://scenes/models/cleric.tscn"
 metadata/_custom_type_script = "uid://cps714rkrb4e0"

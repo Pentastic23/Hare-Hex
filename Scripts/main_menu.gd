@@ -121,6 +121,26 @@ func _ready():
 		_reopen_settings = ""
 		_fill_settings()
 		_show_panel(settings_panel)
+	_warm_up.call_deferred()
+
+# Once the menu is on screen, the run starts loading in the background (Preload), so picking a mode
+# doesn't wait for it.
+const WARMUP := preload("res://scenes/shader_warmup.tscn")
+var _warmed_up := false
+var _warmup: Node
+
+func _warm_up() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Preload.warm_run()
+	_warmed_up = true
+
+func _process(_delta):
+	if Preload.busy():
+		Preload.collect()
+	elif _warmed_up and not ShaderWarmup.done and _warmup == null and DisplayServer.get_name() != "headless":
+		_warmup = WARMUP.instantiate()   # compile the run's shaders now, not in the first fight
+		add_child(_warmup)
 
 func _unhandled_input(event):
 	if event.is_action_pressed("ui_cancel") and _panel_open():
@@ -137,7 +157,7 @@ func _start(level: CampaignLevel, carry: Dictionary, ghost := false):
 	GameState.run_carry = carry
 	GameState.launched_from_menu = true   # so Game Manager's Debug Level doesn't override this choice
 	GameState.reset()
-	get_tree().change_scene_to_file(MAIN_SCENE)
+	GameState.change_to_run()   # usually already loaded in the background (Preload)
 
 func _start_tutorial():
 	if ResourceLoader.exists(TUTORIAL_PATH):
@@ -393,6 +413,7 @@ func _fill_room() -> void:
 const MUSIC_URL := "https://soundcloud.com/joe-gallagher-620567095"
 
 # Credits: the music (with a link to the composer's page) and the fonts.
+# Add in Phillip Wilkins as a tester with a thank you to all testers
 func _build_credits_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := panel.get_child(0) as VBoxContainer
@@ -415,6 +436,7 @@ func _build_credits_panel() -> PanelContainer:
 	box.add_child(_label("Jersey 10 and Atkinson Hyperlegible (SIL Open Font License)", 14, HudStyle.INK))
 	_button(box, "Back", func(): _show_panel(null))
 	return panel
+
 
 func _build_campaign_panel() -> PanelContainer:
 	var panel := _panel()

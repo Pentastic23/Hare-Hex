@@ -161,7 +161,7 @@ func _hook_client() -> void:
 # The game begins: load the game scene (GameManager sees LobbyNet.in_lobby() and plays it as a lobby client).
 func _on_started() -> void:
 	get_tree().paused = false
-	get_tree().change_scene_to_file.call_deferred(GAME_SCENE)
+	GameState.change_to_run.call_deferred()   # the game scene, usually preloaded on the menu (Preload)
 
 # --- moving messages -----------------------------------------------------------------------------
 
