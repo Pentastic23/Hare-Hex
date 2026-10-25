@@ -47,6 +47,10 @@ func _ready():
 	_run.call_deferred()
 
 func _run():
+	Settings.path = "user://campaign_test_settings.cfg"   # never your own settings (a folded top bar hides the pips)
+	Settings._loaded = false
+	Settings.load_settings()
+	Settings.show_top_bar = true   # (a missing file keeps what was loaded at start, so set it)
 	SaveGame.path = "user://test_save.json"
 	SaveGame.reset_progress()
 	var camp: Campaign = load("res://tres/campaign/campaign.tres")
@@ -312,29 +316,63 @@ Wave 1/6: Scouts"), tip2.replace("
 	await start(CampaignLevel.new())   # an empty "New CampaignLevel" in Debug Level
 	chk("level with no waves falls back to free play", GameState.run_level == null and gm.opponents is RandomOpponents and GameState.total_rounds() == 39)
 
-	print("--- board themes")
+	print("--- board biomes (voxel tiles)")
 	var missing: PackedStringArray = []
 	for id in BoardThemes.ORDER:
-		for part in ["board_1", "board_2", "board_3", "board_side", "bench", "bench_side", "sell", "sell_side"]:
-			if not ResourceLoader.exists(BoardThemes.texture_path(id, part)):
+		for part in VoxelTiles.PARTS:
+			if BoardThemes.tile(id, part) == null:
 				missing.append("%s/%s" % [id, part])
-	chk("10 themes, each with all 8 textures", BoardThemes.ORDER.size() == 10 and BoardThemes.THEMES.size() == 10 and missing.is_empty(), ", ".join(missing))
+	chk("12 biomes, each with all 12 baked tiles", BoardThemes.ORDER.size() == 12 and VoxelTiles.BIOMES.size() == 12 and missing.is_empty(), ", ".join(missing))
 	var camp_all: Campaign = load("res://tres/campaign/campaign.tres")
 	var bad_theme: PackedStringArray = []
-	var used := {}
 	var levels: Array = camp_all.all_levels().duplicate()
 	levels.append(load("res://tres/campaign/tutorial.tres"))
 	for lv in levels:
 		if not BoardThemes.has(lv.theme):
 			bad_theme.append(String(lv.id))
-		used[lv.theme] = true
-	chk("every campaign level and the tutorial has its own theme", bad_theme.is_empty() and used.size() == levels.size(), ", ".join(bad_theme))
+	chk("every campaign level and the tutorial names a biome", bad_theme.is_empty(), ", ".join(bad_theme))
 	await start(load("res://tres/campaign/levels/ch2_l3.tres"))
 	var tile0: Tile = board.tiles[Vector2i(3, 4)]
-	var top_mat := (tile0.get_node("MeshInstance3D") as MeshInstance3D).get_surface_override_material(0) as StandardMaterial3D
-	chk("a level dresses the board in its theme (Throne of Cinders: volcano)", board.theme == &"volcano" and top_mat != null and top_mat.albedo_texture != null and top_mat.albedo_texture.resource_path.contains("/volcano/"))
-	chk("the board hexes are voxel blocks with a top and sides", (tile0.get_node("MeshInstance3D") as MeshInstance3D).mesh.get_surface_count() == 2)
-	chk("free play picks a theme from the run seed", BoardThemes.for_run(null, 12) == BoardThemes.for_run(null, 12) and BoardThemes.has(BoardThemes.for_run(null, 12)) and BoardThemes.for_run(null, 3) != BoardThemes.for_run(null, 4))
+	var tile_mesh := (tile0.get_node("MeshInstance3D") as MeshInstance3D).mesh
+	chk("a level dresses the board in its biome (Throne of Cinders: volcano)", board.theme == &"volcano" and tile_mesh != null and tile_mesh.resource_path.contains("/volcano/base_"))
+	var bench_mesh := (board._bench_tiles[0].get_node("MeshInstance3D") as MeshInstance3D).mesh
+	var sell_mesh := (board._sell_tile.get_node("MeshInstance3D") as MeshInstance3D).mesh
+	chk("the playable board is plain tiles; the bench and sell hex have their own", tile_mesh.resource_path.get_file().begins_with("base_") and bench_mesh.resource_path.ends_with("/volcano/bench.res") and sell_mesh.resource_path.ends_with("/volcano/sell.res"))
+	var row_x := 0.0
+	for i in Board.BENCH_SLOTS + 1:
+		row_x += board.bench_to_world(i).x
+	var board_mid := sqrt(3.0) * ((Board.COLS - 1) / 2.0 + 0.25)
+	chk("the bench and the sell hex are centred under the board", absf(row_x / (Board.BENCH_SLOTS + 1) - board_mid) < 0.01)
+	chk("the enemy has a bench across the board, in the same biome", board._enemy_bench_tiles.size() == Board.BENCH_SLOTS and (board._enemy_bench_tiles[0].get_node("MeshInstance3D") as MeshInstance3D).mesh.resource_path.ends_with("/volcano/bench.res") and board.enemy_bench_to_world(0).z < 0.0)
+	var cells: Dictionary = board.backdrop_cells
+	var on_board := 0
+	var by_bench := 0
+	for c in cells:
+		var cc: Vector2i = c
+		if board.tiles.has(cc):
+			on_board += 1
+		var p := board.grid_to_world(cc)
+		for i in Board.BENCH_SLOTS + 1:
+			var b := board.bench_to_world(i)
+			if Vector2(p.x, p.z).distance_to(Vector2(b.x, b.z)) < 0.9:   # right under a slot (nearer ones sit a voxel lower)
+				by_bench += 1
+	var kinds := {}
+	for part in cells.values():
+		kinds[part] = true
+	chk("the world round the board is filled with scenery, never on the board or the bench", cells.size() > 150 and on_board == 0 and by_bench == 0, "%d tiles" % cells.size())
+	chk("the scenery mixes the biome's variants and trees", kinds.size() >= 7 and kinds.has("tree_1") and kinds.has("flowers"), str(kinds.keys()))
+	var tall_near := 0
+	for c in cells:
+		var cc: Vector2i = c
+		if cells[cc] in ["standing", "tree_1", "tree_2"] and cc.y >= Board.ROWS - 1:
+			tall_near += 1
+	chk("nothing tall stands in front of the board", tall_near == 0)
+	chk("locked board hexes have ground under them (no hole)", board.get_node("Backdrop").has_node("underlay"))
+	var first := cells.duplicate()
+	board.apply_theme(&"volcano", GameState.run_seed)
+	var again: Dictionary = board.backdrop_cells
+	chk("the same seed lays out the same scenery", first == again)
+	chk("free play picks a biome from the run seed", BoardThemes.for_run(null, 12) == BoardThemes.for_run(null, 12) and BoardThemes.has(BoardThemes.for_run(null, 12)) and BoardThemes.for_run(null, 3) != BoardThemes.for_run(null, 4))
 
 	print("--- free play")
 	await start(null)

@@ -59,3 +59,35 @@ The environment shifts dynamically across map territories using standardized ass
 Design preview is in the docs file of the project.
 Current playable area for units should only be base tiles and we will set up a generating background with the tile viariants
 This is to keep the playable area readable while seting a backdrop scene to make the game feel full
+
+#### 5. As built (2026-10-25)
+* **Tiles:** real voxel meshes, 16 voxels across and 4 deep, the top colour dripping over the sides (`Scripts/voxel_tiles.gd`). Baked once into `models/tiles/<biome>/` by `tools/make_voxel_tiles.tscn`; `tools/voxel_gallery.tscn` renders every biome's parts in rows.
+* **Biomes built:** Forest, Autumn, Snow, Swamp, Volcano, Cave, Mushroom, Mushroom Cave, Jungle, Desert, Salt Flats, Parasitic (Floating Islands left out, as section 3 suggests).
+* **Parts per biome:**
+  * three plain base tiles: the only ones units stand on
+  * bench (the biome's ground inside a raised frame) and sell hex (a raised gold coin); the enemy has a matching bench beyond the far edge of the board
+  * the five decor slots: flowers, mossy stone, roots, standing stone, shrine
+  * two trees
+* **Decor in each biome:** each slot becomes something that fits. Examples:
+  * Autumn: fallen leaves and beige rocks
+  * Snow: ice shards and snowy pines
+  * Swamp: reeds, wooden posts with a pool, and a water pool in the shrine slot
+  * Volcano: ash piles, magma stone, a lava pool, an obsidian pillar and a fire shrine
+  * Cave: bones, a treasure chest, a stalagmite and crystals
+  * Mushroom: small mushrooms, a dirty pool and mushroom trees
+  * Jungle: ferns and vine-covered stumps, stones and trees
+  * Desert: dunes, bones, a sandstone pillar, cacti, and mirage tiles (see-through forest tiles in the scenery)
+  * Salt Flats: salt piles, vulture bones, a salt pool, salt spires and shimmering flats
+  * Parasitic: pustules, flesh growths, a blood pool, a bone spire, an eye shrine and tendrils
+* **Board:** the playable area is plain base tiles only. The rest of the camera view is filled with the biome's tiles, laid out naturally from the run seed: trees gather in groves, flowers and roots in meadows, stones in rocky patches, and the ground rises and falls a little away from the board. The scenery sits a voxel lower and a shade darker, so the board reads as a bright plateau. Locked board hexes show as darker sunken ground until they unlock. Nothing tall stands beside or in front of the board, and nothing sits under the bench.
+* **Campaign:**
+
+| Level | Biome |
+|---|---|
+| Tutorial | Forest |
+| Chapter 1 | Forest, Jungle, Snow |
+| Chapter 2 | Autumn, Desert, Volcano |
+| Chapter 3 | Cave, Salt Flats, Parasitic |
+
+  Free play, async PvP and lobbies pick any biome from the run seed (these are the PvP board skins).
+* **Gameplay roles:** none implemented, as section 2 says.

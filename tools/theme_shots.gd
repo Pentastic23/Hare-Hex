@@ -16,6 +16,7 @@ func _run():
 	get_window().size = Vector2i(1152, 648)
 	var args := OS.get_cmdline_user_args()
 	var out := args[0] if not args.is_empty() else "user://theme_shots.png"
+	var level := int(args[1]) if args.size() > 1 else 8   # board level: 8 = the full board, 1 = the first round
 	var shots: Array[Image] = []
 	for id in BoardThemes.ORDER:
 		GameState.run_level = null
@@ -27,9 +28,9 @@ func _run():
 		for i in 3:
 			await get_tree().process_frame
 		var board: Board = main.get_node("Board")
-		GameState.me.level = 8
-		board.refresh_unlocks(8, false)
-		board.apply_theme(id)
+		GameState.me.level = level
+		board.refresh_unlocks(level, false)
+		board.apply_theme(id, 7)
 		var units := ["knight", "archer", "mage", "guardian", "berserker"]
 		for i in units.size():
 			for team in 2:

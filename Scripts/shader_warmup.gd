@@ -2,7 +2,7 @@
 class_name ShaderWarmup extends Node
 
 # scenes/shader_warmup.tscn: draws, once and out of sight, every kind of material a run uses (each unit
-# model at 1 and 3 stars, a board tile, the bars, rings, labels and spell-effect cubes) in a small
+# model at 1 and 3 stars, the voxel tiles, the bars, rings, labels and spell-effect cubes) in a small
 # SubViewport. The renderer compiles each shader the first time it draws it, which on a cold start
 # (the first launch, a new build or driver) stalls the first fight for a couple of seconds; this does
 # it on the main menu instead, a few models per frame, after Preload has loaded them. Visual only; it
@@ -54,12 +54,14 @@ func _hold():
 # The materials that aren't unit models: a themed tile block, a health bar sprite, a label, the team
 # ring and the spell-effect cubes (opaque and see-through), and a zone disc.
 func _add_misc():
-	var tile := MeshInstance3D.new()
-	tile.mesh = Board.hex_block()
-	var theme: StringName = BoardThemes.ORDER[1]
-	tile.set_surface_override_material(0, Board._theme_mat(BoardThemes.texture_path(theme, "board_1")))
-	tile.set_surface_override_material(1, Board._theme_mat(BoardThemes.texture_path(theme, "board_side")))
-	stage.add_child(tile)
+	for part in ["base_1", "shrine"]:   # the voxel tiles' two materials (lit and glowing), the same in every biome
+		var tile := MeshInstance3D.new()
+		tile.mesh = BoardThemes.tile(BoardThemes.DEFAULT, part)
+		stage.add_child(tile)
+	var mirage := MeshInstance3D.new()   # and the see-through desert mirage
+	mirage.mesh = BoardThemes.tile(BoardThemes.DEFAULT, "flowers")
+	mirage.material_override = Board._mirage_mat()
+	stage.add_child(mirage)
 	var bar := Sprite3D.new()
 	bar.texture = Unit.bar_texture()
 	bar.billboard = BaseMaterial3D.BILLBOARD_ENABLED

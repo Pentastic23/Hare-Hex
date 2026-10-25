@@ -67,7 +67,7 @@ func _run():
 	chk("both are in the 'kings' group, under the board's Kings node", get_tree().get_nodes_in_group("kings").size() == 2 and board.kings[0].get_parent() == board.get_node("Kings"))
 	chk("each has a placeholder cylinder", board.kings.all(func(k): return k.body != null and k.body.mesh is CylinderMesh))
 	chk("in the team colours (your blue, the enemy's orange)", (board.kings[0].body.material_override as StandardMaterial3D).albedo_color == Unit.RING_COLORS[0] and (board.kings[1].body.material_override as StandardMaterial3D).albedo_color == Unit.RING_COLORS[1])
-	chk("the hex under each is dressed like a board tile (theme textures)", board.kings.all(func(k): return (k.get_node("MeshInstance3D") as MeshInstance3D).get_surface_override_material(0) != null))
+	chk("the hex under each is dressed like a board tile (the biome's voxel tile)", board.kings.all(func(k): return (k.get_node("MeshInstance3D") as MeshInstance3D).mesh.resource_path.contains("/base_")))
 
 	print("--- not units")
 	chk("they aren't Units, and aren't in the Units node", board.kings.all(func(k): return not (k is Unit) and k.get_parent() != board.get_node("Units")))
@@ -152,9 +152,9 @@ func _run():
 	await get_tree().process_frame
 
 	print("--- the theme")
-	var before: Material = (board.kings[0].get_node("MeshInstance3D") as MeshInstance3D).get_surface_override_material(0)
+	var before: Mesh = (board.kings[0].get_node("MeshInstance3D") as MeshInstance3D).mesh
 	board.apply_theme(&"volcano")
-	var after: Material = (board.kings[0].get_node("MeshInstance3D") as MeshInstance3D).get_surface_override_material(0)
+	var after: Mesh = (board.kings[0].get_node("MeshInstance3D") as MeshInstance3D).mesh
 	chk("changing the board theme re-skins the king hexes too", after != null and after != before)
 
 	main.queue_free()

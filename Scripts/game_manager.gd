@@ -157,7 +157,7 @@ func _begin_run():
 		camp = null
 	var carry := GameState.begin_run(lvl, camp)
 	rng.seed = GameState.run_seed
-	board.apply_theme(BoardThemes.for_run(lvl, GameState.run_seed))   # the board's look: the level's theme, or one from the seed
+	board.apply_theme(BoardThemes.for_run(lvl, GameState.run_seed), GameState.run_seed)   # the level's biome (or one from the seed) and its scenery
 	roster = unit_pool
 	if lvl != null and not lvl.allowed_units.is_empty():
 		roster = lvl.allowed_units

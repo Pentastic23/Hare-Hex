@@ -58,6 +58,7 @@ func _run():
 	Keybinds.load_binds()
 	Settings._loaded = true
 	Settings.show_damage_meter = true
+	Settings.show_top_bar = true   # unfolded, whatever the player last chose
 	Settings.dock_collapsed = false
 	Settings.dock_tab = "synergies"
 	GameState.run_level = null

@@ -11,7 +11,7 @@ extends Node3D
 # does: the zoomed-in view is kept inside the ground area visible at the default zoom.
 # Purely a view: picking (drag_controller, unit_inspector) asks the camera for rays, so any zoom works.
 
-@export var target := Vector3(5.63, 0.0, 9.1)   # between the middle of the board and the bench
+@export var target := Vector3(5.63, 0.0, 8.35)   # between the middle of the board and the bench (both benches in view, the near one clear of the left box)
 @export var zoom_focus := Vector3(5.63, 0.0, 6.0)   # what the camera aims at when fully zoomed in: the middle of the board, where the fight is
 @export var pitch := 54.0                       # degrees down from horizontal
 @export var distance := 23.0                    # default zoom
@@ -52,6 +52,21 @@ func _footprint() -> Array:
 		var hit := eye + dir * s
 		out.append(hit.z)
 		out.append(absf(hit.x))
+	return out
+
+# The ground the camera can ever show: its view zoomed all the way out, as four corners on the ground
+# (x, z), for a screen `aspect` wide (pass a generous one so wider windows are covered). The board fills
+# this with scenery (Board._build_backdrop).
+func widest_ground(aspect: float) -> PackedVector2Array:
+	var tan_v := tan(deg_to_rad(fov) / 2.0)
+	var basis := Basis(Vector3.RIGHT, deg_to_rad(-pitch))
+	var eye := target + basis * Vector3(0.0, 0.0, distance * ZOOM_MAX)
+	var out := PackedVector2Array()
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var dir := basis * Vector3(corner.x * aspect * tan_v, corner.y * tan_v, -1.0)
+		var s := -eye.y / dir.y
+		var hit := eye + dir * s
+		out.append(Vector2(hit.x, hit.z))
 	return out
 
 # The aim point for the current zoom and pan, pulled back so the view stays inside the default view.

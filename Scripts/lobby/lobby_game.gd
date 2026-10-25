@@ -45,7 +45,7 @@ func begin() -> void:
 	gm.rules = PlayerRules.new(me, board, gm.shared_pool, gm.roster, gm.item_roster)   # for read-only helpers (Coin Purse income)
 	gm.prep_time = int(client.prep_time)
 	gm.opponents = null
-	board.apply_theme(BoardThemes.for_run(null, client.seed))
+	board.apply_theme(BoardThemes.for_run(null, client.seed), client.seed)
 	gm.runner.on_finish = _on_replay_finish
 	gm.runner.gold_sink = Callable()   # gold comes from the server's state
 	client.phase_changed.connect(_on_phase)

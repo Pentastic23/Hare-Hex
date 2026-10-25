@@ -3,14 +3,14 @@ class_name Preload
 
 # Background loading, so starting a run doesn't wait on the disk. The main menu calls warm_run() once
 # it is on screen: the run scene (and the scripts it compiles), every unit model, the portraits, item
-# icons and tile textures are then loaded on worker threads while the player looks at the menu.
+# icons and the voxel tiles are then loaded on worker threads while the player looks at the menu.
 # scene() hands a scene over when it's needed (waiting for the rest only if it isn't done yet), and a
 # plain load() of anything warmed here returns the cached copy at once. collect() picks up finished
 # loads; the menu calls it every frame.
 
 const RUN_SCENE := "res://scenes/main.tscn"
 const DIRS := ["res://scenes/models", "res://textures/ui/portraits", "res://textures/ui/items"]
-const TILE_DIR := "res://textures/tiles"
+const TILE_DIR := "res://models/tiles"   # the voxel tiles, one folder per biome
 
 static var _pending := {}   # path -> true while a threaded load is in flight
 static var _held := {}      # path -> resource: Godot's cache only keeps what is referenced, so this holds them
@@ -25,7 +25,7 @@ static func warm_run() -> void:
 	for theme in ResourceLoader.list_directory(TILE_DIR):
 		if theme.ends_with("/"):
 			for f in ResourceLoader.list_directory(TILE_DIR.path_join(theme)):
-				if f.ends_with(".png"):
+				if f.ends_with(".res"):
 					request(TILE_DIR.path_join(theme).path_join(f))
 
 static func request(path: String) -> void:
