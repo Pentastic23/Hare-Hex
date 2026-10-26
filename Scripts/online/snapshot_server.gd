@@ -202,6 +202,8 @@ func add(raw: Dictionary) -> String:
 	if raw.has("trophies"):   # async PvP boards (free play ones have none)
 		s["trophies"] = clampi(int(raw.trophies), 0, 9999)
 		s["losses"] = clampi(int(raw.get("losses", 0)), 0, GameState.ASYNC_LIVES)
+	if KingSkins.has(StringName(str(raw.get("king", "")))):   # the player's king skin (a look only)
+		s["king"] = str(raw.king)
 	var round: int = s.round
 	if not _rounds.has(round):
 		_rounds[round] = []

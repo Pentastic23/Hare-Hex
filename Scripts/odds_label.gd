@@ -3,7 +3,7 @@ extends HBoxContainer
 
 # Shop odds, right above the shop bar: a small plate with an ODDS fold button and one chip per cost in
 # its cost colour ("1 · 55%"; costs you can't roll yet are dimmed). Folded it is just the button; the
-# choice is remembered (Settings.show_odds). Follows your level.
+# choice is remembered (Settings.show_odds). Follows your level (and the Gambler King's luck).
 
 var plate: HudPlate
 var fold_button: Button
@@ -37,6 +37,7 @@ func _ready():
 		chips.append(l)
 	Settings.ensure_loaded()
 	Events.xp_changed.connect(func(l, _x, _n): _update(l))
+	Events.king_changed.connect(func(): _update(GameState.me.level))
 	_update(GameState.me.level)
 	set_open(Settings.show_odds)
 
@@ -50,9 +51,9 @@ func set_open(on: bool) -> void:
 	fold_button.tooltip_text = Tip.wrap("The chance of each cost in every shop slot at your level. Click to fold." if on else "Show the shop odds at your level.")
 
 func _update(level: int):
-	var odds: Array = GameState.odds_for_level(level)
+	var odds: Array = GameState.me.shop_odds() if level == GameState.me.level else GameState.odds_for_level(level)
 	for i in chips.size():
-		var p: int = odds[i] if i < odds.size() else 0
+		var p: int = roundi(float(odds[i])) if i < odds.size() else 0
 		var l: Label = chips[i]
 		l.text = "%d·%d%%" % [i + 1, p]
 		l.modulate.a = 1.0 if p > 0 else 0.35

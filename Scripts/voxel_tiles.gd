@@ -813,7 +813,326 @@ static func king_mesh(id: String) -> ArrayMesh:
 	match id:
 		"lion":
 			return build(_lion(), KING_VOXEL, true)
-	return null
+		"merchant":
+			return build(_merchant(), KING_VOXEL, true)
+		"gambler":
+			return build(_gambler(), KING_VOXEL, true)
+		"necromancer":
+			return build(_necromancer(), KING_VOXEL, true)
+		"explorer":
+			return build(_explorer(), KING_VOXEL, true)
+		"chaos":
+			return build(_chaos(), KING_VOXEL, true)
+		"dragon":
+			return build(_dragon(), KING_VOXEL, true)
+		"fate":
+			return build(_fate(), KING_VOXEL, true)
+	return null   # (the Shadow King wears its opponent's model)
+
+# Fills a box of voxels (inclusive bounds) with colours picked from `cols` (the kings' recipes).
+static func _kbox(g: Grid, rng: RandomNumberGenerator, i0: int, i1: int, j0: int, j1: int, k0: int, k1: int, cols: Array, glows := false) -> void:
+	for i in range(i0, i1 + 1):
+		for j in range(j0, j1 + 1):
+			for k in range(k0, k1 + 1):
+				g.put(i, j, k, cols[rng.randi_range(0, cols.size() - 1)], glows)
+
+# A crown band round a head (i0..i1 x k0..k1 at height j) with points on top; `gem` glows at the front.
+@warning_ignore("integer_division")
+static func _kcrown(g: Grid, i0: int, i1: int, j: int, k0: int, k1: int, gold: Color, dark: Color, gem: Color) -> void:
+	for i in range(i0, i1 + 1):
+		for k in range(k0, k1 + 1):
+			if i == i0 or i == i1 or k == k0 or k == k1:
+				g.put(i, j, k, dark)
+	for p in [Vector2i(i0, k0), Vector2i(i1, k0), Vector2i(i0, k1), Vector2i(i1, k1), Vector2i((i0 + i1) / 2, k0), Vector2i((i0 + i1) / 2 + 1, k0)]:
+		g.put(p.x, j + 1, p.y, gold)
+	g.put((i0 + i1) / 2, j, k0, gem, true)
+	g.put((i0 + i1) / 2 + 1, j, k0, gem, true)
+
+# The Merchant King: a plump fox in a plum robe with gold trim, a bulging coin sack in one paw, a
+# pile of coins at its feet and a gold crown with an emerald.
+static func _merchant() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:merchant")
+	var robe := [Color("6a2f6e"), Color("753578"), Color("5e2862")]
+	var trim := [Color("e2b247")]
+	var fur := [Color("d9742f"), Color("e07f36"), Color("cc6a28")]
+	var cream := [Color("f2e6cf"), Color("eadbc0")]
+	var gold := [Color("f2c14e"), Color("e0ad3c"), Color("ffd66b")]
+	_kbox(g, rng, 2, 9, 0, 2, 3, 10, robe)                 # robe, wide at the hem
+	_kbox(g, rng, 3, 8, 3, 7, 4, 9, robe)                  # body
+	_kbox(g, rng, 2, 9, 0, 0, 3, 3, trim)                  # hem trim
+	_kbox(g, rng, 3, 8, 4, 4, 3, 3, trim)                  # belt
+	_kbox(g, rng, 4, 7, 5, 7, 3, 3, cream)                 # shirt front
+	_kbox(g, rng, 2, 2, 4, 7, 5, 7, robe)                  # sleeves
+	_kbox(g, rng, 9, 9, 4, 7, 5, 7, robe)
+	_kbox(g, rng, 3, 8, 8, 11, 2, 7, fur)                  # head
+	_kbox(g, rng, 4, 7, 8, 9, 1, 1, cream)                 # muzzle
+	_kbox(g, rng, 5, 6, 8, 8, 0, 0, cream)
+	g.put(5, 9, 0, Color("2a1a12"))                        # nose
+	g.put(6, 9, 0, Color("2a1a12"))
+	g.put(4, 10, 2, Color("2a1a12"))                       # eyes
+	g.put(7, 10, 2, Color("2a1a12"))
+	for side in [3, 7]:                                    # ears, dark tipped
+		_kbox(g, rng, side, side + 1, 12, 12, 4, 5, fur)
+		g.put(side if side == 3 else side + 1, 13, 4, Color("3a2216"))
+	_kcrown(g, 4, 7, 12, 3, 6, Color("ffd66b"), Color("c9962c"), Color("3fd17a"))
+	_kbox(g, rng, 8, 10, 1, 4, 1, 3, [Color("9a6b3c"), Color("8a5f34")])   # the coin sack in its paw
+	g.put(9, 5, 2, Color("6b4424"))                        # its tie
+	_kbox(g, rng, 9, 9, 5, 5, 1, 3, gold)                  # coins spilling out of the top
+	_kbox(g, rng, 0, 2, 0, 0, 0, 2, gold)                  # a pile of coins at its feet
+	g.put(1, 1, 1, Color("ffd66b"), true)
+	_kbox(g, rng, 7, 10, 1, 4, 10, 12, fur)                # a big bushy tail
+	_kbox(g, rng, 9, 10, 5, 6, 11, 12, cream)
+	return g
+
+# The Gambler King: a raccoon in a green waistcoat and a tall black top hat with a gold band and a
+# little crown on top, a big red die in its paw and another at its feet.
+static func _gambler() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:gambler")
+	var fur := [Color("8a8d96"), Color("7e818a"), Color("969aa3")]
+	var dark := [Color("2b2b33")]
+	var light := [Color("d8d8dc"), Color("cfd0d6")]
+	var vest := [Color("2f7a4a"), Color("357f50")]
+	var black := [Color("1d1d24"), Color("24242c")]
+	_kbox(g, rng, 3, 8, 0, 7, 4, 9, fur)                   # body
+	_kbox(g, rng, 3, 4, 0, 1, 2, 4, fur)                   # feet
+	_kbox(g, rng, 7, 8, 0, 1, 2, 4, fur)
+	_kbox(g, rng, 3, 8, 2, 7, 3, 3, vest)                  # waistcoat
+	_kbox(g, rng, 5, 6, 3, 7, 3, 3, [Color("f2ede0")])     # shirt
+	g.put(5, 7, 2, Color("b8222f"))                        # bow tie
+	g.put(6, 7, 2, Color("b8222f"))
+	g.put(4, 5, 2, Color("f2c14e"))                        # buttons
+	g.put(7, 5, 2, Color("f2c14e"))
+	_kbox(g, rng, 3, 8, 8, 11, 2, 7, fur)                  # head
+	_kbox(g, rng, 3, 8, 10, 10, 2, 2, dark)                # the mask
+	g.put(4, 10, 1, Color("f4f4f0"))                       # eyes glinting out of it
+	g.put(7, 10, 1, Color("f4f4f0"))
+	_kbox(g, rng, 4, 7, 8, 9, 1, 1, light)                 # muzzle
+	g.put(5, 9, 0, Color("15151a"))                        # nose
+	g.put(6, 9, 0, Color("15151a"))
+	g.put(3, 12, 5, fur[0])                                # ears
+	g.put(8, 12, 5, fur[0])
+	_kbox(g, rng, 2, 9, 12, 12, 1, 8, black)               # the hat's brim
+	_kbox(g, rng, 4, 7, 13, 17, 3, 6, black)               # its crown
+	_kbox(g, rng, 4, 7, 13, 13, 3, 6, [Color("f2c14e")])   # gold band
+	g.put(5, 13, 2, Color("d0362a"), true)                 # a ruby on the band
+	for p in [Vector2i(4, 3), Vector2i(7, 3), Vector2i(4, 6), Vector2i(7, 6)]:
+		g.put(p.x, 18, p.y, Color("ffd66b"))               # a little crown on top
+	_kbox(g, rng, 9, 11, 3, 5, 1, 3, [Color("c8262f"), Color("d42e36")])   # the die in its paw
+	for p in [Vector3i(10, 4, 0), Vector3i(9, 3, 0), Vector3i(11, 5, 0), Vector3i(12, 4, 2), Vector3i(10, 6, 2)]:
+		g.put(p.x, p.y, p.z, Color("f4f4f0"))              # its pips (sticking out a little)
+	_kbox(g, rng, 0, 1, 0, 1, 0, 1, [Color("f4f1e8")])     # a white die at its feet
+	g.put(0, 1, -1, Color("1d1d24"))
+	g.put(1, 2, 0, Color("1d1d24"))
+	for k in range(10, 14):                                 # a ringed tail
+		_kbox(g, rng, 8, 9, 1, 2, k, k, dark if k % 2 == 0 else fur)
+	return g
+
+# The Necromancer King: a crow in a ragged violet robe with a crown of bones, eyes glowing green, a
+# staff with a soul lantern burning green, and a skull at its feet.
+static func _necromancer() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:necromancer")
+	var robe := [Color("3a2550"), Color("33204a"), Color("422b5a")]
+	var feather := [Color("1c1c24"), Color("22222c"), Color("181820")]
+	var bone := [Color("e8e2d0"), Color("d8d0bc")]
+	var soul := Color("7dff9a")
+	_kbox(g, rng, 2, 9, 0, 2, 3, 10, robe)                 # robe
+	_kbox(g, rng, 3, 8, 3, 8, 4, 9, robe)
+	for i in range(2, 10, 2):                              # a ragged hem
+		g.cells.erase(Vector3i(i, 0, 3))
+	_kbox(g, rng, 4, 7, 3, 7, 3, 3, [Color("2a1a3c")])     # the robe's dark front
+	_kbox(g, rng, 2, 2, 3, 8, 5, 9, feather)               # folded wings as a cloak
+	_kbox(g, rng, 9, 9, 3, 8, 5, 9, feather)
+	_kbox(g, rng, 3, 8, 9, 12, 3, 8, feather)              # head
+	_kbox(g, rng, 5, 6, 10, 11, 1, 2, [Color("c8c2b0")])   # beak
+	g.put(5, 10, 0, Color("a8a290"))
+	g.put(6, 10, 0, Color("a8a290"))
+	g.put(4, 11, 2, soul, true)                            # eyes
+	g.put(7, 11, 2, soul, true)
+	for i in range(3, 9):                                  # the crown of bones
+		for k in range(3, 9):
+			if i == 3 or i == 8 or k == 3 or k == 8:
+				g.put(i, 13, k, bone[(i + k) % 2])
+	for p in [Vector2i(3, 3), Vector2i(8, 3), Vector2i(5, 3), Vector2i(3, 6), Vector2i(8, 6), Vector2i(3, 8), Vector2i(8, 8)]:
+		g.put(p.x, 14, p.y, bone[0])
+	g.put(6, 14, 3, bone[0])
+	g.put(6, 15, 3, bone[1])
+	g.put(5, 15, 3, bone[1])
+	_kbox(g, rng, 0, 0, 0, 13, 5, 5, [Color("3a2a1e"), Color("2e2218")])   # the staff
+	_kbox(g, rng, -1, 1, 14, 16, 4, 6, [Color("4a4a52")])  # the lantern's cage
+	g.put(0, 15, 5, soul, true)                            # the soul inside
+	for p in [Vector3i(0, 15, 3), Vector3i(-2, 15, 5), Vector3i(2, 15, 5), Vector3i(0, 15, 7)]:
+		g.put(p.x, p.y, p.z, soul, true)                   # its light through the bars
+	g.put(0, 17, 5, Color("4a4a52"))
+	_kbox(g, rng, 9, 11, 0, 1, 0, 2, bone)                 # a skull at its feet
+	g.put(9, 1, -1, Color("1a1410"))
+	g.put(11, 1, -1, Color("1a1410"))
+	g.put(10, 0, -1, bone[1])
+	return g
+
+# The Explorer King: a hare in a khaki jacket and a pith helmet with a gold crown badge, its long ears
+# poking through, a backpack with a red bedroll, and a brass spyglass in its paw.
+static func _explorer() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:explorer")
+	var fur := [Color("e8dcc8"), Color("ded0b8"), Color("f0e6d4")]
+	var khaki := [Color("b39a5e"), Color("a88f55"), Color("bda468")]
+	var pink := Color("e8a0a8")
+	_kbox(g, rng, 3, 8, 0, 7, 4, 9, khaki)                 # jacket
+	_kbox(g, rng, 4, 7, 3, 7, 3, 3, khaki)
+	_kbox(g, rng, 5, 6, 4, 7, 2, 2, fur)                   # the fur at its collar
+	_kbox(g, rng, 3, 8, 3, 3, 3, 9, [Color("6b4424")])     # belt
+	g.put(5, 3, 2, Color("f2c14e"))                        # buckle
+	_kbox(g, rng, 3, 4, 0, 1, 1, 4, fur)                   # big hare feet
+	_kbox(g, rng, 7, 8, 0, 1, 1, 4, fur)
+	_kbox(g, rng, 3, 8, 8, 11, 3, 7, fur)                  # head
+	_kbox(g, rng, 4, 7, 8, 9, 2, 2, [Color("f8f4ec")])     # muzzle
+	g.put(5, 9, 1, pink)                                   # nose
+	g.put(6, 9, 1, pink)
+	g.put(4, 10, 2, Color("2a1a12"))                       # eyes
+	g.put(7, 10, 2, Color("2a1a12"))
+	_kbox(g, rng, 2, 9, 12, 12, 2, 8, khaki)               # helmet brim
+	_kbox(g, rng, 4, 7, 13, 13, 3, 7, khaki)               # its dome
+	_kbox(g, rng, 5, 6, 14, 14, 4, 6, khaki)
+	g.put(5, 13, 2, Color("ffd66b"))                       # the gold crown badge
+	g.put(6, 13, 2, Color("ffd66b"))
+	g.put(5, 14, 3, Color("f2c14e"))
+	g.put(6, 14, 3, Color("f2c14e"))
+	for side in [3, 8]:                                    # long ears through the brim
+		_kbox(g, rng, side, side, 13, 19, 5, 6, fur)
+		_kbox(g, rng, side, side, 14, 18, 4, 4, [pink])
+	_kbox(g, rng, 3, 8, 2, 8, 10, 11, [Color("7a5230"), Color("6b4527")])   # backpack
+	_kbox(g, rng, 2, 9, 9, 9, 10, 11, [Color("b8222f"), Color("c8323a")])   # bedroll
+	_kbox(g, rng, 9, 9, 6, 6, 0, 4, [Color("c9962c"), Color("e0ad3c")])     # the spyglass
+	g.put(9, 6, -1, Color("9fd8ff"), true)                 # its lens
+	_kbox(g, rng, 9, 9, 5, 5, 4, 5, fur)                   # the paw holding it
+	_kbox(g, rng, 0, 1, 0, 0, 0, 1, [Color("8a7a66"), Color("7a6a56")])     # a stone or two for its sling
+	return g
+
+# The Chaos King: a frog jester in a harlequin robe, a three-pointed jester's crown in clashing colours
+# with glowing bells, and a swirling sceptre topped with a glowing orb. Bits of confetti hang in the air.
+@warning_ignore("integer_division")
+static func _chaos() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:chaos")
+	var green := [Color("5fae3a"), Color("68b842"), Color("569f34")]
+	var belly := [Color("d8e89a"), Color("cfe08e")]
+	var checks := [Color("c8262f"), Color("6a2f9e"), Color("f2c14e"), Color("2f8ad0")]
+	for i in range(2, 10):                                 # the harlequin robe
+		for j in range(0, 7):
+			for k in range(3, 10):
+				g.put(i, j, k, checks[(i / 2 + j / 2 + k / 2) % checks.size()])
+	_kbox(g, rng, 4, 7, 2, 5, 2, 2, belly)                 # belly showing at the front
+	_kbox(g, rng, 2, 9, 7, 10, 2, 7, green)                # a wide frog head
+	_kbox(g, rng, 3, 8, 7, 7, 1, 1, [Color("9c1a2a")]) # its grin
+	for side in [2, 8]:                                    # big eyes on top
+		_kbox(g, rng, side, side + 1, 11, 12, 3, 4, [Color("f4f4ee")])
+		g.put(side + (0 if side == 2 else 1), 11, 2, Color("15151a"))
+	_kbox(g, rng, 4, 7, 11, 11, 4, 7, [Color("f2c14e")])   # the jester crown's band
+	_kbox(g, rng, 5, 6, 12, 15, 5, 6, [Color("6a2f9e")])   # its three points
+	_kbox(g, rng, 3, 3, 12, 14, 6, 6, [Color("c8262f")])
+	_kbox(g, rng, 8, 8, 12, 14, 6, 6, [Color("2f8ad0")])
+	g.put(2, 15, 6, Color("ffe25a"), true)                 # bells at their tips
+	g.put(9, 15, 6, Color("ffe25a"), true)
+	g.put(5, 16, 5, Color("ffe25a"), true)
+	g.put(6, 16, 6, Color("ffe25a"), true)
+	for j in 11:                                           # the sceptre, in stripes
+		g.put(10, j, 4, checks[j % checks.size()])
+	_kbox(g, rng, 10, 11, 11, 12, 3, 4, [Color("ff5ad8")], true)   # its orb
+	_kbox(g, rng, 0, 1, 0, 1, 2, 3, green)                 # a frog foot sticking out
+	for p in [Vector3i(0, 9, 1), Vector3i(11, 8, 8), Vector3i(1, 13, 7), Vector3i(-1, 5, 6), Vector3i(12, 14, 2)]:
+		g.put(p.x, p.y, p.z, [Color("ff5ad8"), Color("5ad8ff"), Color("ffe25a"), Color("7dff6a")][abs(p.x + p.y) % 4], true)   # confetti
+	return g
+
+# The Dragon King: a red dragon sitting on its gold hoard, horned and crowned, wings folded, eyes
+# glowing, its tail curled round the coins; gems glint in the pile.
+static func _dragon() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:dragon")
+	var scale := [Color("b8302a"), Color("c83a30"), Color("a82a24")]
+	var belly := [Color("e8b86a"), Color("dcae60")]
+	var wing := [Color("7a1e1e"), Color("6a1818")]
+	var gold := [Color("f2c14e"), Color("e0ad3c"), Color("ffd66b"), Color("c9962c")]
+	for i in range(-1, 13):                                # the hoard: a mound of coins
+		for k in range(0, 13):
+			var d := Vector2(i - 5.5, (k - 6.5) * 1.1).length()
+			if d < 7.0:
+				g.put(i, 0, k, gold[rng.randi_range(0, 3)])
+			if d < 5.0:
+				g.put(i, 1, k, gold[rng.randi_range(0, 3)])
+	for p in [Vector3i(0, 1, 4), Vector3i(10, 1, 3), Vector3i(2, 1, 10), Vector3i(11, 0, 9), Vector3i(-1, 0, 6)]:
+		g.put(p.x, p.y, p.z, [Color("d0362a"), Color("3fd17a"), Color("4f9cf0")][abs(p.x + p.z) % 3], true)   # gems
+	_kbox(g, rng, 3, 8, 2, 8, 5, 10, scale)                # body, sitting up
+	_kbox(g, rng, 4, 7, 2, 7, 4, 4, belly)                 # belly scales
+	_kbox(g, rng, 3, 4, 2, 4, 3, 4, scale)                 # front legs
+	_kbox(g, rng, 7, 8, 2, 4, 3, 4, scale)
+	g.put(3, 2, 2, Color("f4f1e8"))                        # claws
+	g.put(8, 2, 2, Color("f4f1e8"))
+	_kbox(g, rng, 4, 7, 8, 10, 4, 7, scale)                # neck
+	_kbox(g, rng, 3, 8, 10, 13, 2, 7, scale)               # head
+	_kbox(g, rng, 4, 7, 10, 11, 0, 1, scale)               # snout
+	g.put(4, 11, -1, Color("2a1010"))                      # nostrils
+	g.put(7, 11, -1, Color("2a1010"))
+	g.put(4, 12, 1, Color("ffd34a"), true)                 # eyes
+	g.put(7, 12, 1, Color("ffd34a"), true)
+	for side in [3, 8]:                                    # horns sweeping back
+		g.put(side, 14, 6, Color("e8e2d0"))
+		g.put(side, 15, 7, Color("e8e2d0"))
+		g.put(side, 15, 8, Color("d8d0bc"))
+	_kcrown(g, 4, 7, 14, 2, 5, Color("ffd66b"), Color("c9962c"), Color("4f9cf0"))
+	for side in [2, 9]:                                    # folded wings
+		_kbox(g, rng, side, side, 4, 11, 7, 10, wing)
+		g.put(side, 12, 9, scale[0])
+	_kbox(g, rng, 9, 11, 2, 2, 10, 11, scale)              # the tail curling round the hoard
+	_kbox(g, rng, 11, 11, 2, 2, 5, 9, scale)
+	g.put(11, 3, 4, scale[1])
+	g.put(11, 3, 3, Color("7a1e1e"))
+	return g
+
+# The Fate King: an owl in a midnight-blue robe scattered with glowing stars, great amber eyes, a
+# floating crown of stars over its head and a spindle wound with golden thread in its wing.
+static func _fate() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:fate")
+	var robe := [Color("1e2a5e"), Color("223068"), Color("1a2452")]
+	var feather := [Color("7a6650"), Color("6e5a46"), Color("86705a")]
+	var disc := [Color("e8dcc4"), Color("dccfb4")]
+	var star := Color("ffe9a0")
+	_kbox(g, rng, 2, 9, 0, 2, 3, 10, robe)                 # robe
+	_kbox(g, rng, 3, 8, 3, 8, 4, 9, robe)
+	for p in [Vector3i(3, 1, 2), Vector3i(8, 2, 2), Vector3i(5, 5, 3), Vector3i(7, 7, 3), Vector3i(4, 3, 3), Vector3i(9, 1, 6), Vector3i(2, 2, 8)]:
+		g.put(p.x, p.y, p.z, star, true)                   # stars on the robe
+	_kbox(g, rng, 2, 2, 4, 9, 5, 8, feather)               # wings
+	_kbox(g, rng, 9, 9, 4, 9, 5, 8, feather)
+	_kbox(g, rng, 3, 8, 9, 12, 3, 8, feather)              # head
+	_kbox(g, rng, 3, 8, 9, 12, 2, 2, disc)                 # the facial disc
+	_kbox(g, rng, 3, 4, 10, 11, 1, 1, [Color("ffb02e")], true)   # great amber eyes
+	_kbox(g, rng, 7, 8, 10, 11, 1, 1, [Color("ffb02e")], true)
+	g.put(4, 10, 0, Color("1a1410"))                       # pupils
+	g.put(7, 10, 0, Color("1a1410"))
+	g.put(5, 9, 1, Color("d8a03a"))                        # beak
+	g.put(6, 9, 1, Color("d8a03a"))
+	g.put(3, 13, 5, feather[0])                            # ear tufts
+	g.put(3, 14, 5, feather[1])
+	g.put(8, 13, 5, feather[0])
+	g.put(8, 14, 5, feather[1])
+	for n in 8:                                            # the floating crown of stars
+		var a := n * TAU / 8.0
+		g.put(5 + int(round(cos(a) * 3.0)), 16 + n % 2, 5 + int(round(sin(a) * 3.0)), star, true)
+	_kbox(g, rng, 0, 1, 3, 9, 3, 3, [Color("6b4424")])     # the spindle
+	_kbox(g, rng, -1, 2, 5, 7, 2, 4, [Color("f2c14e"), Color("ffd66b")], true)   # wound with golden thread
+	for j in range(0, 5):                                  # a thread running down to the ground
+		g.put(1, j, 1, Color("ffd66b"), true)
+	return g
 
 # The Golden Lion: sitting up, facing -z (towards the enemy, like your units), a dark gold mane round
 # its head, a gold crown with a red gem that glows.

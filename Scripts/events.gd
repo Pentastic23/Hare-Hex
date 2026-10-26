@@ -26,4 +26,5 @@ signal team_plan_changed              # SaveGame team plan edited in the team pl
 signal opponent_announced(text: String)   # who the coming fight is against (async PvP); "" = nothing to show
 signal notice(text: String, color: Color)   # a short message flashed over the board (fight results, BOARD FULL)
 signal trophies_changed(trophies: int, losses: int)   # async PvP: fights won (10 wins the run) and lives lost (10 ends it)
+signal king_changed                  # the local player's king run power changed (KingPowers; the King tab)
 signal fight_speed_changed(speed: int)   # fast forward (async PvP, campaign chapters): 1, 2 or 3

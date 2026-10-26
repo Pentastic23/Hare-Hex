@@ -43,6 +43,10 @@ var losses := 0:
 		if is_local:
 			Events.trophies_changed.emit(trophies, losses)
 var endless := false
+# The king's run power (KingPowers; a KingSkins id, "" = none) and its run state. GameManager sets `king` in
+# free play and async PvP; reset() clears both.
+var king: StringName = &""
+var king_state := {}
 
 # Shop and results (the shared unit pool itself is run-wide, in GameManager).
 var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool until the next roll
@@ -65,6 +69,8 @@ func reset():
 	trophies = 0
 	losses = 0
 	endless = false
+	king = &""
+	king_state = {}
 	items.clear()
 	dropped.clear()
 	free_rerolls = 0
@@ -95,7 +101,15 @@ func max_board_units() -> int:
 
 @warning_ignore("integer_division")
 func interest_gold() -> int:
-	return mini(gold / GameState.INTEREST_STEP, GameState.INTEREST_CAP)
+	return mini(gold / GameState.INTEREST_STEP, KingPowers.interest_cap(self))   # the Merchant King raises the cap
+
+# The shop odds this player rolls with (% per cost; the Gambler King shifts them).
+func shop_odds() -> Array:
+	return KingPowers.odds(self)
+
+# What unit `d` costs this player now (the Chaos King's Royal Discount).
+func price(d: UnitData) -> int:
+	return KingPowers.price(self, d)
 
 func total_income_for_round(r: int) -> int:
 	return GameState.base_income_for_round(r) + interest_gold() + streak_bonus()

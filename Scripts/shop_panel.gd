@@ -232,7 +232,7 @@ func _refresh_stats() -> void:
 	var streak: int = me.streak_bonus()
 	var gm = get_tree().get_first_node_in_group("game_manager")
 	var purse: int = gm.item_income() if gm != null else 0   # Coin Purses on the board (items v2)
-	var lines := "Next round income\nBase: %d\nInterest: %d\nStreak: %d" % [base, interest, streak]
+	var lines := "Next round income\nBase: %d\nInterest: %d (max %d)\nStreak: %d" % [base, interest, KingPowers.interest_cap(me), streak]
 	if purse > 0:
 		lines += "\nCoin Purse: %d" % purse
 	gold_row.tooltip_text = Tip.wrap(lines + "\nTotal: %d" % (base + interest + streak + purse))

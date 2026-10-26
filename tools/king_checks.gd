@@ -222,6 +222,8 @@ func _run():
 	var r := CombatRunner.new()
 	Arena.set_kings(r, desc)
 	chk("a lobby fight description sets both kings (unknown skins become none)", r.king_skins == [&"lion", &""] and r.king_levels == [5, 2] and r.king_seed == hash([7, 3]))
+	await _skin_checks()
+	await _power_checks()
 	main.queue_free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
@@ -240,3 +242,194 @@ func _unit(n: String, c: Vector2i, team: int) -> Unit:
 	board.put_enemy_on_tile(u, c)
 	u.begin_combat()
 	return u
+
+func _ud(n: String) -> UnitData:
+	var p := "res://tres/units/%s.tres" % n
+	return load(p if ResourceLoader.exists(p) else "res://tres/%s.tres" % n)
+
+# A run with `skin` as your king's run power, from a clean state.
+func _with_power(skin: StringName) -> PlayerState:
+	SaveGame.set_king_skin(String(skin))
+	await load_main()
+	var p := GameState.me
+	p.king_state = {}
+	return p
+
+func _skin_checks():
+	print("--- king skins: models and attacks")
+	var models := true
+	for id in KingSkins.ORDER:
+		if id != &"shadow" and KingSkins.model(id) == null:
+			models = false
+	chk("every skin but the Shadow King has its own baked model", models and KingSkins.ORDER.size() == 9)
+	await load_main()
+	var k: King = board.kings[0]
+	k.set_skin(&"shadow", &"dragon")
+	chk("the Shadow King wears the opposing king's model, in shadow", k.body.mesh == KingSkins.model(&"dragon") and k.body.material_override == King.shadow_mat())
+	k.set_skin(&"merchant", &"dragon")
+	chk("any other skin wears its own model", k.body.mesh == KingSkins.model(&"merchant") and k.shape == &"merchant")
+	var foe := _unit("guardian", board.enemy_order[0], 1)
+	var fired := k.fired
+	k.strike(foe)
+	chk("a strike plays an animation (wind-up and lunge)", k.animating())
+	await get_tree().create_timer(0.35).timeout
+	chk("the skin's shot leaves at the lunge", k.fired == fired + 1)
+	await get_tree().create_timer(0.8).timeout
+	chk("the king settles back where it stood", not k.animating() and k.body.position.is_equal_approx(Vector3(0, 0.01, 0)) and is_equal_approx(k.body.rotation.y, 0.0))
+	SaveGame.set_king_skin("merchant")
+	await load_main()
+	chk("your pick is your run power in free play", GameState.me.king == &"merchant" and board.kings[0].skin == &"merchant")
+	SaveGame.set_king_skin("lion")
+	await load_main()
+	chk("the Golden Lion has no run power (its effect is in the fight)", GameState.me.king == &"")
+
+func _power_checks():
+	print("--- king run powers")
+	var p := await _with_power(&"merchant")
+	p.gold = 75
+	chk("Merchant King: interest is capped at 7", p.interest_gold() == 7 and KingPowers.interest_cap(p) == 7)
+	p.king = &""
+	chk("... 5 without it", p.interest_gold() == 5)
+
+	p = await _with_power(&"gambler")
+	var lucks := {}
+	for r in range(2, 40):
+		KingPowers.prep_start(gm.rules, r, false)
+		lucks[float(p.king_state.luck)] = true
+	chk("Gambler King: the luck changes from round to round (worse and better)", lucks.size() >= 4 and lucks.keys().min() < 0.0 and lucks.keys().max() > 0.0, str(lucks.keys()))
+	p.level = 5
+	p.king_state.luck = 2.0
+	var odds := p.shop_odds()
+	var total := 0.0
+	for o in odds:
+		total += float(o)
+	chk("... a JACKPOT rolls with level 7 odds", odds == GameState.odds_for_level(7).map(func(x): return float(x)) and is_equal_approx(total, 100.0), str(odds))
+	p.king_state.luck = -0.75
+	odds = p.shop_odds()
+	chk("... bad luck blends towards a lower level's odds", float(odds[0]) > float(GameState.odds_for_level(5)[0]) and float(odds[0]) < float(GameState.odds_for_level(4)[0]), str(odds))
+	var seq := []
+	for run in 2:
+		p.rng.seed = 77
+		var one := []
+		for r in range(2, 12):
+			KingPowers.prep_start(gm.rules, r, false)
+			one.append(p.king_state.luck)
+		seq.append(one)
+	chk("... the same seed rolls the same luck", seq[0] == seq[1])
+
+	p = await _with_power(&"necromancer")
+	for n in ["knight", "archer", "militia"]:
+		var u := board.make_unit(_ud(n), gm.unit_scene)
+		board.put_on_bench(u, board.first_free_bench())
+		board.sell_unit(u)
+	chk("Necromancer King: selling stores memories and souls", int(p.king_state.souls) == 3 and p.king_state.memories.size() == 3)
+	var bench_before := board.bench.filter(func(u): return u != null).size()
+	KingPowers.prep_start(gm.rules, 5, false)
+	var raised: Array = board.bench.filter(func(u): return u != null)
+	chk("... 3 souls bring back a free copy of a sold unit", raised.size() == bench_before + 1 and int(p.king_state.souls) == 0, "%d -> %d" % [bench_before, raised.size()])
+
+	p = await _with_power(&"explorer")
+	KingPowers.prep_start(gm.rules, 2, false)
+	chk("Explorer King: a quest appears in round 2", p.king_state.get("quests", []).size() == 1)
+	p.king_state.quests = [{"id": "rich", "state": "open"}]
+	p.gold = 55
+	KingPowers.check(gm.rules)
+	chk("... completing it gives a relic", p.king_state.quests[0].state == "done" and p.king_state.get("relics", []).size() == 1)
+	p.king_state.quests = [{"id": "no_reroll", "state": "open"}]
+	p.level = 3
+	p.gold = 20
+	p.shop_locked = false
+	gm.rules.reroll()
+	chk("... rerolling before level 7 fails 'reach level 7 without rerolling'", p.king_state.quests[0].state == "failed")
+	p.king_state.relics = ["compass", "drum"]
+	var g0 := p.gold
+	KingPowers.prep_start(gm.rules, 4, false)
+	chk("... relics: the Compass pays 1 gold a round", p.gold == g0 + 1)
+	chk("... the War Drum speeds up your units in every fight", is_equal_approx(float(KingPowers.fight_start(gm.rules, []).get("as", 0.0)), 0.10))
+	p.king_state.quests = [{"id": "five", "state": "open"}]
+	p.king_state.fight_units = 5
+	KingPowers.fight_end(gm.rules, true)
+	chk("... 'win with exactly 5 units' completes on such a win", p.king_state.quests[0].state == "done")
+
+	p = await _with_power(&"chaos")
+	KingPowers.prep_start(gm.rules, 3, false)
+	chk("Chaos King: no proclamation on odd rounds", str(p.king_state.decree) == "")
+	var seen := {}
+	var last := ""
+	var repeats := false
+	for r in range(2, 60, 2):
+		KingPowers.prep_start(gm.rules, r, false)
+		var d := str(p.king_state.decree)
+		repeats = repeats or d == last
+		last = d
+		seen[d] = true
+	chk("... every other round a proclamation, never the same twice running", seen.size() == KingPowers.DECREES.size() and not seen.has("") and not repeats, str(seen.keys()))
+	p.king_state.discount = 3
+	p.gold = 20
+	var dear: UnitData = null
+	for d in gm.roster:
+		if d.cost >= 2:
+			dear = d
+			break
+	chk("... Royal Discount: units cost 1 less", p.price(dear) == dear.cost - 1)
+	gm.rules.buy(dear, true, false)
+	chk("... for the next 3 units only", int(p.king_state.discount) == 2 and p.gold == 20 - (dear.cost - 1))
+	p.king_state.fight_fx = {"shield": 0.2}
+	var fx := KingPowers.fight_start(gm.rules, [])
+	KingPowers.fight_end(gm.rules, true)
+	chk("... Iron Decree shields your units for one fight", is_equal_approx(float(fx.get("shield", 0.0)), 0.2) and p.king_state.fight_fx.is_empty())
+
+	p = await _with_power(&"dragon")
+	p.gold = 65
+	KingPowers.prep_start(gm.rules, 5, false)
+	chk("Dragon King: gold above 50 goes into the hoard", p.gold == 50 and int(p.king_state.hoard) == 15)
+	var items_before := p.items.size()
+	p.gold = 56
+	KingPowers.prep_start(gm.rules, 6, false)
+	chk("... it grows and pays out treasure as it fills (an item at 20)", int(p.king_state.hoard) == 22 and p.items.size() == items_before + 1, "hoard %d" % int(p.king_state.hoard))
+	p.gold = 10
+	KingPowers.fight_start(gm.rules, [])
+	chk("... a fight started under 20 gold collapses it: half comes back", int(p.king_state.hoard) == 0 and p.gold == 21)
+
+	p = await _with_power(&"fate")
+	KingPowers.prep_start(gm.rules, 1, true)
+	chk("Fate King: no prophecy in the opening", p.king_state.get("offer", []).is_empty())
+	KingPowers.prep_start(gm.rules, 2, false)
+	var offer: Array = p.king_state.get("offer", []).duplicate()
+	chk("... three prophecies offered after it", offer.size() == 3)
+	KingPowers.fight_start(gm.rules, [])
+	chk("... not chosen before a fight: the first is taken", str(p.king_state.get("prophecy", "")) == str(offer[0]) and p.king_state.offer.is_empty())
+	p.king_state.prophecy = "level9"
+	p.level = 9
+	var g1 := p.gold
+	KingPowers.check(gm.rules)
+	chk("... fulfilled: reach level 9 pays 40 gold", bool(p.king_state.get("fulfilled", false)) and p.gold == g1 + 40)
+	p.king_state.prophecy = "legend"
+	chk("... a lasting prophecy reward reaches every fight", is_equal_approx(float(KingPowers.fight_start(gm.rules, []).get("hp", 0.0)), 0.3))
+
+	p = await _with_power(&"shadow")
+	p.gold = 50
+	p.level = 6
+	var pool_before: Dictionary = gm.shared_pool.remaining.duplicate()
+	var state := p.rng.state
+	var peek := KingPowers.peek_shop(gm.rules)
+	chk("Shadow King: peeking at the next reroll changes nothing", gm.shared_pool.remaining == pool_before and p.rng.state == state and peek.size() == 5)
+	gm.rules.reroll()
+	chk("... and the reroll offers exactly what it showed", Array(p.shop_offers) == peek, "%s vs %s" % [peek.map(func(d): return d.display_name), Array(p.shop_offers).map(func(d): return d.display_name)])
+	var foes := KingPowers.peek_enemy(gm)
+	var real: EnemyBoard = gm.opponents.board_for_round(GameState.round_number)
+	chk("... the coming random enemies are the ones it showed", foes.map(func(f): return f[0]) == real.units.map(func(bu): return bu.unit) and not foes.is_empty())
+	var left_dock = main.find_child("LeftDock", true, false)
+	left_dock.show_tab("king")
+	await frames(3)
+	chk("... the King tab shows the forbidden knowledge", left_dock.king.summary().contains("Shadow King") and left_dock.king.body.get_child_count() > 4)
+	p = await _with_power(&"fate")
+	KingPowers.prep_start(gm.rules, 2, false)
+	await frames(3)
+	left_dock = main.find_child("LeftDock", true, false)
+	chk("a prophecy to choose opens the King tab, with a badge", left_dock.tab == "king" and left_dock.king.pending() == 1)
+	var chosen: String = p.king_state.offer[1]
+	gm.choose_prophecy(1)
+	chk("... choosing one sets it", str(p.king_state.get("prophecy", "")) == chosen and left_dock.king.pending() == 0)
+	left_dock.show_tab("synergies")
+	SaveGame.set_king_skin("lion")

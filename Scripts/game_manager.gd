@@ -99,6 +99,7 @@ func _enter(p: int):
 			if opponents != null:
 				opponents.prepare(GameState.round_number)   # async PvP picks this round's ghost now
 				Events.opponent_announced.emit(opponents.describe_next())
+			_dress_kings()   # the ghost's king, and a Shadow King takes its shape
 			_open_foe_half()
 			# counted down in _process, so the timer label can show it and pausing stops it
 			prep_length = OPENING_PREP if opening else (UNTIMED if manual_start else float(prep_time))
@@ -216,8 +217,10 @@ func _begin_run():
 	var carry := GameState.begin_run(lvl, camp)
 	rng.seed = GameState.run_seed
 	board.apply_theme(BoardThemes.for_run(lvl, GameState.run_seed), GameState.run_seed)   # the level's biome (or one from the seed) and its scenery
-	if not board.kings.is_empty():
-		board.kings[0].set_skin(KingSkins.selected())   # your king: the skin picked on the main menu
+	# Your king's run power (KingPowers) works in free play and async PvP; in a campaign level a king only
+	# strikes (and the Golden Lion shields).
+	GameState.me.king = KingSkins.selected() if lvl == null and KingSkins.is_run_power(KingSkins.selected()) else &""
+	GameState.me.king_state = {}
 	roster = unit_pool
 	if lvl != null and not lvl.allowed_units.is_empty():
 		roster = lvl.allowed_units
@@ -254,6 +257,7 @@ func _begin_run():
 			var ghosts := SnapshotOpponents.new(snapshot_store, opponents, unit_pool, item_roster, balance_hash, ghost_rng, str(GameState.run_seed))
 			ghosts.ghost_changed.connect(_on_ghost_changed)
 			opponents = ghosts
+	_dress_kings()
 
 # Saves the board that is about to fight, so other runs (and this player's later runs) can meet it as a ghost.
 func _record_snapshot():
@@ -270,6 +274,7 @@ func _record_snapshot():
 		"level": GameState.me.level,
 		"hp": GameState.me.player_hp,
 		"balance": balance_hash,
+		"king": String(KingSkins.selected()),   # the ghost's king looks like yours (a look only)
 	}
 	if GameState.ghost_mode:
 		meta["trophies"] = GameState.me.trophies
@@ -459,6 +464,24 @@ func _resume_run() -> void:
 	prep_length = UNTIMED if manual_start else float(prep_time)
 	prep_left = prep_length
 
+# The two kings' looks: yours in your skin; the enemy's in the ghost's skin (async PvP ghosts record it),
+# else the default. A Shadow King wears the enemy king's shape (visual only: in single player the enemy
+# king never has a skin effect).
+func _dress_kings() -> void:
+	if board.kings.size() < 2:
+		return
+	var foe: StringName = KingSkins.DEFAULT
+	if opponents is SnapshotOpponents:
+		var k := StringName(str(opponents.current_snapshot().get("king", "")))
+		if KingSkins.has(k):
+			foe = k
+	board.kings[1].set_skin(foe)
+	board.kings[0].set_skin(KingSkins.selected(), foe)
+
+# The Fate King's prophecy pick (the King tab).
+func choose_prophecy(index: int) -> bool:
+	return rules != null and KingPowers.choose_prophecy(rules, index)
+
 func set_shop_locked(on: bool):
 	if lobby != null:
 		lobby.lock(on)
@@ -534,7 +557,7 @@ func start_combat():
 		if is_instance_valid(u):
 			mine.append(u)
 	_record_snapshot()
-	Synergies.apply(mine)
+	Synergies.apply(mine, KingPowers.fight_start(rules, mine))   # + the king's relics, decrees and prophecy
 	_record_resonances(mine)
 	_spawn_enemies()
 	for n in units_node.get_children():
@@ -692,6 +715,7 @@ func _end_combat(player_won: bool, enemy_alive: int):
 			u.end_combat(player_won)
 			board.put_on_tile(u, snapshot[u])
 	GameState.me.record_result(player_won)
+	KingPowers.fight_end(rules, player_won)
 	if GameState.ghost_mode:
 		_end_async_fight(player_won, enemy_alive)
 	elif player_won:
@@ -745,6 +769,7 @@ func _on_ghost_changed() -> void:
 		return
 	Events.opponent_announced.emit(opponents.describe_next())
 	_open_foe_half()
+	_dress_kings()
 
 # The PREP countdown. Fights have their own fixed ticks (_physics_process); this only runs the
 # preparation timer, and stops while the tree is paused.

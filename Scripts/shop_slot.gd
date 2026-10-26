@@ -94,6 +94,7 @@ func _ready():
 	flash_label.visible = false
 	add_child(flash_label)
 	Events.team_plan_changed.connect(_update_text)
+	Events.king_changed.connect(_update_text)   # a Royal Discount starting or running out changes the price
 	_update_text()
 
 func _clipped(l: Label) -> Label:
@@ -126,11 +127,13 @@ func _update_text():
 		for t in offer.tags:
 			tags.append(String(t))
 		tags_label.text = " · ".join(tags)
-		cost_label.text = str(offer.cost)
+		var price := GameState.me.price(offer)   # the Chaos King's Royal Discount can take 1 off
+		cost_label.text = str(price)
+		cost_label.add_theme_color_override("font_color", HudStyle.GOLD if price < offer.cost else HudStyle.INK)
 		portrait.texture = DockKit.portrait(offer)
 		portrait.modulate = Color.WHITE
 		well.add_theme_stylebox_override("panel", DockKit.well_box(DockKit.COST_COLORS.get(offer.cost, HudStyle.NEUTRAL), 3))
-		tooltip_text = Tip.wrap("%s (%d gold)\n%s%s%s\nClick to buy, or drag it onto the board." % [offer.display_name, offer.cost, ", ".join(tags), Abilities.tooltip_line(offer), "\nIn your team plan." if planned else ""])
+		tooltip_text = Tip.wrap("%s (%d gold)\n%s%s%s\nClick to buy, or drag it onto the board." % [offer.display_name, price, ", ".join(tags), Abilities.tooltip_line(offer), "\nIn your team plan." if planned else ""])
 		refresh_owned()
 	else:
 		var p := SILHOUETTE_DIR % (index % 5 + 1)
@@ -171,7 +174,7 @@ func refresh_owned():
 func _pressed():
 	if offer == null:
 		return
-	if GameState.me.gold < offer.cost:
+	if GameState.me.gold < GameState.me.price(offer):
 		_flash("Not enough gold")
 		return
 	var gm := get_tree().get_first_node_in_group("game_manager")

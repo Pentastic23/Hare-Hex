@@ -756,6 +756,8 @@ func sell_unit(u: Unit):
 	player.gold += refund
 	if pool != null:
 		pool.give_back(d, UnitPool.copies_in(star))
+	if player != null:
+		KingPowers.on_sell(player, d, star)   # the Necromancer King remembers it
 	if _local():
 		Events.unit_sold.emit(d, star, refund)
 

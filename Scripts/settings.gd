@@ -60,7 +60,7 @@ static var unfocused := false     # the window has lost focus right now (music.g
 # HUD state, remembered between sessions
 static var show_damage_meter := true   # the Damage button's window
 static var dock_collapsed := false     # left box (synergies / items) folded to its rail
-static var dock_tab := "synergies"     # left box tab: "synergies" or "items"
+static var dock_tab := "synergies"     # left box tab: "synergies", "items" or "king"
 static var show_top_bar := true        # top bar (rounds and timer) unfolded
 static var show_odds := true           # the shop odds strip above the shop unfolded
 static var fight_speed := 1            # fast forward (async PvP and campaign chapters): fight ticks per frame, 1-3

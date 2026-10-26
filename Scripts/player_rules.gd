@@ -47,6 +47,7 @@ func start_prep(round_number: int, cheap: bool, opening := false, drops := true)
 	player.opening = opening
 	player.gold += player.total_income_for_round(round_number) + item_income()
 	player.free_rerolls = item_free_rerolls()
+	KingPowers.prep_start(self, round_number, opening)   # the king's run power: luck, decrees, quests, the hoard...
 	var dropped := drop_item(round_number) if drops else false   # (a replayed final wave drops nothing new)
 	board.merge_all()
 	player.cheap_shop = cheap
@@ -156,7 +157,7 @@ func return_offers() -> void:
 	player.shop_offers.clear()
 
 func _pick_cost_tier() -> int:
-	var odds: Array = GameState.odds_for_level(player.level)
+	var odds: Array = player.shop_odds()   # the level's odds (the Gambler King shifts them)
 	var r := player.rng.randf() * 100.0   # the player's own shop RNG
 	var acc := 0.0
 	for i in odds.size():
@@ -184,12 +185,14 @@ func _random_unit_of_cost(tier: int) -> UnitData:
 # `strict` (the lobby server): only an offer in the shop, and only with the gold for it. Single player
 # leaves those checks to the shop button (tests buy any unit through Events.unit_bought).
 func buy(d: UnitData, in_prep: bool, strict := true) -> Unit:
-	if d == null or player.opening or (strict and (not player.shop_offers.has(d) or player.gold < d.cost)):
+	var price := player.price(d)   # the Chaos King's Royal Discount can take 1 off
+	if d == null or player.opening or (strict and (not player.shop_offers.has(d) or player.gold < price)):
 		return null
 	var slot := board.first_free_bench()
 	if slot == -1 and not board.would_complete_merge(d, not in_prep):
 		return null
-	player.gold -= d.cost
+	player.gold -= price
+	KingPowers.on_buy(player, d, price)
 	player.shop_offers.erase(d)   # stays out of the pool; it's the player's now
 	var u := board.make_unit(d, unit_scene)
 	if slot != -1:
@@ -213,13 +216,15 @@ func reroll() -> bool:
 		player.gold -= REROLL_COST
 	player.cheap_shop = false
 	roll_shop()
+	KingPowers.on_reroll(player)   # the Explorer's no-reroll quest fails
 	return true
 
 func buy_xp() -> bool:
 	if player.opening or player.gold < BUY_XP_COST:
 		return false
 	player.gold -= BUY_XP_COST
-	add_xp(XP_PER_BUY)
+	add_xp(KingPowers.xp_per_buy(player, XP_PER_BUY))   # the Chaos King's Royal Academy doubles it
+	KingPowers.check(self)
 	return true
 
 # XP for the player; a board that doesn't follow the local player's level by itself (the lobby

@@ -71,6 +71,8 @@ static func capture(player_units: Array, meta: Dictionary) -> Dictionary:
 		"name": str(meta.get("name", "You")),
 		"board": board.to_dict(),
 	}
+	if meta.has("king"):   # the player's king skin (its look on the ghost's side; no effect)
+		out["king"] = str(meta.king)
 	if meta.has("trophies"):   # async PvP runs only
 		out["trophies"] = int(meta.trophies)
 		out["losses"] = int(meta.get("losses", 0))

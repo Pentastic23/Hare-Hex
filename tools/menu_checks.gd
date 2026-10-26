@@ -59,7 +59,8 @@ class Driver extends Node:
 		press("King")
 		await get_tree().process_frame
 		chk("King opens its own screen", kp.get_parent().visible and find_button(scene(), "Free Play") == null)
-		chk("it lists the Golden Lion as your king, with its effect", labels(scene()).has("Golden Lion") and labels(scene()).has("Your king") and find_button(scene(), "Choose") == null)
+		var king_texts := Array(labels(scene()))
+		chk("it lists the Golden Lion as your king, with its effect, and the other 8 skins to choose", king_texts.any(func(t): return str(t).begins_with("Golden Lion")) and king_texts.any(func(t): return str(t).begins_with("Your king")) and king_texts.any(func(t): return str(t).begins_with("Shadow King")) and find_button(scene(), "Choose") != null)
 		press("Back")
 		await get_tree().process_frame
 		chk("Back returns to the menu", not kp.get_parent().visible and find_button(scene(), "Free Play") != null)

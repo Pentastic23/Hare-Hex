@@ -482,13 +482,18 @@ func _build_king_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := panel.get_child(0) as VBoxContainer
 	box.add_child(_heading("Your King"))
-	var rules := _label("Your king stands beside the board and can't be hurt. Every 10 s of a fight it strikes a random enemy unit anywhere on the board (stronger as you level up). Its skin adds one more effect.", 13, GREY)
+	var rules := _label("Your king stands beside the board and can't be hurt. Every 10 s of a fight it strikes a random enemy unit anywhere on the board (stronger as you level up). Its power is its own: the Golden Lion's works in every fight; the others shape your run in Free Play and Async PvP (the King tab shows how they stand).", 13, GREY)
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rules.custom_minimum_size = Vector2(520, 0)
 	box.add_child(rules)
 	_king_rows = VBoxContainer.new()
 	_king_rows.add_theme_constant_override("separation", 8)
-	box.add_child(_king_rows)
+	_king_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var scroll := ScrollContainer.new()   # nine kings don't fit a 648 px window
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(560, 360)
+	scroll.add_child(_king_rows)
+	box.add_child(scroll)
 	_fill_kings()
 	_button(box, "Back", func(): _show_panel(null))
 	return panel
@@ -512,7 +517,7 @@ func _fill_kings() -> void:
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		h.add_child(col)
-		var name_l := _label(def.name, 18, HudStyle.GOLD if owned else GREY)
+		var name_l := _label("%s  ·  %s" % [def.name, def.power], 18, KingSkins.colour(id) if owned else GREY)
 		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		col.add_child(name_l)
 		var text_l := _label(def.text, 13, HudStyle.INK if owned else GREY)
@@ -520,7 +525,7 @@ func _fill_kings() -> void:
 		text_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text_l.custom_minimum_size = Vector2(300, 0)
 		col.add_child(text_l)
-		var state := _label(("Your king" if chosen else "Owned") if owned else "Locked: " + str(def.unlock), 11, HudStyle.GOLD if chosen else GREY)
+		var state := _label((("Your king" if chosen else "Owned") + ("  ·  Free Play and Async PvP" if KingSkins.is_run_power(id) else "  ·  Every fight")) if owned else "Locked: " + str(def.unlock), 11, HudStyle.GOLD if chosen else GREY)
 		state.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		col.add_child(state)
 		if owned and not chosen:
@@ -552,6 +557,8 @@ func _king_preview(id: StringName) -> Control:
 	vp.add_child(sun)
 	var m := MeshInstance3D.new()
 	m.mesh = KingSkins.model(id)
+	if id == &"shadow":
+		m.material_override = King.shadow_mat()   # the shape of a Golden Lion, in shadow (in a run: its opponent's king)
 	vp.add_child(m)
 	if not Settings.reduce_motion:
 		var t := m.create_tween().set_loops()

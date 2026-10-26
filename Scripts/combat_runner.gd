@@ -198,16 +198,15 @@ func alive_units(team: int, targetable: bool) -> Array[Unit]:
 			out.append(u)
 	return out
 
-# The look of a king acting (visual only): a golden bolt from the king to the unit it strikes, or a
-# golden burst on the ally it helps.
+# The look of a king acting (visual only): its attack on the unit it strikes (King.strike: a wind-up,
+# a lunge and its skin's shot), or its lift for the ally it helps (King.help).
 func king_fx(team: int, u: Unit, helps: bool) -> void:
 	if not Vfx.enabled or board == null or board.kings.size() <= team or not is_instance_valid(board.kings[team]):
 		return
-	var k: Node3D = board.kings[team]
+	var k := board.kings[team] as King
+	if k == null:
+		return
 	if helps:
-		Vfx.ring(u, u.global_position + Vector3(0, 0.08, 0), 0.4, 1.1, Color("ffd46b"), 0.5)
-		Vfx.burst(u, u.global_position + Vector3(0, 1.0, 0), Color("ffe9a0"), 8, 0.6)
+		k.help(u)
 	else:
-		Vfx.projectile(k, k.global_position + Vector3(0, 1.6, 0), u.global_position + Vector3(0, 1.0, 0), Color("ffd46b"))
-	if k.has_method("act"):
-		k.act()
+		k.strike(u)

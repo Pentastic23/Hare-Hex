@@ -324,13 +324,16 @@ static func _merge(into: Dictionary, fx: Dictionary) -> void:
 			into[k] += v
 
 # Clears every unit's synergy bonuses and applies what `units` (one team) earns now.
-static func apply(units: Array):
+# `extra`: effects every unit of the team gets on top (a king's relics, decrees and prophecies; KingPowers).
+static func apply(units: Array, extra := {}):
 	for x in units:
 		var u := x as Unit
 		if u:
 			u.clear_bonuses()
 	var fx := effects_for(units)
 	for u in fx:
+		if not extra.is_empty():
+			_merge(fx[u], extra)
 		(u as Unit).apply_synergy(fx[u])
 
 # The bonuses apply() would give `unit` if `units` (its team on the board) fought now, without

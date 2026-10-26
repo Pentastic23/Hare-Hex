@@ -322,6 +322,12 @@ class PixelIcon extends Control:
 					var a := deg_to_rad(60.0 * i - 90.0)
 					pts.append(o + Vector2(s / 2.0, s / 2.0) + Vector2(cos(a), sin(a)) * s * 0.47)
 				draw_colored_polygon(pts, color)
+			"crown":
+				px.call(1, 9, 12, 3)
+				px.call(1, 3, 2, 6)
+				px.call(6, 2, 2, 7)
+				px.call(11, 3, 2, 6)
+				px.call(3, 6, 8, 3)
 			"check":
 				px.call(2, 7, 2, 2)
 				px.call(4, 9, 2, 2)
