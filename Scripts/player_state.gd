@@ -30,6 +30,19 @@ var dropped := {}                 # item id -> times dropped this run (rare item
 var free_rerolls := 0             # rerolls left this round that cost nothing (Merchant's Ledger)
 var cheap_shop := false            # round 1-1: 1-cost units only
 var opening := false               # the PvP opening (round 1 of async PvP and lobbies): a free unit, the shop shut, nothing moves
+# Async PvP: a won fight is a trophy and a lost one costs a life (no HP). GameState.ASYNC_TROPHIES wins the
+# run; after that the player may go on in endless mode until the last of GameState.ASYNC_LIVES lives is gone.
+var trophies := 0:
+	set(v):
+		trophies = v
+		if is_local:
+			Events.trophies_changed.emit(trophies, losses)
+var losses := 0:
+	set(v):
+		losses = v
+		if is_local:
+			Events.trophies_changed.emit(trophies, losses)
+var endless := false
 
 # Shop and results (the shared unit pool itself is run-wide, in GameManager).
 var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool until the next roll
@@ -49,6 +62,9 @@ func reset():
 	loss_streak = 0
 	cheap_shop = false
 	opening = false
+	trophies = 0
+	losses = 0
+	endless = false
 	items.clear()
 	dropped.clear()
 	free_rerolls = 0
@@ -59,6 +75,9 @@ func reset():
 	if is_local:
 		Events.items_changed.emit()
 		Events.streak_changed.emit(0, 0)
+
+func lives_left() -> int:
+	return maxi(GameState.ASYNC_LIVES - losses, 0)
 
 func xp_needed() -> int:
 	return GameState.XP_TABLE.get(level, 999999)

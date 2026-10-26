@@ -149,7 +149,7 @@ func _run():
 	chk("with the saved seed, not a new one", GameState.run_seed == int(carry.mid.seed))
 	chk("exactly the saved state: board, bench, items, gold, shop, pool, streaks (no second income, drop or roll)", sig() == at_save, "" if sig() == at_save else "\n  saved   %s\n  resumed %s" % [at_save, sig()])
 	chk("the shop shows the saved offers", GameState.me.shop_offers.size() == (carry.mid.offers as Array).size())
-	chk("a full PREP timer", is_equal_approx(gm.prep_left, float(gm.prep_time)))
+	chk("an untimed PREP (chapter levels wait for Start fight)", gm.manual_start and is_equal_approx(gm.prep_left, gm.UNTIMED))
 	var b := play_on(true)
 	var b_end := [GameState.me.player_hp, gm.game_over, str(saved().get("level", "")), saved().has("mid")]
 	var first_diff := -1

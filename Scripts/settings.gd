@@ -63,6 +63,7 @@ static var dock_collapsed := false     # left box (synergies / items) folded to 
 static var dock_tab := "synergies"     # left box tab: "synergies" or "items"
 static var show_top_bar := true        # top bar (rounds and timer) unfolded
 static var show_odds := true           # the shop odds strip above the shop unfolded
+static var fight_speed := 1            # fast forward (async PvP and campaign chapters): fight ticks per frame, 1-3
 static var _loaded := false
 
 static func ensure_loaded() -> void:
@@ -126,6 +127,7 @@ static func load_settings() -> void:
 	dock_tab = str(cfg.get_value("hud", "dock_tab", dock_tab))
 	show_top_bar = bool(cfg.get_value("hud", "show_top_bar", show_top_bar))
 	show_odds = bool(cfg.get_value("hud", "show_odds", show_odds))
+	fight_speed = clampi(int(cfg.get_value("hud", "fight_speed", fight_speed)), 1, 3)
 
 static func save_settings() -> void:
 	var cfg := ConfigFile.new()
@@ -155,6 +157,7 @@ static func save_settings() -> void:
 	cfg.set_value("hud", "dock_tab", dock_tab)
 	cfg.set_value("hud", "show_top_bar", show_top_bar)
 	cfg.set_value("hud", "show_odds", show_odds)
+	cfg.set_value("hud", "fight_speed", fight_speed)
 	var err := cfg.save(path)
 	if err != OK:
 		push_warning("Settings: can't write %s (%s)" % [path, error_string(err)])

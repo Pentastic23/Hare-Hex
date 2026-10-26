@@ -53,9 +53,16 @@ var prep_left := 0.0   # seconds of PREP left; 0 when not in PREP
 # Seconds between a fight's end and the next PREP (the fallers and the victory dance finish first). Headless
 # runs (the check suites, the bot) skip it.
 var result_pause := 0.0 if DisplayServer.get_name() == "headless" else 3.0
-# Async PvP: no prep timer, the player presses Start fight (the top bar). Round 1 of async PvP is the
-# opening instead: a free unit already on the board, the shop shut, and the fight starts by itself.
+# Async PvP and campaign chapter levels: no prep timer, the player presses Start fight (the top bar). Round 1
+# of async PvP is the opening instead: a free unit already on the board, the shop shut, and the fight starts
+# by itself. The same modes can fast forward fights (fight_speed).
 var manual_start := false
+# Fast forward: fight ticks per physics frame (1, 2 or 3; Settings.fight_speed). The fight is the same at any
+# speed (it is a fixed number of fixed ticks); Engine.time_scale follows it during a fight so the animations,
+# effects and the fall of the dead keep pace.
+var fight_speed := 1
+const MAX_FIGHT_SPEED := 3
+var ghost_rng := RandomNumberGenerator.new()   # async PvP ghost picks (seeded from the run; online ghosts arrive at any time, so not the run RNG)
 var prep_length := 0.0   # how long this PREP started out (the top bar's track)
 const UNTIMED := 1000000.0      # prep_left / prep_time of a prep that waits for Start fight
 const OPENING_PREP := 4.0       # seconds before the opening fight starts by itself
@@ -92,10 +99,7 @@ func _enter(p: int):
 			if opponents != null:
 				opponents.prepare(GameState.round_number)   # async PvP picks this round's ghost now
 				Events.opponent_announced.emit(opponents.describe_next())
-			if opponents is SnapshotOpponents:   # the enemy half opens as far as the ghost's own level
-				var ghost: Dictionary = opponents.current_snapshot()
-				board.foe_level = int(ghost.get("level", -1)) if not ghost.is_empty() else -1
-				board.refresh_unlocks(GameState.me.level, true)
+			_open_foe_half()
 			# counted down in _process, so the timer label can show it and pausing stops it
 			prep_length = OPENING_PREP if opening else (UNTIMED if manual_start else float(prep_time))
 			prep_left = prep_length
@@ -104,6 +108,14 @@ func _enter(p: int):
 			_write_mid("combat")   # ...and of every fight, with the board as it fights (so quitting can't dodge a loss)
 			start_combat()
 		Events.Phase.RESULT:
+			if GameState.ghost_mode:   # async PvP: trophies and lives, not HP
+				var me := GameState.me
+				if me.losses >= GameState.ASYNC_LIVES:
+					_lose_run()
+					return
+				if me.trophies >= GameState.ASYNC_TROPHIES and not me.endless:
+					_win_run()   # the end screen offers endless mode (continue_endless)
+					return
 			if GameState.me.player_hp <= 0:
 				_lose_run()
 				return
@@ -216,7 +228,9 @@ func _begin_run():
 	rules.drop_rounds = GameState.item_drop_rounds() if lvl == null or lvl.id != &"tutorial" else []   # the tutorial hands out its two items itself
 	rules.tongs_rounds = GameState.TONGS_ROUNDS if lvl == null else ([GameState.CAMPAIGN_TONGS_ROUND] if _in_chapter(lvl) else [])   # Tongs: none in the tutorial
 	rules.drop_stage_fixed = drop_stage() if lvl != null else 0
-	manual_start = GameState.ghost_mode   # async PvP: no prep timer, the top bar's Start fight
+	manual_start = GameState.ghost_mode or _in_chapter(lvl)   # async PvP and chapter levels: no prep timer, the top bar's Start fight
+	Settings.ensure_loaded()
+	fight_speed = clampi(Settings.fight_speed, 1, MAX_FIGHT_SPEED) if can_fast_forward() else 1
 	_resume = {}
 	if not carry.is_empty():
 		_restore_carry(carry)
@@ -232,10 +246,14 @@ func _begin_run():
 	snapshot_store = null
 	if lvl == null:
 		# Free play and async PvP record the player's board at every fight; campaign levels don't.
-		snapshot_store = LocalSnapshotStore.new()
+		# With the online ghost service set up (OnlineConfig) boards also go up to it and ghosts come from it.
+		snapshot_store = OnlineConfig.make_store(self)
 		balance_hash = BoardSnapshot.balance_hash(unit_pool, item_roster)
 		if GameState.ghost_mode:
-			opponents = SnapshotOpponents.new(snapshot_store, opponents, unit_pool, item_roster, balance_hash, rng, str(GameState.run_seed))
+			ghost_rng.seed = hash([GameState.run_seed, "ghosts"])
+			var ghosts := SnapshotOpponents.new(snapshot_store, opponents, unit_pool, item_roster, balance_hash, ghost_rng, str(GameState.run_seed))
+			ghosts.ghost_changed.connect(_on_ghost_changed)
+			opponents = ghosts
 
 # Saves the board that is about to fight, so other runs (and this player's later runs) can meet it as a ghost.
 func _record_snapshot():
@@ -244,15 +262,19 @@ func _record_snapshot():
 	var fighters: Array = snapshot.keys().filter(func(u): return is_instance_valid(u))
 	if fighters.is_empty():
 		return
-	snapshot_store.submit(BoardSnapshot.capture(fighters, {
-		"name": GameState.me.display_name,
+	var meta := {
+		"name": OnlineConfig.player_name(),
 		"run": str(GameState.run_seed),
 		"round": GameState.round_number,
 		"stage": "%d-%d" % [GameState.stage(), GameState.round_in_stage()],
 		"level": GameState.me.level,
 		"hp": GameState.me.player_hp,
 		"balance": balance_hash,
-	}))
+	}
+	if GameState.ghost_mode:
+		meta["trophies"] = GameState.me.trophies
+		meta["losses"] = GameState.me.losses
+	snapshot_store.submit(BoardSnapshot.capture(fighters, meta))
 
 # What a chapter run carries into its next level; the save file stores the same dictionary.
 # Units are stored by display_name, items by id; board units keep their tile, bench units their slot.
@@ -434,7 +456,7 @@ func _resume_run() -> void:
 		opponents.prepare(GameState.round_number)
 		Events.opponent_announced.emit(opponents.describe_next())
 	Events.shop_rolled.emit(me.shop_offers.duplicate())
-	prep_length = float(prep_time)
+	prep_length = UNTIMED if manual_start else float(prep_time)
 	prep_left = prep_length
 
 func set_shop_locked(on: bool):
@@ -523,6 +545,7 @@ func start_combat():
 	runner.king_levels = [GameState.me.level, GameState.me.level]
 	runner.king_seed = hash([GameState.run_seed, GameState.round_number])
 	runner.start()
+	_apply_time_scale()
 
 # Fixed acting order for a fight (CombatRunner.order).
 func _combat_order() -> Array[Unit]:
@@ -597,9 +620,32 @@ func _spawn_enemy(bu: BoardUnit, c: Vector2i, scale: float) -> Unit:
 
 # Deterministic combat: one fixed-length tick per physics frame (60 per second by default),
 # whatever the frame rate. The fight depends only on the two boards, not on timing.
+# Fast forward runs more of the same ticks per frame, so it never changes how a fight goes.
 func _physics_process(_delta):
-	if fighting:
-		combat_tick()
+	for i in fight_speed:
+		if fighting:
+			combat_tick()
+
+# Fast forward is for async PvP and campaign chapter levels (the modes with Start fight).
+func can_fast_forward() -> bool:
+	return lobby == null and manual_start
+
+# 1, 2 or 3; remembered (Settings.fight_speed). Takes effect at once, also mid-fight.
+func set_fight_speed(speed: int) -> void:
+	if not can_fast_forward():
+		return
+	fight_speed = clampi(speed, 1, MAX_FIGHT_SPEED)
+	Settings.fight_speed = fight_speed
+	Settings.save_settings()
+	_apply_time_scale()
+	Events.fight_speed_changed.emit(fight_speed)
+
+# The visuals keep pace with a fast-forwarded fight; outside fights the clock runs at normal speed.
+func _apply_time_scale() -> void:
+	Engine.time_scale = float(fight_speed) if fighting and fight_speed > 1 else 1.0
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
 
 func combat_tick():
 	runner.tick()
@@ -633,6 +679,7 @@ func _shuffle(arr: Array) -> void:
 func _end_combat(player_won: bool, enemy_alive: int):
 	if not fighting: return
 	runner.stop()
+	_apply_time_scale()
 	GameState.me.last_combat_won = player_won
 	for n in board.get_node("Units").get_children():
 		var u := n as Unit
@@ -645,7 +692,9 @@ func _end_combat(player_won: bool, enemy_alive: int):
 			u.end_combat(player_won)
 			board.put_on_tile(u, snapshot[u])
 	GameState.me.record_result(player_won)
-	if player_won:
+	if GameState.ghost_mode:
+		_end_async_fight(player_won, enemy_alive)
+	elif player_won:
 		GameState.me.gold += 1
 		if current_board != null:
 			GameState.me.heal(current_board.hp_reward)   # campaign HP pack for beating this wave
@@ -659,6 +708,43 @@ func _end_combat(player_won: bool, enemy_alive: int):
 		Events.notice.emit("%s  -%d HP" % ["TIME UP" if timed_out else ("BOTH SIDES FELL" if enemy_alive == 0 else "DEFEAT"), lost], HudStyle.RED)
 	Events.combat_ended.emit(player_won)
 	_enter(Events.Phase.RESULT)
+
+# Async PvP: a win is a trophy (and the usual gold), a loss a life; HP is not used.
+func _end_async_fight(player_won: bool, enemy_alive: int) -> void:
+	var me := GameState.me
+	if player_won:
+		me.gold += 1
+		me.trophies += 1
+		Events.notice.emit("VICTORY  +1 TROPHY", HudStyle.GOLD)
+	else:
+		me.losses += 1
+		var timed_out := runner.ticks >= COMBAT_MAX_TICKS
+		Events.notice.emit("%s  -1 LIFE (%d LEFT)" % ["TIME UP" if timed_out else ("BOTH SIDES FELL" if enemy_alive == 0 else "DEFEAT"), me.lives_left()], HudStyle.RED)
+
+# Async PvP after the 10th trophy: the end screen's Endless mode button. The run goes on with no trophy
+# goal until the last life is lost.
+func continue_endless() -> void:
+	if not GameState.ghost_mode or not game_over or phase != Events.Phase.RESULT or GameState.me.losses >= GameState.ASYNC_LIVES:
+		return
+	GameState.me.endless = true
+	game_over = false
+	Events.notice.emit("ENDLESS MODE", HudStyle.GOLD)
+	_next_round()
+
+# The enemy half opens as far as the ghost's own level (async PvP); with no ghost it follows yours.
+func _open_foe_half() -> void:
+	if not opponents is SnapshotOpponents:
+		return
+	var ghost: Dictionary = opponents.current_snapshot()
+	board.foe_level = int(ghost.get("player_level", -1)) if not ghost.is_empty() else -1
+	board.refresh_unlocks(GameState.me.level, true)
+
+# An online ghost arrived after PREP began (SnapshotOpponents): announce the new opponent before the fight.
+func _on_ghost_changed() -> void:
+	if phase != Events.Phase.PREP or fighting or game_over:
+		return
+	Events.opponent_announced.emit(opponents.describe_next())
+	_open_foe_half()
 
 # The PREP countdown. Fights have their own fixed ticks (_physics_process); this only runs the
 # preparation timer, and stops while the tree is paused.
@@ -685,6 +771,8 @@ func end_prep_early():
 # The boss round gets the boss music: a chapter level's last wave (the tutorial has no boss) or
 # free play's (and async PvP's) final round.
 func is_boss_round() -> bool:
+	if GameState.ghost_mode:
+		return GameState.me.endless   # async PvP: endless mode gets the boss music
 	if GameState.round_number != GameState.total_rounds():
 		return false
 	return GameState.run_level == null or _in_chapter(GameState.run_level)
@@ -696,6 +784,8 @@ func _in_chapter(lvl: CampaignLevel) -> bool:
 func _lose_run():
 	game_over = true
 	fighting = false
+	if GameState.ghost_mode:
+		SaveGame.record_async(GameState.me.trophies)
 	if _in_chapter(GameState.run_level):
 		# Roguelite: losing ends the chapter run; the chapter restarts from its first level.
 		GameState.run_carry = {}
@@ -705,6 +795,8 @@ func _lose_run():
 func _win_run():
 	game_over = true
 	fighting = false
+	if GameState.ghost_mode:
+		SaveGame.record_async(GameState.me.trophies)
 	var lvl := GameState.run_level
 	if lvl != null and lvl.id != &"":   # a level without an id can't be saved
 		SaveGame.record_level_complete(lvl.id, GameState.me.player_hp, lvl.unlocks)

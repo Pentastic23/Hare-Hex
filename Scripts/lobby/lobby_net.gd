@@ -32,6 +32,7 @@ var _to_server: Array = []   # the local client's messages, delivered next frame
 var _to_client: Array = []
 var _last_status := MultiplayerPeer.CONNECTION_DISCONNECTED
 var port := LobbyProtocol.DEFAULT_PORT
+var snapshot_server: SnapshotServer   # `--snapshot-server`: the online ghost service runs in this process
 
 func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS   # a LAN game never stops for one player's pause menu
@@ -42,6 +43,16 @@ func _ready():
 		if i != -1 and i + 1 < args.size():
 			p = int(args[i + 1])
 		start_dedicated.call_deferred(p)
+	if "--snapshot-server" in args:   # the online ghost service for async PvP (snapshot_server.gd); can share a process with --server
+		snapshot_server = SnapshotServer.new()
+		snapshot_server.name = "SnapshotServer"
+		add_child(snapshot_server)
+		var sp := args.find("--snapshot-port")
+		var dir := args.find("--snapshot-data")
+		var key := args.find("--key")
+		snapshot_server.start(int(args[sp + 1]) if sp != -1 and sp + 1 < args.size() else SnapshotServer.DEFAULT_PORT,
+			args[dir + 1] if dir != -1 and dir + 1 < args.size() else "",
+			args[key + 1] if key != -1 and key + 1 < args.size() else OS.get_environment("SNAPSHOT_KEY"))
 
 func in_lobby() -> bool:
 	return mode != Mode.NONE and client != null

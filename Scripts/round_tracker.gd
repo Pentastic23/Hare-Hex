@@ -2,7 +2,8 @@
 extends HBoxContainer
 
 # The rounds half of the top bar (top_bar.gd): "STAGE 3  [pips]  3-4" in free play, "WAVE  [pips]  4/5" in a campaign
-# level (one pip per wave; the last wave of a chapter level is the boss, drawn as a diamond).
+# level (one pip per wave; the last wave of a chapter level is the boss, drawn as a diamond), and
+# "TROPHIES  [pips]  4/10" in async PvP (one pip per trophy toward the 10 that win; "ENDLESS  14" after).
 # In a campaign, hovering it lists the level, the wave and its enemies so you can prepare.
 # Collapsed (set_compact), only the "3-4" text shows.
 
@@ -62,6 +63,7 @@ func _ready():
 	count_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	add_child(count_label)
 	Events.round_changed.connect(func(_s, _r): refresh())
+	Events.trophies_changed.connect(func(_t, _l): refresh())
 	refresh()
 
 func set_compact(c: bool) -> void:
@@ -71,7 +73,15 @@ func set_compact(c: bool) -> void:
 func refresh() -> void:
 	var lvl := GameState.run_level
 	var states: Array[String] = []
-	if lvl == null or lvl.waves.is_empty():
+	if GameState.ghost_mode and lvl == null:
+		var me := GameState.me
+		stage_label.text = "ENDLESS" if me.endless else "TROPHIES"
+		count_label.text = str(me.trophies) if me.endless else "%d/%d" % [me.trophies, GameState.ASYNC_TROPHIES]
+		if not me.endless:
+			for i in GameState.ASYNC_TROPHIES:
+				states.append("done" if i < me.trophies else ("current" if i == me.trophies else "next"))
+		tooltip_text = Tip.wrap("Round %d. Win a fight for a trophy; %d trophies win the run. Lose %d fights and it is over (%d lives left).%s" % [GameState.round_number, GameState.ASYNC_TROPHIES, GameState.ASYNC_LIVES, me.lives_left(), " Endless mode: keep going until your last life." if me.endless else ""])
+	elif lvl == null or lvl.waves.is_empty():
 		stage_label.text = "STAGE %d" % GameState.stage()
 		count_label.text = "%d-%d" % [GameState.stage(), GameState.round_in_stage()]
 		var n := GameState.rounds_in_current_stage()

@@ -3,15 +3,17 @@ extends HBoxContainer
 
 # The timer half of the top bar (top_bar.gd): "PREP 0:12" counting down gm.prep_left of gm.prep_time,
 # "COMBAT 0:48" counting down to the 60 s fight limit (reaching it counts as a loss). Gold in prep, red
-# for the last 5 s of prep and the last 10 s of a fight; "--" in a very long prep (the tutorial's). In async
-# PvP's untimed prep (gm.manual_start) a gold START FIGHT button takes the clock's place.
+# for the last 5 s of prep and the last 10 s of a fight; "--" in a very long prep (the tutorial's). In the
+# untimed prep of async PvP and campaign chapters (gm.manual_start) a gold START FIGHT button takes the
+# clock's place, and a speed button (1x / 2x / 3x, gm.set_fight_speed) fast-forwards fights.
 # The top bar draws the progress track from `ratio` and `color` and its edge from `edge_color`.
 
 const UNTIMED_PREP := 300.0   # a prep this long or longer is treated as "no timer"
 
 var phase_label: Label
 var time_label: Label
-var start_button: Button       # async PvP: ends the prep (GameManager.end_prep_early)
+var start_button: Button       # async PvP and campaign chapters: ends the prep (GameManager.end_prep_early)
+var speed_button: Button       # the same modes: fight speed 1x -> 2x -> 3x -> 1x
 var active := false            # false outside prep and combat, or once the run is over
 var ratio := 1.0               # time left / phase length
 var color := HudStyle.GOLD
@@ -35,13 +37,26 @@ func _ready():
 	start_button.focus_mode = Control.FOCUS_NONE
 	start_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	start_button.add_theme_font_size_override("font_size", 12)
-	start_button.tooltip_text = Tip.wrap("No timer in async PvP: the fight starts when you're ready.")
+	start_button.tooltip_text = Tip.wrap("No prep timer here: the fight starts when you're ready.")
 	start_button.visible = false
 	start_button.pressed.connect(func():
 		var gm = get_tree().get_first_node_in_group("game_manager")
 		if gm != null:
 			gm.end_prep_early())
 	add_child(start_button)
+	speed_button = DockKit.secondary_button("1x")
+	speed_button.name = "FightSpeed"
+	speed_button.custom_minimum_size = Vector2(46, 26)
+	speed_button.focus_mode = Control.FOCUS_NONE
+	speed_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	speed_button.add_theme_font_size_override("font_size", 12)
+	speed_button.tooltip_text = Tip.wrap("Fight speed: 1x, 2x or 3x. Fast forward never changes how a fight goes.")
+	speed_button.visible = false
+	speed_button.pressed.connect(func():
+		var gm = get_tree().get_first_node_in_group("game_manager")
+		if gm != null:
+			gm.set_fight_speed(gm.fight_speed % gm.MAX_FIGHT_SPEED + 1))
+	add_child(speed_button)
 
 func _process(_delta):
 	var gm = get_tree().get_first_node_in_group("game_manager")
@@ -74,6 +89,12 @@ func _process(_delta):
 	edge_color = HudStyle.EDGE_RED if urgent else (HudStyle.EDGE_GOLD if phase == "PREP" else HudStyle.EDGE)
 	start_button.visible = can_start
 	time_label.visible = not can_start
+	var fast: bool = active and gm.can_fast_forward()
+	speed_button.visible = fast
+	if fast:
+		var t := "%dx" % gm.fight_speed
+		if speed_button.text != t:
+			speed_button.text = t
 	var state := "%s|%s|%s" % [phase, time, urgent]
 	if state == _shown:
 		return

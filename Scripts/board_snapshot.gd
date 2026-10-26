@@ -7,6 +7,8 @@ class_name BoardSnapshot extends RefCounted
 #
 # {"version": 1, "balance": "<hash>", "created": unix, "run": "<run id>", "round": 9, "stage": "2-6",
 #  "player_level": 5, "hp": 74, "name": "You", "board": EnemyBoard.to_dict()}
+# plus, from async PvP runs, "trophies" and "losses" (fights won and lost so far), and from the online
+# service an "id". Older snapshots without them still load.
 
 const VERSION := 1
 
@@ -40,7 +42,7 @@ static func balance_hash(unit_roster: Array, item_roster: Array) -> String:
 	var text := JSON.stringify([units, items, Synergies.DEFS, stars, Resonance.PAIRS, Resonance.PRISM, Abilities.DEFS], "", true)
 	return text.sha256_text().left(16)
 
-# meta: name, run, round, stage, level, hp, balance. player_units: the units on the player's board.
+# meta: name, run, round, stage, level, hp, balance, and optionally trophies and losses. player_units: the units on the player's board.
 static func capture(player_units: Array, meta: Dictionary) -> Dictionary:
 	var board := EnemyBoard.new()
 	board.display_name = str(meta.get("name", "You"))
@@ -57,7 +59,7 @@ static func capture(player_units: Array, meta: Dictionary) -> Dictionary:
 		bu.stacks = u.item_stacks.duplicate()
 		board.units.append(bu)
 	board.units.sort_custom(func(a, b): return Board.tile_order(a.coord) < Board.tile_order(b.coord))
-	return {
+	var out := {
 		"version": VERSION,
 		"balance": str(meta.get("balance", "")),
 		"created": int(Time.get_unix_time_from_system()),
@@ -69,6 +71,10 @@ static func capture(player_units: Array, meta: Dictionary) -> Dictionary:
 		"name": str(meta.get("name", "You")),
 		"board": board.to_dict(),
 	}
+	if meta.has("trophies"):   # async PvP runs only
+		out["trophies"] = int(meta.trophies)
+		out["losses"] = int(meta.get("losses", 0))
+	return out
 
 static func is_valid(s: Dictionary) -> bool:
 	if int(s.get("version", 0)) != VERSION:
@@ -90,4 +96,6 @@ static func to_board(s: Dictionary, unit_roster: Array, item_roster: Array) -> E
 
 # One-line description for the top bar.
 static func describe(s: Dictionary) -> String:
+	if s.has("trophies"):
+		return "Ghost of %s (round %d, level %d, %d trophies, %d lives)" % [str(s.get("name", "?")), int(s.get("round", 0)), int(s.get("player_level", 0)), int(s.trophies), maxi(GameState.ASYNC_LIVES - int(s.get("losses", 0)), 0)]
 	return "Ghost of %s (round %d, level %d, %d HP)" % [str(s.get("name", "?")), int(s.get("round", 0)), int(s.get("player_level", 0)), int(s.get("hp", 0))]

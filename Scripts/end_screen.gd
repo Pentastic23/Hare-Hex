@@ -9,7 +9,7 @@ extends ColorRect
 @onready var title: Label = $CenterContainer/Backing/Margin/VBoxContainer/TitleLabel
 @onready var detail: Label = $CenterContainer/Backing/Margin/VBoxContainer/DetailLabel
 @onready var restart_button: Button = $CenterContainer/Backing/Margin/VBoxContainer/RestartButton
-var next_button: Button   # campaign only, after a completed level that has a next one
+var next_button: Button   # campaign: after a completed level that has a next one; async PvP: Endless mode
 var menu_button: Button   # always shown
 var mode_label: Label     # "FREE PLAY", "CAMPAIGN · THE BORDERLANDS", "TUTORIAL", "LOBBY"
 var _backing_style: StyleBoxFlat
@@ -114,7 +114,9 @@ func _show(won: bool):
 	mode_label.text = _mode_text()
 	restart_button.visible = true
 	next_button.visible = false
-	if lvl == null:
+	if lvl == null and GameState.ghost_mode:
+		_show_async(won)
+	elif lvl == null:
 		title.text = "VICTORY" if won else "DEFEAT"
 		detail.text = "Reached Stage %d-%d\nLevel %d" % [GameState.stage(), GameState.round_in_stage(), GameState.me.level]
 		restart_button.text = "Restart"
@@ -144,6 +146,27 @@ func _show(won: bool):
 		restart_button.text = "Play chapter again"
 	visible = true
 
+# Async PvP: 10 trophies is a win, with Endless mode on offer; out of lives is the end (of endless too).
+func _show_async(won: bool) -> void:
+	var me := GameState.me
+	var best := SaveGame.async_best()
+	restart_button.text = "New run"
+	if won:
+		title.text = "VICTORY"
+		detail.text = "%d trophies with %d lives left, by round %d.
+Keep going in endless mode until your last life, or stop here." % [me.trophies, me.lives_left(), GameState.round_number]
+		next_button.text = "Endless mode"
+		next_button.visible = true
+	elif me.endless:
+		_tone(true)   # endless only ends one way; reaching it was the win
+		title.text = "ENDLESS OVER"
+		detail.text = "%d trophies by round %d.
+Your best: %d." % [me.trophies, GameState.round_number, best]
+	else:
+		title.text = "DEFEAT"
+		detail.text = "%d of %d trophies by round %d.
+Your best: %d." % [me.trophies, GameState.ASYNC_TROPHIES, GameState.round_number, best]
+
 # The next level in campaign order (a new chapter starts fresh; within a chapter run_carry holds the board).
 func _mode_text() -> String:
 	var lvl := GameState.run_level
@@ -160,6 +183,12 @@ func _next() -> CampaignLevel:
 	return GameState.run_campaign.next_level(GameState.run_level)
 
 func _next_level():
+	if GameState.ghost_mode and GameState.run_level == null:   # async PvP: Endless mode
+		var gm = get_tree().get_first_node_in_group("game_manager")
+		if gm != null:
+			visible = false
+			gm.continue_endless()
+		return
 	var nxt := _next()
 	if nxt == null:
 		return

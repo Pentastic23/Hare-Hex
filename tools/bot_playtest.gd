@@ -149,3 +149,5 @@ func _bot_turn():
 			if u.can_take(item):
 				main.get_node("DragController").equip_item_on(u, item)
 				break
+	if gm.manual_start:   # chapter levels have no prep timer: the bot presses Start fight
+		gm.end_prep_early()

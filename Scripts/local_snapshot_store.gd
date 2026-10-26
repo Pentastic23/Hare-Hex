@@ -9,7 +9,6 @@ class_name LocalSnapshotStore extends SnapshotStore
 # Headless runs (the test tools and the bot) use a different folder, so they never fill the real one.
 
 const MAX_PER_ROUND := 50
-const LEVEL_SPREAD := 1   # a ghost within this many levels of the player counts as "near"
 
 static var root := ""     # tests point this somewhere else; "" = default_root()
 var _counter := 0
@@ -26,6 +25,8 @@ static func _bucket(round: int) -> String:
 # Files in a round's folder, oldest first (names start with the creation time).
 func _files(round: int) -> PackedStringArray:
 	var out: PackedStringArray = []
+	if not DirAccess.dir_exists_absolute(_bucket(round)):
+		return out
 	for f in DirAccess.get_files_at(_bucket(round)):
 		if f.ends_with(".json"):
 			out.append(f)
@@ -66,24 +67,12 @@ func _read(round: int, file: String) -> Dictionary:
 	return {}   # unreadable or from another version: ignored, never deleted
 
 func fetch(round: int, player_level: int, balance: String, rng: RandomNumberGenerator, exclude_run := "", accept := Callable()) -> Dictionary:
-	for r in [round, round - 1, round + 1]:   # the exact round first, then its neighbours
+	var candidates: Array = []
+	for r in [round, round - 1, round + 1]:
 		if r < 1:
 			continue
-		var near: Array = []
-		var any: Array = []
 		for file in _files(r):
 			var s := _read(r, file)
-			if s.is_empty() or (balance != "" and str(s.balance) != balance) or str(s.run) == exclude_run:
-				continue
-			if accept.is_valid() and not accept.call(s):
-				continue
-			var level := int(s.player_level)
-			if level > player_level + LEVEL_SPREAD:
-				continue   # too many units for the enemy tiles that are open at this level
-			any.append(s)
-			if absi(level - player_level) <= LEVEL_SPREAD:
-				near.append(s)
-		var candidates := near if not near.is_empty() else any
-		if not candidates.is_empty():
-			return candidates[rng.randi_range(0, candidates.size() - 1)]
-	return {}
+			if not s.is_empty():
+				candidates.append(s)
+	return SnapshotStore.choose(candidates, round, player_level, balance, rng, exclude_run, accept)

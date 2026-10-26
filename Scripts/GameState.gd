@@ -35,6 +35,9 @@ const CAMPAIGN_TONGS_ROUND := 3   # a chapter level hands out one Tongs, at its 
 # a clean wipe costs only the base). Index = stage; stage 8 and later (none today) hit for 150.
 const STAGE_DAMAGE := [0, 0, 2, 6, 7, 10, 12, 17]
 const LATE_STAGE_DAMAGE := 150
+const ASYNC_TROPHIES := 10    # async PvP: this many won fights wins the run (endless mode may follow)
+const ASYNC_LIVES := 10       # async PvP: this many lost fights ends it
+const ENDLESS_ROUNDS := 9999  # async PvP has no last round: the run ends on trophies or lives
 const SPECIAL_DROP_CHANCE := 0.3   # from stage 3, a drop is a special item this often
 const MENU_SCENE := "res://scenes/menu.tscn"
 
@@ -58,6 +61,8 @@ func _init():
 func total_rounds() -> int:
 	if run_level != null and not run_level.waves.is_empty():
 		return run_level.waves.size()   # campaign: one round per wave
+	if ghost_mode:
+		return ENDLESS_ROUNDS   # async PvP: trophies and lives decide, not the round
 	return FIRST_STAGE_ROUNDS + (TOTAL_STAGES - 1) * ROUNDS_PER_STAGE   # 39
 
 func stage() -> int:

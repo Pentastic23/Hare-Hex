@@ -41,7 +41,7 @@ static func data() -> Dictionary:
 	return _data
 
 static func _defaults() -> Dictionary:
-	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}, "team_plan": [], "team_comps": [], "king": ""}
+	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}, "team_plan": [], "team_comps": [], "king": "", "async_best": 0}
 
 static func load_game() -> void:
 	_data = _defaults()
@@ -95,6 +95,7 @@ static func _migrate(d: Dictionary) -> Dictionary:
 			if c is Dictionary and c.get("units") is Array:
 				out.team_comps.append({"name": str(c.get("name", "Comp")), "units": (c.units as Array).map(func(n): return str(n))})
 	out.king = str(d.get("king", ""))
+	out.async_best = maxi(int(d.get("async_best", 0)), 0)
 	return out
 
 # Writes to a temp file first, then swaps it in, so a crash mid-write can't destroy the save.
@@ -148,6 +149,18 @@ static func king_skin() -> String:
 static func set_king_skin(id: String) -> void:
 	data().king = id
 	save_game()
+
+# Async PvP: the most trophies a run has reached (endless runs count on past 10).
+static func async_best() -> int:
+	return int(data().get("async_best", 0))
+
+# Keeps the best async PvP result; true when this one beat it.
+static func record_async(trophies: int) -> bool:
+	if trophies <= async_best():
+		return false
+	data().async_best = trophies
+	save_game()
+	return true
 
 static func team_plan() -> Array:
 	return data().team_plan

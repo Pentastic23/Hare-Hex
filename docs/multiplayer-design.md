@@ -27,7 +27,8 @@ Still single-player assumptions: one `Board` scene (the local player's), the sha
 - The ghost is chosen when PREP starts (`OpponentProvider.prepare`) and announced on the top bar (`Events.opponent_announced`, `OpponentLabel`); it falls back to random enemies when nothing matches.
 - Boards are recorded in free play and ghost mode, not in campaign levels, since only free-play rounds line up with each other.
 - Headless runs (test tools, the bot) write to `user://snapshots_headless` instead of `user://snapshots`, so tests never fill your real store. Tests can also set `LocalSnapshotStore.root`.
-- Not done: the HTTP store (Part 1b), and a rule for mid-fight item equips in PvP (still to decide before Part 2).
+- Part 1b, the online store, was built 2026-10-25: `HttpSnapshotStore` and a ready-to-host service (`SnapshotServer`); see `docs/online-ghosts.md`. Async PvP also got its own rules then: a trophy per win, 10 trophies win, 10 losses end the run, then endless mode.
+- Not done: a rule for mid-fight item equips in PvP (still to decide before Part 2).
 
 You fight **ghosts**: other players' boards recorded at the same point of their run. "Local first" means snapshots are saved on this PC; a server swaps in later behind the same interface.
 
@@ -54,7 +55,7 @@ func fetch(round: int, player_level: int, balance: String, rng: RandomNumberGene
 ```
 
 - **LocalSnapshotStore** (first): files in `user://snapshots/`, bucketed by round, at most ~50 per round (drop the oldest). Your own past runs become your opponents, so the mode works offline from the first run.
-- **HttpSnapshotStore** (later, Part 1b): the same two calls against a tiny web service (`POST /snapshots`, `GET /snapshots?round=9&level=5`). Nothing else in the game changes.
+- **HttpSnapshotStore** (built 2026-10-25, `docs/online-ghosts.md`): the same calls against a tiny web service (`POST /snapshots`, `GET /snapshots?round=9&level=5`). Nothing else in the game changes.
 
 ### Provider and mode
 

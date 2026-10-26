@@ -14,7 +14,7 @@ const TUTORIAL_PATH := "res://tres/campaign/tutorial.tres"
 const GOLD := HudStyle.GOLD
 const GREY := HudStyle.MUTED
 const PVP_TINT := HudStyle.YOU
-const ASYNC_PVP_TIP := "Free play against ghosts: boards saved from earlier runs. Your own boards are saved too. No ghosts yet? You meet random enemies."
+const ASYNC_PVP_TIP := "Fight ghosts: boards saved from other runs. Each win is a trophy; 10 trophies win, 10 losses end the run, then endless mode goes on until your last life. Your boards become ghosts too. No ghosts yet? You meet random enemies."
 
 var campaign: Campaign
 var main_box: VBoxContainer
@@ -98,7 +98,8 @@ func _ready():
 
 	main_box.add_child(_section("PVP"))
 	var async_btn := _button(main_box, "Async PvP", func(): _start(null, {}, true))
-	async_btn.tooltip_text = Tip.wrap(ASYNC_PVP_TIP)
+	async_btn.tooltip_text = Tip.wrap(ASYNC_PVP_TIP + ("
+Best: %d trophies." % SaveGame.async_best() if SaveGame.async_best() > 0 else ""))
 	var live_btn := _button(main_box, "Lobby   (2-8 players)", func(): _show_panel(lobby_panel))
 	live_btn.tooltip_text = Tip.wrap(LOBBY_TIP)
 	for b in [async_btn, live_btn]:

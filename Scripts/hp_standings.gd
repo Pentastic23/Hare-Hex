@@ -6,6 +6,7 @@ extends VBoxContainer
 # it was recorded), the wave in a campaign ("4/5" instead of HP), or "Random enemies" in free play.
 # Lobbies: one row per GameState.players entry, the one you face gets the VS tag, streaks show beside the
 # HP; click a player's row to see their board (LobbyGame.scout), your own row or Space to come back.
+# Async PvP has no HP: the rows show lives left out of 10 (one bar segment each), yours and the ghost's.
 # Replaces the old HpLabel and TopBar/OpponentLabel. The damage meter overlays it while open.
 
 const TOP := 129    # below the top-right button bar
@@ -23,6 +24,7 @@ func _ready():
 	add_theme_constant_override("separation", 6)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Events.hp_changed.connect(func(_hp): refresh())
+	Events.trophies_changed.connect(func(_t, _l): refresh())
 	Events.opponent_announced.connect(func(_t): refresh())
 	Events.round_changed.connect(func(_s, _r): refresh())
 	scout_note = HudStyle.caps(10, HudStyle.GOLD)
@@ -60,6 +62,9 @@ func entries() -> Array:
 			role = "out" if ps.player_hp <= 0 else ("opponent" if ps.id == foe else "other")
 		var label := "You" if ps.is_local else (ps.display_name if lobby else "Player %d" % ps.id)
 		var streak := (ps.win_streak if ps.win_streak > 0 else -ps.loss_streak) if lobby else 0
+		if GameState.ghost_mode and not lobby:
+			out.append([label, role, ps.lives_left(), GameState.ASYNC_LIVES, "", -1, 0])
+			continue
 		out.append([label, role, ps.player_hp, ps.start_hp, "", ps.id if lobby else -1, streak])
 	if not lobby:
 		out.append(_opponent())   # a lobby's opponent is one of the players above
@@ -90,7 +95,9 @@ func _opponent() -> Array:
 		return [wave_name, "opponent", -1, 1, "%d/%d" % [cur, lvl.waves.size()], -1, 0]
 	if gm != null and gm.opponents is SnapshotOpponents:
 		var s: Dictionary = gm.opponents.current_snapshot()
-		if not s.is_empty():
+		if not s.is_empty() and s.has("trophies"):   # an async PvP ghost: its lives when it was recorded
+			return ["Ghost of %s" % str(s.get("name", "?")), "opponent", maxi(GameState.ASYNC_LIVES - int(s.get("losses", 0)), 0), GameState.ASYNC_LIVES, "", -1, 0]
+		if not s.is_empty():   # recorded before trophies (or in free play): its HP
 			return ["Ghost of %s" % str(s.get("name", "?")), "opponent", int(s.get("hp", 0)), 100, "", -1, 0]
 	return ["Random enemies", "opponent", -1, 1, "", -1, 0]
 
