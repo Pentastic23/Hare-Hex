@@ -15,6 +15,8 @@ class_name Arena extends RefCounted
 #    "home_units": [unit entry, ...]   coords on the home half (rows 4-7), as on home's own board,
 #    "away_units": [unit entry, ...]   coords on the enemy half (rows 0-3): already mirrored,
 #    "away_scale": float (a PvE wave's strength; 1.0 for players), "away_synergies": bool}
+#   kings: "home_king" / "away_king" (KingSkins ids, "" for a PvE wave: it strikes but has no skin),
+#    "away_level" (the away king's strike scales with it); the kings' picks are seeded from "id" and "round".
 #   unit entry: {"uid": int, "unit": "<display name>", "star": int, "items": ["<item id>", ...],
 #                "stacks": {"<item id>": int}, "coord": [x, y]}
 #
@@ -37,6 +39,19 @@ static func board_entries(b: Board, mirror: bool) -> Array:
 	units.sort_custom(func(a, c): return Board.tile_order(a.coord) < Board.tile_order(c.coord))
 	for u in units:
 		list.append(unit_entry(u, BoardSnapshot.mirror(u.coord) if mirror else u.coord))
+	return list
+
+# A seat's bench (display only: the other player sees it on the far bench during the fight), with "bench"
+# slots instead of coords.
+static func bench_entries(b: Board) -> Array:
+	var list: Array = []
+	for i in b.bench.size():
+		var u: Unit = b.bench[i]
+		if u != null:
+			var e := unit_entry(u, Vector2i(-1, -1))
+			e.erase("coord")
+			e["bench"] = i
+			list.append(e)
 	return list
 
 # The enemy-half tiles to open for a player opponent: the mirror images of their own open tiles.
@@ -104,6 +119,17 @@ static func setup(b: Board, fight: Dictionary, unit_roster: Array, item_roster: 
 		(u as Unit).begin_combat()
 	return sides
 
+# The kings of a fight (combat_runner.gd): their skins, levels and the seed of their picks, from the
+# description, so the server and both clients see the same strikes and shields. Call before runner.start().
+static func set_kings(runner: CombatRunner, fight: Dictionary) -> void:
+	var skins: Array = []
+	for side in ["home", "away"]:
+		var id := StringName(str(fight.get(side + "_king", "")))
+		skins.append(id if KingSkins.has(id) else &"")
+	runner.king_skins = skins
+	runner.king_levels = [int(fight.get("home_level", 1)), int(fight.get("away_level", fight.get("home_level", 1)))]
+	runner.king_seed = hash([int(fight.get("id", 0)), int(fight.get("round", 0))])
+
 # Frees every unit on the board (but the bench's, with keep_bench) and empties its tiles.
 static func clear(b: Board, keep_bench := false) -> void:
 	for n in b.get_node("Units").get_children():
@@ -131,7 +157,7 @@ static func schedule_input(runner: CombatRunner, sides: Dictionary, input: Dicti
 			u.equip(item, true))
 
 # The result of a finished fight: who won ("home", "away" or "draw": both still standing at the time
-# limit, or both wiped out), the stars still standing on each side (loss damage) and the sources of the
+# limit, or both wiped out), the stars and units still standing on each side (units: loss damage) and the sources of the
 # copies still alive on each side (their bound items grow).
 static func result(sides: Dictionary, alive: Array, stars: Array) -> Dictionary:
 	var winner := "draw"
@@ -144,4 +170,4 @@ static func result(sides: Dictionary, alive: Array, stars: Array) -> Dictionary:
 		for u in sides.get(side, []):
 			if u != null and is_instance_valid(u) and not u.dead and u.source_uid >= 0:
 				survivors[side].append(u.source_uid)
-	return {"winner": winner, "home_stars": int(stars[0]), "away_stars": int(stars[1]), "survivors": survivors}
+	return {"winner": winner, "home_stars": int(stars[0]), "away_stars": int(stars[1]), "home_alive": int(alive[0]), "away_alive": int(alive[1]), "survivors": survivors}

@@ -17,10 +17,10 @@ const FPS_CAPS := [0, 30, 60, 120, 144, 165, 240, -1]   # 0 = no cap, -1 = match
 const WINDOW_SIZES := [Vector2i(1152, 648), Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080), Vector2i(2560, 1440), Vector2i(3840, 2160)]
 const PRESETS := ["low", "medium", "high", "ultra"]   # "custom" once a single graphics option is changed
 const PRESET_VALUES := {
-	"low": {"render_scale": 0.67, "msaa": 0, "shadows": "off"},
-	"medium": {"render_scale": 0.85, "msaa": 2, "shadows": "off"},
-	"high": {"render_scale": 1.0, "msaa": 4, "shadows": "low"},
-	"ultra": {"render_scale": 1.0, "msaa": 8, "shadows": "high"},
+	"low": {"render_scale": 0.67, "msaa": 0, "shadows": "off", "post_fx": false},
+	"medium": {"render_scale": 0.85, "msaa": 2, "shadows": "off", "post_fx": true},
+	"high": {"render_scale": 1.0, "msaa": 4, "shadows": "low", "post_fx": true},
+	"ultra": {"render_scale": 1.0, "msaa": 8, "shadows": "high", "post_fx": true},
 }
 const RENDER_SCALES := [1.0, 0.85, 0.77, 0.67, 0.5]   # Off / Ultra quality / Quality / Balanced / Performance
 const MSAA_LEVELS := [0, 2, 4, 8]
@@ -40,6 +40,7 @@ static var graphics_preset := "high"
 static var render_scale := 1.0
 static var msaa := 4
 static var shadows := "low"
+static var post_fx := true   # Glow & fog: the run's bloom on glowing parts and the haze over the far ground (BoardThemes.apply_look)
 # controls (multipliers, 1.0 = default)
 static var pointer_sens_x := 1.0   # controller pointer, left stick
 static var pointer_sens_y := 1.0
@@ -51,14 +52,17 @@ static var colorblind := "off"
 static var high_contrast := false   # brighter secondary text and a dark outline on every label
 static var reduce_motion := false   # no zoom easing, tile pop-in or floating combat words
 # audio
-static var master_volume := 0.8   # 0..1
-static var music_volume := 0.7    # 0..1, the Music bus (the soundtrack, music.gd)
-static var sfx_volume := 0.8      # 0..1, the SFX bus (sound effects, sfx.gd)
+static var master_volume := 0.5   # 0..1 (0.8 before 2026-10-25: a first launch was too loud)
+static var music_volume := 0.5    # 0..1, the Music bus (the soundtrack, music.gd)
+static var sfx_volume := 0.7      # 0..1, the SFX bus (sound effects, sfx.gd)
+static var mute_unfocused := true # silence everything while the game window isn't focused (tabbed out)
+static var unfocused := false     # the window has lost focus right now (music.gd sets it); not saved
 # HUD state, remembered between sessions
 static var show_damage_meter := true   # the Damage button's window
 static var dock_collapsed := false     # left box (synergies / items) folded to its rail
 static var dock_tab := "synergies"     # left box tab: "synergies" or "items"
 static var show_top_bar := true        # top bar (rounds and timer) unfolded
+static var show_odds := true           # the shop odds strip above the shop unfolded
 static var _loaded := false
 
 static func ensure_loaded() -> void:
@@ -80,9 +84,10 @@ static func reset_options() -> void:
 	colorblind = "off"
 	high_contrast = false
 	reduce_motion = false
-	master_volume = 0.8
-	music_volume = 0.7
-	sfx_volume = 0.8
+	master_volume = 0.5
+	music_volume = 0.5
+	sfx_volume = 0.7
+	mute_unfocused = true
 
 static func load_settings() -> void:
 	_loaded = true
@@ -103,6 +108,7 @@ static func load_settings() -> void:
 	render_scale = clampf(float(cfg.get_value("graphics", "render_scale", render_scale)), 0.5, 1.0)
 	msaa = int(_pick(int(cfg.get_value("graphics", "msaa", msaa)), MSAA_LEVELS, msaa))
 	shadows = _pick(cfg.get_value("graphics", "shadows", shadows), SHADOW_LEVELS, shadows)
+	post_fx = bool(cfg.get_value("graphics", "post_fx", post_fx))
 	pointer_sens_x = _sens(cfg.get_value("controls", "pointer_sens_x", pointer_sens_x))
 	pointer_sens_y = _sens(cfg.get_value("controls", "pointer_sens_y", pointer_sens_y))
 	pan_sens_x = _sens(cfg.get_value("controls", "pan_sens_x", pan_sens_x))
@@ -114,10 +120,12 @@ static func load_settings() -> void:
 	master_volume = clampf(float(cfg.get_value("audio", "master_volume", master_volume)), 0.0, 1.0)
 	music_volume = clampf(float(cfg.get_value("audio", "music_volume", music_volume)), 0.0, 1.0)
 	sfx_volume = clampf(float(cfg.get_value("audio", "sfx_volume", sfx_volume)), 0.0, 1.0)
+	mute_unfocused = bool(cfg.get_value("audio", "mute_unfocused", mute_unfocused))
 	show_damage_meter = bool(cfg.get_value("hud", "show_damage_meter", show_damage_meter))
 	dock_collapsed = bool(cfg.get_value("hud", "dock_collapsed", dock_collapsed))
 	dock_tab = str(cfg.get_value("hud", "dock_tab", dock_tab))
 	show_top_bar = bool(cfg.get_value("hud", "show_top_bar", show_top_bar))
+	show_odds = bool(cfg.get_value("hud", "show_odds", show_odds))
 
 static func save_settings() -> void:
 	var cfg := ConfigFile.new()
@@ -129,6 +137,7 @@ static func save_settings() -> void:
 	cfg.set_value("graphics", "render_scale", render_scale)
 	cfg.set_value("graphics", "msaa", msaa)
 	cfg.set_value("graphics", "shadows", shadows)
+	cfg.set_value("graphics", "post_fx", post_fx)
 	cfg.set_value("controls", "pointer_sens_x", pointer_sens_x)
 	cfg.set_value("controls", "pointer_sens_y", pointer_sens_y)
 	cfg.set_value("controls", "pan_sens_x", pan_sens_x)
@@ -140,10 +149,12 @@ static func save_settings() -> void:
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
+	cfg.set_value("audio", "mute_unfocused", mute_unfocused)
 	cfg.set_value("hud", "show_damage_meter", show_damage_meter)
 	cfg.set_value("hud", "dock_collapsed", dock_collapsed)
 	cfg.set_value("hud", "dock_tab", dock_tab)
 	cfg.set_value("hud", "show_top_bar", show_top_bar)
+	cfg.set_value("hud", "show_odds", show_odds)
 	var err := cfg.save(path)
 	if err != OK:
 		push_warning("Settings: can't write %s (%s)" % [path, error_string(err)])
@@ -162,6 +173,7 @@ static func set_preset(p: String) -> void:
 		render_scale = v.render_scale
 		msaa = v.msaa
 		shadows = v.shadows
+		post_fx = v.post_fx
 
 # The monitor's refresh rate in Hz (60 when the OS can't tell).
 static func monitor_hz() -> int:
@@ -199,7 +211,7 @@ static func sfx_bus() -> int:
 # labels are made (HudStyle / DockKit call contrast() and text_color()), so it shows once a screen is rebuilt.
 static func apply() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(master_volume, 0.0001)))
-	AudioServer.set_bus_mute(0, master_volume <= 0.0)
+	AudioServer.set_bus_mute(0, master_volume <= 0.0 or (mute_unfocused and unfocused))
 	var music := music_bus()
 	AudioServer.set_bus_volume_db(music, linear_to_db(maxf(music_volume, 0.0001)))
 	AudioServer.set_bus_mute(music, music_volume <= 0.0)

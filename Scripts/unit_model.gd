@@ -14,6 +14,7 @@ class_name UnitModel extends Node3D
 const LOOPING := ["idle", "walk", "victory"]
 const HIT_COOLDOWN := 0.6     # seconds between flinches, so a unit under fire doesn't jitter
 const VICTORY_TIME := 2.6     # how long winners celebrate after a fight (two loops)
+const GLOW_ENERGY := 2.2      # the glow_<hex> surfaces (blades, crystals, eyes, halos): bright enough to bloom with Glow & fog
 
 var unit: Unit                # null once the model is a stand-in left behind by a removed enemy
 var height := 1.6             # top of the current model, before the star scale
@@ -44,6 +45,8 @@ func set_star(s: int) -> void:
 			var mat := mi.mesh.surface_get_material(i) as StandardMaterial3D
 			if mat != null:
 				mat.vertex_color_use_as_albedo = true   # the importer leaves it off; the colours are all vertex colours
+				if mat.emission_enabled and mat.resource_name.begins_with("glow_"):
+					mat.emission_energy_multiplier = GLOW_ENERGY
 	if _anim != null:
 		for a in LOOPING:
 			if _anim.has_animation(a):

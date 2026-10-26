@@ -43,7 +43,7 @@ Builds on `docs/item-ideas.md` (ideas 1, 5, 8, 9) and the combat mechanics added
 | Heartwood Charm | Bound (Vigor) | stage 3 | +100 HP, +40 HP per stack (max 15). +1 stack per fight the holder survives |
 | Resonance Crystal | Resonance | stage 3 | No element. The resonances on its unit are twice as strong; with none it gives +8% HP and damage |
 | Coin Purse | Economy | stage 3 | +1 gold at the start of each round while its holder is on the board. No combat stats |
-| Merchant's Ledger | Economy | stage 4 | Your first reroll each round is free while its holder is on the board. No combat stats |
+| Merchant's Ledger | Economy | stage 4 | One free reroll each round while its holder is on the board; each Ledger adds another (changed 2026-10-25: they used to not stack). No combat stats |
 | Tinker's Tongs | Remover (consumable) | stage 3 | Drag onto one of your units during prep: all its items go back to your inventory (bound items lose their stacks). Used up. No slot |
 | Twin Sigil | Synergy bender | stage 5 | The holder counts twice for its origin. Very rare |
 | Twin Crest | Synergy bender | stage 5 | The holder counts twice for its first class. Very rare |

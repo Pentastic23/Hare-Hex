@@ -29,6 +29,7 @@ var items: Array[ItemData] = []    # unequipped items this player owns
 var dropped := {}                 # item id -> times dropped this run (rare items drop at most once)
 var free_rerolls := 0             # rerolls left this round that cost nothing (Merchant's Ledger)
 var cheap_shop := false            # round 1-1: 1-cost units only
+var opening := false               # the PvP opening (round 1 of async PvP and lobbies): a free unit, the shop shut, nothing moves
 
 # Shop and results (the shared unit pool itself is run-wide, in GameManager).
 var shop_offers: Array[UnitData] = []   # unbought offers; taken from the pool until the next roll
@@ -47,6 +48,7 @@ func reset():
 	win_streak = 0
 	loss_streak = 0
 	cheap_shop = false
+	opening = false
 	items.clear()
 	dropped.clear()
 	free_rerolls = 0

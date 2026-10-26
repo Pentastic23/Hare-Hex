@@ -23,6 +23,7 @@ const PVE_ROUNDS := [1, 2, 3]
 
 var prep_time := 30.0
 var result_time := 4.0
+var opening_time := 4.0   # round 1, the opening: a free unit each, the shop shut, the fight starts soon
 var instant := false   # tests: fights resolve at once, no waiting between phases when nobody is human
 var endpoint: Callable  # endpoint.call(peer: int, msg: Dictionary)
 
@@ -33,6 +34,7 @@ class Seat extends RefCounted:
 	var bot := false       # a bot plays this seat (added by the host; a player who leaves stays a player)
 	var added_bot := false # added as a bot (never had a player)
 	var token := ""        # lets a disconnected player take the seat back
+	var king: StringName = KingSkins.DEFAULT   # the king skin this player fights with (sent in hello; bots: the default)
 	var player: PlayerState
 	var board: Board
 	var rules: PlayerRules
@@ -107,6 +109,8 @@ func receive(peer: int, msg: Dictionary) -> void:
 				start_game(int(msg.get("seed", 0)))
 		LobbyProtocol.LEAVE:
 			peer_left(peer)
+		LobbyProtocol.SCOUT:
+			_on_scout(s, int(msg.get("seat", -1)))
 		_:
 			if LobbyProtocol.INTENTS.has(t):
 				_on_intent(s, msg)
@@ -133,6 +137,8 @@ func _on_hello(peer: int, msg: Dictionary) -> void:
 		return
 	var s := _new_seat(LobbyProtocol.clean_name(str(msg.get("name", ""))), false)
 	s.peer = peer
+	var king := StringName(str(msg.get("king", "")))
+	s.king = king if KingSkins.has(king) else KingSkins.DEFAULT
 	s.token = "%x%x" % [rng.randi(), Time.get_ticks_usec()]
 	if host_peer == 0:
 		host_peer = peer
@@ -267,11 +273,12 @@ func tick_fights() -> void:
 func _begin_prep() -> void:
 	round_number += 1
 	phase = LobbyProtocol.PHASE_PREP
-	timer = prep_time
+	var opening := round_number == 1
+	timer = opening_time if opening else prep_time
 	for s in alive_seats():
 		if round_number > 1:
 			s.rules.add_xp(2)
-		s.rules.start_prep(round_number, round_number == 1)
+		s.rules.start_prep(round_number, opening, opening)
 	for s in alive_seats():
 		if s.bot:
 			LobbyBot.take_turn(s.rules, round_number)
@@ -361,10 +368,14 @@ func _start_fight(home: Seat, away: Seat, ghost: bool) -> void:
 	_fight_id += 1
 	var desc := {"id": _fight_id, "round": round_number, "home": home.index, "away": away.index if away != null else -1,
 		"ghost": ghost, "home_name": home.name, "home_level": home.player.level,
-		"home_units": Arena.board_entries(home.board, false)}
+		"home_king": String(home.king), "away_king": "", "away_level": home.player.level,
+		"home_units": Arena.board_entries(home.board, false), "home_bench": Arena.bench_entries(home.board)}
 	if away != null:
 		desc["away_name"] = ("Ghost of %s" % away.name) if ghost else away.name
 		desc["away_units"] = Arena.board_entries(away.board, true)
+		desc["away_bench"] = Arena.bench_entries(away.board)   # shown to the home player on the far bench (display only)
+		desc["away_king"] = String(away.king)
+		desc["away_level"] = away.player.level
 		desc["enemy_open"] = Arena.mirrored_open(away.player.level, away.board)
 		desc["away_scale"] = 1.0
 		desc["away_synergies"] = true
@@ -382,6 +393,7 @@ func _start_fight(home: Seat, away: Seat, ghost: bool) -> void:
 		var seat_i := int(desc.home) if team == 0 else (-1 if bool(desc.ghost) else int(desc.away))
 		if seat_i >= 0:
 			seats[seat_i].player.gold += amount   # Pickpocket kills pay the thief's owner
+	Arena.set_kings(runner, desc)
 	runner.start()
 	fights.append(f)
 
@@ -437,9 +449,9 @@ func _end_round() -> void:
 		var away: Seat = seats[int(d.away)] if int(d.away) >= 0 and not bool(d.ghost) else null
 		var entry := {"id": int(d.id), "home": int(d.home), "away": int(d.away), "ghost": bool(d.ghost), "winner": r.winner, "home_damage": 0, "away_damage": 0,
 			"ticks": f.runner.ticks}
-		entry.home_damage = _apply_result(home, r.winner == "home", int(r.away_stars), stage, r.survivors.home)
+		entry.home_damage = _apply_result(home, r.winner == "home", int(r.away_alive), stage, r.survivors.home)
 		if away != null:
-			entry.away_damage = _apply_result(away, r.winner == "away", int(r.home_stars), stage, r.survivors.away)
+			entry.away_damage = _apply_result(away, r.winner == "away", int(r.home_alive), stage, r.survivors.away)
 		summary.append(entry)
 		var described: int = (d.home_units as Array).size() + (d.get("away_units", []) as Array).size()
 		var placed: int = (f.sides.home + f.sides.away).filter(func(u): return u != null).size()
@@ -461,7 +473,7 @@ func _end_round() -> void:
 	changed.emit()
 
 # Win: +1 gold; loss: damage. Streaks either way; survivors' bound items grow. Returns the damage taken.
-func _apply_result(s: Seat, won: bool, foe_stars: int, stage: int, survivors: Array) -> int:
+func _apply_result(s: Seat, won: bool, foe_alive: int, stage: int, survivors: Array) -> int:
 	s.player.record_result(won)
 	for uid in survivors:
 		var u := s.rules.unit_by_uid(int(uid))
@@ -470,7 +482,7 @@ func _apply_result(s: Seat, won: bool, foe_stars: int, stage: int, survivors: Ar
 	if won:
 		s.player.gold += 1
 		return 0
-	var dmg := roundi(5.0 * stage + 0.25 * foe_stars)
+	var dmg := GameState.stage_damage(stage) + foe_alive   # the stage's base + 1 per enemy unit standing
 	s.player.player_hp -= dmg
 	return dmg
 
@@ -510,7 +522,7 @@ func state_of(s: Seat) -> Dictionary:
 			e["bench"] = slot
 		units.append(e)
 	return {"t": LobbyProtocol.STATE, "seat": s.index, "gold": p.gold, "level": p.level, "xp": p.xp, "hp": p.player_hp,
-		"start_hp": p.start_hp, "win": p.win_streak, "loss": p.loss_streak, "free_rerolls": p.free_rerolls,
+		"start_hp": p.start_hp, "win": p.win_streak, "loss": p.loss_streak, "free_rerolls": p.free_rerolls, "opening": p.opening,
 		"cheap": p.cheap_shop, "locked": p.shop_locked, "items": p.items.map(func(i): return String(i.id)),
 		"offers": p.shop_offers.map(func(d): return d.display_name), "rolls": p.shop_rolls, "units": units, "alive": s.alive, "place": s.place}
 
@@ -520,7 +532,8 @@ func public_info() -> Dictionary:
 	for s in seats:
 		var p: PlayerState = s.player
 		list.append({"seat": s.index, "name": s.name, "hp": maxi(p.player_hp, 0) if p != null else GameState.MAX_HP,
-			"level": p.level if p != null else 1, "alive": s.alive, "place": s.place, "bot": s.bot, "connected": s.peer != 0})
+			"level": p.level if p != null else 1, "alive": s.alive, "place": s.place, "bot": s.bot, "connected": s.peer != 0,
+			"win": p.win_streak if p != null else 0, "loss": p.loss_streak if p != null else 0})
 	return {"t": LobbyProtocol.PUBLIC, "round": round_number, "seats": list}
 
 # A player rejoining mid-game: the start, the phase, their state and (mid-fight) their fight so far.
@@ -563,7 +576,7 @@ func _on_intent(s: Seat, msg: Dictionary) -> void:
 			if res == "limit":
 				send_seat(s, {"t": LobbyProtocol.REJECT, "seq": msg.get("seq", 0), "why": "limit"})
 		LobbyProtocol.REROLL:
-			ok = s.rules.reroll(in_prep)
+			ok = s.rules.reroll()
 		LobbyProtocol.BUY_XP:
 			ok = s.rules.buy_xp()
 		LobbyProtocol.LOCK:
@@ -574,6 +587,14 @@ func _on_intent(s: Seat, msg: Dictionary) -> void:
 	if not ok and t != LobbyProtocol.MOVE:
 		_reject(s, msg, "refused")
 	send_seat(s, state_of(s))
+
+# Scouting: another player's board as it stands (their units on their tiles and bench, and their level).
+func _on_scout(s: Seat, other: int) -> void:
+	if other < 0 or other >= seats.size() or seats[other].board == null:
+		return
+	var o: Seat = seats[other]
+	var view := state_of(o)
+	send_seat(s, {"t": LobbyProtocol.BOARD, "seat": other, "level": o.player.level, "units": view.units, "name": o.name})
 
 func _reject(s: Seat, msg: Dictionary, why: String) -> void:
 	send_seat(s, {"t": LobbyProtocol.REJECT, "seq": msg.get("seq", 0), "why": why, "of": msg.get("t", "")})

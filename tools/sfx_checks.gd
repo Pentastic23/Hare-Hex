@@ -65,7 +65,7 @@ func _run():
 	chk("an unknown name is ignored, not an error", not Sfx.play(&"no_such_sound"))
 
 	print("--- the SFX bus and its setting")
-	chk("sfx volume defaults to 0.8", is_equal_approx(Settings.sfx_volume, 0.8))
+	chk("sfx volume defaults to 0.7", is_equal_approx(Settings.sfx_volume, 0.7))
 	Settings.sfx_volume = 0.3
 	Settings.apply()
 	Settings.save_settings()
@@ -80,7 +80,7 @@ func _run():
 	chk("at 0 only the SFX bus is muted", AudioServer.is_bus_mute(bus) and not AudioServer.is_bus_mute(0) and not AudioServer.is_bus_mute(Settings.music_bus()))
 	Settings.reset_options()
 	Settings.apply()
-	chk("Reset settings puts it back to 0.8", is_equal_approx(Settings.sfx_volume, 0.8) and not AudioServer.is_bus_mute(bus))
+	chk("Reset settings puts it back to 0.7", is_equal_approx(Settings.sfx_volume, 0.7) and not AudioServer.is_bus_mute(bus))
 	chk("the players use the SFX bus", Sfx.get_children().all(func(p): return (p as AudioStreamPlayer).bus == &"SFX"))
 
 	print("--- playing")

@@ -9,10 +9,14 @@ class_name VoxelTiles
 # res://models/tiles/<biome>/<part>.res; the game only loads those (mesh()). Seeded, so a re-bake
 # gives the same voxels. Vertex colours on two shared materials: lit (tres/voxel_solid.tres) and
 # glowing (tres/voxel_glow.tres: crystals, lava, embers).
+# A tile's outline is a true hexagon: the voxel tops are cut along its six sides and the sides are smooth
+# walls coloured voxel by voxel, so neighbouring tiles (turned any sixth of a turn) fit edge to edge.
 
-const HEX_R := 0.95                        # matches the board's hex (Board.hex_block)
+const SEAM := 0.025                        # each tile stops this short of its neighbour: a thin even gap between hexes
+const HEX_A := 0.8660254 - SEAM            # centre to a flat side; the board's hexes are sqrt(3) apart (Board.HEX = 1)
+const HEX_R := HEX_A / 0.8660254           # centre to a point, about 0.97
 const ACROSS := 16                         # voxels flat to flat
-const V := HEX_R * 1.7320508 / ACROSS      # one voxel, about 0.103 world units
+const V := HEX_A * 2.0 / ACROSS            # one voxel, about 0.107 world units
 const LAYERS := 4                          # tile depth in voxels
 const TOP_Y := 0.005                       # the top face of a tile, as before (units stand on it)
 const ROWS := 19                           # voxel rows point to point
@@ -94,8 +98,10 @@ class Grid:
 				return j
 		return -1
 
-# Builds the mesh: one quad per visible voxel face, solid and glowing faces in separate surfaces.
-static func build(g: Grid) -> ArrayMesh:
+# Builds the mesh: one quad per visible voxel face, solid and glowing faces in separate surfaces. A tile
+# (not `centered`) is cut to the hexagon: voxels outside it are dropped, faces crossing its sides are
+# clipped, and smooth walls (_walls) close the six sides.
+static func build(g: Grid, size := V, centered := false) -> ArrayMesh:
 	var faces := [
 		[Vector3i(0, 1, 0), [Vector3(0, 1, 0), Vector3(1, 1, 0), Vector3(1, 1, 1), Vector3(0, 1, 1)], 1.0],
 		[Vector3i(0, -1, 0), [Vector3(0, 0, 1), Vector3(1, 0, 1), Vector3(1, 0, 0), Vector3(0, 0, 0)], 0.55],
@@ -109,6 +115,19 @@ static func build(g: Grid) -> ArrayMesh:
 	for st in tools:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var origin := Vector3(-ACROSS * 0.5 * V, TOP_Y - LAYERS * V, -ROWS * 0.5 * V)
+	if centered:   # a model: centred on x and z, standing on y = 0
+		var lo := Vector3i(9999, 9999, 9999)
+		var hi := Vector3i(-9999, -9999, -9999)
+		for p in g.cells:
+			lo = lo.min(p)
+			hi = hi.max(p)
+		origin = -Vector3((lo.x + hi.x + 1) * 0.5, lo.y, (lo.z + hi.z + 1) * 0.5) * size
+	else:
+		var cols := hex_columns()
+		for p: Vector3i in g.cells.keys():
+			if not cols.has(Vector2i(p.x, p.z)):
+				g.cells.erase(p)   # outside the hexagon
+				g.glow.erase(p)
 	for p in g.cells:
 		var c: Color = g.cells[p]
 		var s := 1 if g.glow.has(p) else 0
@@ -117,19 +136,36 @@ static func build(g: Grid) -> ArrayMesh:
 			var n: Vector3i = p + d
 			if g.cells.has(n):
 				continue
-			if d.y == -1 and p.y == 0:
+			if d.y == -1 and p.y == 0 and not centered:
 				continue   # the underside of a tile is never seen
 			var st: SurfaceTool = tools[s]
-			used[s] = true
 			var shade := c if s == 1 else Color(c.r * f[2], c.g * f[2], c.b * f[2], c.a)
 			var q: Array = f[1]
 			var corners: Array[Vector3] = []
+			var ao: Array[float] = []
 			for v in q:
-				corners.append(origin + (Vector3(p) + v) * V)
-			for idx in [0, 1, 2, 0, 2, 3]:
-				st.set_normal(Vector3(d))
-				st.set_color(shade)
-				st.add_vertex(corners[idx])
+				corners.append(origin + (Vector3(p) + v) * size)
+				ao.append(1.0 if s == 1 else _corner_ao(g, n, d, v))
+			var inside := centered or _inside(corners)
+			if not inside:
+				var cut := _clip(corners, ao)
+				corners = cut[0]
+				ao = cut[1]
+			if not centered and (corners.size() < 3 or (d.y == 0 and _on_side(corners))):
+				continue   # outside, or lying on a side, where the wall is
+			if not inside:
+				used[s] = true
+				for t in range(1, corners.size() - 1):   # the cut face is convex: a fan
+					for idx in [0, t, t + 1]:
+						_vert(st, Vector3(d), shade, ao[idx], corners[idx])
+				continue
+			used[s] = true
+			# split the quad along the diagonal whose ends are lit alike, so the darkening doesn't smear
+			var order := [0, 1, 2, 0, 2, 3] if ao[0] + ao[2] >= ao[1] + ao[3] else [0, 1, 3, 1, 2, 3]
+			for idx in order:
+				_vert(st, Vector3(d), shade, ao[idx], corners[idx])
+	if not centered:
+		_walls(g, origin, tools, used)
 	var mesh := ArrayMesh.new()
 	for s in 2:
 		if used[s]:
@@ -138,21 +174,164 @@ static func build(g: Grid) -> ArrayMesh:
 			mesh.surface_set_material(mesh.get_surface_count() - 1, SOLID if s == 0 else GLOW)
 	return mesh
 
-# The voxel columns inside the hex (pointy-top like the board), and whether each is on the edge.
+static func _vert(st: SurfaceTool, normal: Vector3, c: Color, ao: float, pos: Vector3) -> void:
+	st.set_normal(normal)
+	st.set_color(Color(c.r * ao, c.g * ao, c.b * ao, c.a))
+	st.add_vertex(pos)
+
+# --- the hexagon outline ----------------------------------------------------------------------------
+
+# The six sides' outward normals in x / z (pointy-top like the board: points towards +-z, flat sides at
+# +-x). Side m runs from corner m to corner m + 1 (corner m is at m * 60 degrees from +z).
+const SIDES := [Vector2(0.5, 0.8660254), Vector2(1.0, 0.0), Vector2(0.5, -0.8660254), Vector2(-0.5, -0.8660254), Vector2(-1.0, 0.0), Vector2(-0.5, 0.8660254)]
+const EPS := 0.000001
+
+static func _corner(m: int) -> Vector2:
+	var a := m * TAU / 6.0
+	return Vector2(sin(a), cos(a)) * HEX_R
+
+# How far outside side m a point is (negative = inside).
+static func _out(m: int, p: Vector3) -> float:
+	var n: Vector2 = SIDES[m]
+	return n.x * p.x + n.y * p.z - HEX_A
+
+static func _inside(pts: Array[Vector3]) -> bool:
+	for p in pts:
+		for m in 6:
+			if _out(m, p) > EPS:
+				return false
+	return true
+
+# A vertical face lying on one of the sides (the wall covers it there).
+static func _on_side(pts: Array[Vector3]) -> bool:
+	var mid := Vector3.ZERO
+	for p in pts:
+		mid += p
+	mid /= pts.size()
+	for m in 6:
+		if _out(m, mid) > -0.0001:
+			return true
+	return false
+
+# Cuts a face (a convex polygon, with its corner shading) to the hexagon, one side at a time
+# (Sutherland-Hodgman). Returns [points, shading].
+static func _clip(pts: Array[Vector3], ao: Array[float]) -> Array:
+	for m in 6:
+		var out_p: Array[Vector3] = []
+		var out_a: Array[float] = []
+		for i in pts.size():
+			var cur := pts[i]
+			var prev := pts[i - 1]
+			var dc := _out(m, cur)
+			var dp := _out(m, prev)
+			if (dc <= EPS) != (dp <= EPS):   # crosses the side: add the crossing
+				var t := dp / (dp - dc)
+				out_p.append(prev.lerp(cur, t))
+				out_a.append(lerpf(ao[i - 1], ao[i], t))
+			if dc <= EPS:
+				out_p.append(cur)
+				out_a.append(ao[i])
+		pts = out_p
+		ao = out_a
+		if pts.size() < 3:
+			break
+	return [pts, ao]
+
+# The six smooth sides. Each side is cut where it crosses the voxel grid, so every piece lies in one
+# column; that piece is walled for every voxel in the column, one band per voxel in its colour (so the
+# top colour dripping over the edge shows on the walls, and a frame or a cut prop is closed off).
+static func _walls(g: Grid, origin: Vector3, tools: Array, used: Array) -> void:
+	for m in 6:
+		var a := _corner(m)
+		var b := _corner(m + 1)
+		var n: Vector2 = SIDES[m]
+		var normal := Vector3(n.x, 0.0, n.y)
+		var face := n.x * n.x * 0.82 + n.y * n.y * (0.9 if n.y > 0.0 else 0.72)   # the voxel side faces' shading, blended
+		var cuts: Array[float] = [0.0, 1.0]
+		for i in ACROSS + 1:
+			var x := origin.x + i * V
+			if (a.x - x) * (b.x - x) < 0.0:
+				cuts.append((x - a.x) / (b.x - a.x))
+		for k in ROWS + 1:
+			var z := origin.z + k * V
+			if (a.y - z) * (b.y - z) < 0.0:
+				cuts.append((z - a.y) / (b.y - a.y))
+		cuts.sort()
+		# the top edge runs along up x normal, the way the voxel side faces wind
+		var flip := Vector3(b.x - a.x, 0.0, b.y - a.y).dot(Vector3.UP.cross(normal)) < 0.0
+		for c in cuts.size() - 1:
+			var t0 := cuts[c]
+			var t1 := cuts[c + 1]
+			if t1 - t0 < 0.0001:
+				continue
+			var p0 := a.lerp(b, t1 if flip else t0)
+			var p1 := a.lerp(b, t0 if flip else t1)
+			var mid := a.lerp(b, (t0 + t1) * 0.5) - n * 0.001
+			var col := Vector2i(floori((mid.x - origin.x) / V), floori((mid.y - origin.z) / V))
+			for j in range(0, 30):
+				var cell := Vector3i(col.x, j, col.y)
+				if not g.cells.has(cell):
+					continue
+				var s := 1 if g.glow.has(cell) else 0
+				var c0: Color = g.cells[cell]
+				var shade := c0 if s == 1 else Color(c0.r * face, c0.g * face, c0.b * face, c0.a)
+				var y0 := origin.y + j * V
+				var y1 := y0 + V
+				var q := [Vector3(p0.x, y1, p0.y), Vector3(p1.x, y1, p1.y), Vector3(p1.x, y0, p1.y), Vector3(p0.x, y0, p0.y)]
+				used[s] = true
+				for idx in [0, 1, 2, 0, 2, 3]:
+					_vert(tools[s], normal, shade, 1.0, q[idx])
+
+# Baked ambient occlusion for one corner of a face: the three voxels that touch the corner in the layer the
+# face looks into (`n` is the cell in front of the face, `v` the corner in the unit cube). Corners tucked
+# into creases and under overhangs come out darker; an open corner keeps its colour. Glowing voxels skip it.
+const AO_LEVELS := [0.58, 0.72, 0.86, 1.0]   # 3, 2, 1 or 0 neighbours (two sides = fully tucked)
+
+static func _corner_ao(g: Grid, n: Vector3i, d: Vector3i, v: Vector3) -> float:
+	var axes: Array[Vector3i] = []
+	for a: Vector3i in [Vector3i(1, 0, 0), Vector3i(0, 1, 0), Vector3i(0, 0, 1)]:
+		if a.x * d.x + a.y * d.y + a.z * d.z == 0:   # an axis along the face, not through it
+			var along: float = v.x * a.x + v.y * a.y + v.z * a.z   # 0 or 1: which side of the face this corner is on
+			axes.append(a if along > 0.5 else -a)
+	var side1 := g.cells.has(n + axes[0])
+	var side2 := g.cells.has(n + axes[1])
+	var corner := g.cells.has(n + axes[0] + axes[1])
+	if side1 and side2:
+		return AO_LEVELS[0]
+	return AO_LEVELS[3 - int(side1) - int(side2) - int(corner)]
+
+# The voxel columns the hexagon covers (any part of; the ones on its sides are cut by build()).
 static var _hex_cache := {}
 
 static func hex_columns() -> Dictionary:
 	if not _hex_cache.is_empty():
 		return _hex_cache
 	var out := _hex_cache
-	var flat := HEX_R * 0.8660254
 	for i in ACROSS:
 		for k in ROWS:
-			var x := (i + 0.5 - ACROSS * 0.5) * V
-			var z := (k + 0.5 - ROWS * 0.5) * V
-			if absf(x) <= flat + V * 0.2 and absf(x) * 0.5 + absf(z) * 0.8660254 <= flat + V * 0.25:
+			var x0 := (i - ACROSS * 0.5) * V
+			var z0 := (k - ROWS * 0.5) * V
+			var sq: Array[Vector3] = [Vector3(x0, 0, z0), Vector3(x0 + V, 0, z0), Vector3(x0 + V, 0, z0 + V), Vector3(x0, 0, z0 + V)]
+			var cut: Array = _clip(sq, [1.0, 1.0, 1.0, 1.0] as Array[float])
+			if _area(cut[0]) > V * V * 0.0001:   # not just a speck
 				out[Vector2i(i, k)] = true
 	return out
+
+static func _area(pts: Array) -> float:
+	var a := 0.0
+	for i in pts.size():
+		var p: Vector3 = pts[i - 1]
+		var q: Vector3 = pts[i]
+		a += p.x * q.z - q.x * p.z
+	return absf(a) * 0.5
+
+# How many voxels in from the hexagon's nearest side a column's centre is (below 0.5: a cut column).
+static func _depth(col: Vector2i) -> float:
+	var c := Vector3((col.x + 0.5 - ACROSS * 0.5) * V, 0.0, (col.y + 0.5 - ROWS * 0.5) * V)
+	var worst := -INF
+	for m in 6:
+		worst = maxf(worst, _out(m, c))
+	return -worst / V
 
 static func _cols(list: Array) -> Array:
 	var out: Array = []
@@ -172,11 +351,8 @@ static func base(def: Dictionary, rng: RandomNumberGenerator, tufts: int) -> Gri
 	n.frequency = 0.22
 	for c in cols:
 		var col: Vector2i = c
-		var edge := false
-		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			if not cols.has(col + d):
-				edge = true
-		var v := (n.get_noise_2d(col.x, col.y) + 1.0) * 0.5
+		var edge := _depth(col) < 1.0   # the outer ring of columns, whose sides are the tile's walls
+		var v :=(n.get_noise_2d(col.x, col.y) + 1.0) * 0.5
 		var tc: Color = top[clampi(int(v * top.size()), 0, top.size() - 1)]
 		g.put(col.x, 3, col.y, tc)
 		for j in range(0, 3):
@@ -193,11 +369,11 @@ static func base(def: Dictionary, rng: RandomNumberGenerator, tufts: int) -> Gri
 		g.put(spot.x, 4, spot.y, top[3].lightened(0.06))
 	return g
 
-# A random column at least `margin` voxels in from the edge.
+# A random column well in from the edge (about `margin` voxels round its sides, half that on the diagonals).
 static func _spot(rng: RandomNumberGenerator, margin: int) -> Vector2i:
 	for tries in 40:
 		var p := Vector2i(rng.randi_range(margin, ACROSS - 1 - margin), rng.randi_range(margin + 1, ROWS - 2 - margin))
-		if hex_columns().has(p):
+		if hex_columns().has(p) and _depth(p) >= margin * 0.5:
 			return p
 	return Vector2i(ACROSS / 2, ROWS / 2)
 
@@ -227,21 +403,15 @@ static func make(biome: String, part: String) -> ArrayMesh:
 # (wood or stone), with a darker inner line: it matches the board but reads as a bench at a glance.
 static func _bench(g: Grid, def: Dictionary) -> void:
 	var frame := _cols(def.bench)
-	var cols := hex_columns()
 	for p in g.cells.keys():
 		if p.y == 3:
 			g.cells[p] = (g.cells[p] as Color).lightened(0.1)
-	for c in cols:
+	for c in hex_columns():
 		var col: Vector2i = c
-		var edge := 0   # 2 = on the hex's edge, 1 = one in from it
-		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			if not cols.has(col + d):
-				edge = 2
-			elif edge == 0 and not cols.has(col + d * 2):
-				edge = 1
-		if edge == 2:
+		var d := _depth(col)   # the frame follows the hexagon's sides, so its outside is as smooth as theirs
+		if d < 1.0:
 			g.put(col.x, 4, col.y, frame[(col.x + col.y) % frame.size()])
-		elif edge == 1:
+		elif d < 2.0:
 			g.put(col.x, 3, col.y, frame[2 % frame.size()].darkened(0.3))   # the frame's inner line, flush with the ground
 
 # The sell hex: the ground tinted red under a raised gold coin.
@@ -634,3 +804,60 @@ class Props:
 				x += rng.randi_range(-1, 1)
 				k += rng.randi_range(-1, 1)
 		g.put(x, 4 + h, k, tip, true)
+
+# --- king models (king_skins.gd; baked into res://models/kings/<id>.res) ------------------------------
+
+const KING_VOXEL := 0.11   # a king stands about 1.65 tall
+
+static func king_mesh(id: String) -> ArrayMesh:
+	match id:
+		"lion":
+			return build(_lion(), KING_VOXEL, true)
+	return null
+
+# The Golden Lion: sitting up, facing -z (towards the enemy, like your units), a dark gold mane round
+# its head, a gold crown with a red gem that glows.
+static func _lion() -> Grid:
+	var g := Grid.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("king:lion")
+	var fur := [Color("e6b94a"), Color("dcae40"), Color("efc75a")]
+	var shade := Color("c99a35")
+	var light := Color("f5d98a")
+	var mane := [Color("b8652a"), Color("c8742e"), Color("a85a24")]
+	var box := func(i0: int, i1: int, j0: int, j1: int, k0: int, k1: int, cols: Array) -> void:
+		for i in range(i0, i1 + 1):
+			for j in range(j0, j1 + 1):
+				for k in range(k0, k1 + 1):
+					g.put(i, j, k, cols[rng.randi_range(0, cols.size() - 1)])
+	box.call(2, 9, 0, 4, 6, 11, [shade, fur[0]])         # haunches
+	box.call(3, 8, 3, 8, 4, 9, fur)                      # body, sitting up
+	box.call(4, 7, 3, 7, 3, 3, [light])                  # chest
+	box.call(3, 4, 0, 4, 3, 5, fur)                      # front legs
+	box.call(7, 8, 0, 4, 3, 5, fur)
+	box.call(3, 4, 0, 0, 2, 2, [light])                  # paws
+	box.call(7, 8, 0, 0, 2, 2, [light])
+	box.call(2, 9, 8, 13, 2, 7, mane)                    # mane
+	box.call(3, 8, 9, 12, 1, 4, fur)                     # head
+	box.call(4, 7, 9, 10, 0, 1, [light])                 # muzzle
+	g.put(5, 10, 0, Color("4a2a1a"))                     # nose
+	g.put(6, 10, 0, Color("4a2a1a"))
+	g.put(4, 11, 1, Color("2a1a12"))                     # eyes
+	g.put(7, 11, 1, Color("2a1a12"))
+	g.put(3, 13, 3, fur[0])                              # ears
+	g.put(8, 13, 3, fur[0])
+	var gold := Color("f2c14e")
+	var gold_dark := Color("c9962c")
+	for i in range(3, 9):                                # the crown: a band round the top of the head
+		for k in range(1, 5):
+			if i == 3 or i == 8 or k == 1 or k == 4:
+				g.put(i, 13, k, gold_dark)
+	for p in [Vector2i(3, 1), Vector2i(8, 1), Vector2i(3, 4), Vector2i(8, 4), Vector2i(5, 1), Vector2i(6, 1)]:
+		g.put(p.x, 14, p.y, gold)                        # its points
+	g.put(5, 13, 1, Color("d0362a"), true)               # the gem, glowing
+	g.put(6, 13, 1, Color("d0362a"), true)
+	for t in [Vector3i(9, 1, 11), Vector3i(10, 2, 11), Vector3i(10, 3, 12), Vector3i(10, 4, 12)]:
+		g.put(t.x, t.y, t.z, fur[1])                     # tail
+	g.put(10, 5, 12, mane[0])
+	g.put(9, 5, 12, mane[0])
+	return g

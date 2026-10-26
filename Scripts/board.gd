@@ -11,7 +11,7 @@ const FULL_BOARD_LEVEL := 8
 const NO_STEP := Vector2i(-99, -99)
 const DIRS_EVEN := [Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, -1), Vector2i(-1, 0), Vector2i(-1, 1), Vector2i(0, 1)]
 const DIRS_ODD := [Vector2i(1, 0), Vector2i(1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(1, 1)]
-const BORDER_R := 0.95   # matches the tile mesh radius; lower it if the line sits outside the tile edge
+const BORDER_R := VoxelTiles.HEX_R   # the tiles' corners, so the seam line runs along their edges
 const KING_ROWS := [5, 2]   # the row each side's king stands on (index = team): the second row of its half
 
 var tile_scene: PackedScene = preload("res://scenes/Tiles.tscn")
@@ -20,6 +20,7 @@ var bench: Array[Unit]   # fixed size, null = empty
 var unlocked := {}   # Vector2i -> true
 var player_order: Array[Vector2i] = []
 var enemy_order: Array[Vector2i] = []
+var foe_level := -1   # the enemy half's level (async PvP's ghost, a lobby); -1 = it follows yours (refresh_unlocks)
 var kings: Array[King] = []   # index = team (0 you, 1 the enemy): the extra hex left of each side, see king.gd
 var _border_mat: StandardMaterial3D
 var theme: StringName = &""   # the board look (BoardThemes); set by apply_theme
@@ -179,6 +180,10 @@ func apply_theme(id: StringName, seed := 0) -> void:
 		_skin(_sell_tile, "sell")
 	_build_backdrop(seed)
 	RenderingServer.set_default_clear_color(BoardThemes.backdrop(id))
+	var main := get_parent()
+	if main != null:   # the run's sun, ambient light, haze and glow (main.tscn's WorldEnvironment and light)
+		var we := main.get_node_or_null("WorldEnvironment") as WorldEnvironment
+		BoardThemes.apply_look(id, we.environment if we != null else null, main.get_node_or_null("DirectionalLight3D") as DirectionalLight3D)
 
 func _skin(node: Node3D, part: String) -> void:
 	var mi := node.get_node_or_null("MeshInstance3D") as MeshInstance3D
@@ -253,7 +258,7 @@ func _build_backdrop(seed: int) -> void:
 				continue
 			if _near(pos, keep_clear, 0.9 * HEX):
 				continue   # right under a bench slot or the sell hex
-			var by_bench := _near(pos, keep_clear, 1.8 * HEX)   # overlaps one: a voxel lower, so their tops never flicker
+			var by_bench := _near(pos, keep_clear, 1.8 * HEX)   # right beside one: kept low and flat
 			var d := _board_distance(c)
 			var g := (growth.get_noise_2d(x, y) + 1.0) * 0.5
 			var part := _pick_part(g, d, rng)
@@ -365,7 +370,7 @@ static func _mirage_mat() -> StandardMaterial3D:
 static func hex_block() -> ArrayMesh:
 	if _prism != null:
 		return _prism
-	var r := 0.95
+	var r := VoxelTiles.HEX_R
 	var top_y := 0.005
 	var bottom_y := -BLOCK_DEPTH
 	var corners: Array[Vector3] = []
@@ -468,10 +473,12 @@ func all_player_units() -> Array[Unit]:
 	return out
 
 # Returns true if a merge happened (call repeatedly until false to chain 2-star into 3-star).
-func try_merge() -> bool:
+# Merges one group of three copies (same unit, same star). bench_only: only units on the bench (mid-fight,
+# when the board's units are fighting).
+func try_merge(bench_only := false) -> bool:
 	var groups := {}
 	for u in all_player_units():
-		if u.star >= 3:
+		if u.star >= 3 or (bench_only and u.coord.x >= 0):
 			continue
 		var key := "%s|%d" % [u.data.display_name, u.star]
 		if not groups.has(key):
@@ -494,8 +501,8 @@ func try_merge() -> bool:
 		return true
 	return false
 
-func merge_all():
-	while try_merge():
+func merge_all(bench_only := false):
+	while try_merge(bench_only):
 		pass
 
 # Gives the consumed units' items to the keeper (up to its limit); the rest go back to the inventory.
@@ -580,33 +587,31 @@ func bench_local(i: int) -> Vector3:
 	var units := get_node_or_null("Units") as Node3D
 	return units.transform.affine_inverse() * bench_to_world(i) if units != null else bench_to_world(i)
 
-# Bench slot i (0-8; slot BENCH_SLOTS is the sell hex). The bench and the sell hex together are centred
-# under the board.
+# Bench slot i (0-8; slot BENCH_SLOTS is the sell hex): one row past the board, on the same hex grid as
+# the board and the scenery round it, so every hex slots in edge to edge. The bench and the sell hex
+# together sit as near the middle under the board as the grid allows (a quarter hex right of it).
 func bench_to_world(i: int) -> Vector3:
-	var w := HEX * sqrt(3.0)
-	var board_center_x := w * ((COLS - 1) / 2.0 + 0.25)
-	var start_x := board_center_x - w * BENCH_SLOTS / 2.0   # BENCH_SLOTS + 1 hexes in the row
-	return Vector3(start_x + i * w, 0.0, HEX * 1.5 * ROWS)   # one row past the board, like the enemy's bench
+	var p := grid_to_world(Vector2i(i - 1, ROWS))
+	return Vector3(p.x, 0.0, p.z)
 
-# The enemy's bench slot i: just beyond the far edge of the board (nearer than the mirror of yours, so it stays
-# in view at the top of the screen), its nine slots centred.
+# The enemy's bench slot i: the row just beyond the far edge of the board (nearer than the mirror of yours,
+# so it stays in view at the top of the screen), on the hex grid like yours.
 func enemy_bench_to_world(i: int) -> Vector3:
-	var w := HEX * sqrt(3.0)
-	var board_center_x := w * ((COLS - 1) / 2.0 + 0.25)
-	var start_x := board_center_x - w * (BENCH_SLOTS - 1) / 2.0
-	return Vector3(start_x + i * w, -VoxelTiles.V, -HEX * 1.5)   # a voxel down: its tips overlap the back row's, and level tops would flicker
+	var p := grid_to_world(Vector2i(i - 1, -1))
+	return Vector3(p.x, 0.0, p.z)
 
-func would_complete_merge(d: UnitData) -> bool:
+# bench_only: count only bench copies (a purchase mid-fight never merges with units fighting on the board).
+func would_complete_merge(d: UnitData, bench_only := false) -> bool:
 	var count := 0
 	for u in all_player_units():
-		if u.data == d and u.star == 1:
+		if u.data == d and u.star == 1 and not (bench_only and u.coord.x >= 0):
 			count += 1
 	return count >= 2
 
-func merge_pending_unit(newbie: Unit):
+func merge_pending_unit(newbie: Unit, bench_only := false):
 	var copies: Array[Unit] = []
 	for u in all_player_units():
-		if u != newbie and u.data == newbie.data and u.star == 1:
+		if u != newbie and u.data == newbie.data and u.star == 1 and not (bench_only and u.coord.x >= 0):
 			copies.append(u)
 	copies.sort_custom(func(a, b): return (a.coord.x >= 0) and not (b.coord.x >= 0))
 	if copies.size() < 2:
@@ -618,7 +623,7 @@ func merge_pending_unit(newbie: Unit):
 	copies[1].queue_free()
 	newbie.queue_free()
 	keeper.set_star(2)
-	merge_all()
+	merge_all(bench_only)
 
 func _build_bench_slots():
 	for i in BENCH_SLOTS:
@@ -677,7 +682,7 @@ func put_on_bench(u: Unit, i: int):
 	bench[i] = u
 	u.coord = Vector2i(-1, -1)
 	u.position = bench_local(i)
-	u.rotation.y = PI if view_flipped else 0.0   # facing the board either way
+	u.face_rest()   # looking at the camera
 
 
 # Fills free board slots from the bench when a fight starts: the leftmost bench unit goes first, while
@@ -808,16 +813,22 @@ func _order_for(player: bool) -> Array[Vector2i]:
 		return a.x < b.x)
 	return list
 
+# Opens your half for `level`. The enemy half follows it too, unless foe_level is set (async PvP and
+# lobbies: the opponent's own level, its tiles the mirror images of the ones that player has open).
 func refresh_unlocks(level: int, animate := true):
 	var n: int = tiles_open_for_level(level)
 	unlocked.clear()
-	for order in [player_order, enemy_order]:
-		for i in order.size():
-			var c: Vector2i = order[i]
-			var open: bool = i < n
-			if open:
-				unlocked[c] = true
-			tiles[c].set_unlocked(open, animate)
+	for i in player_order.size():
+		if i < n:
+			unlocked[player_order[i]] = true
+	if foe_level < 0:
+		for i in mini(n, enemy_order.size()):
+			unlocked[enemy_order[i]] = true
+	else:
+		for c in open_player_tiles(foe_level):
+			unlocked[BoardSnapshot.mirror(c)] = true
+	for c in tiles:
+		tiles[c].set_unlocked(unlocked.has(c), animate)
 	if visual:
 		_build_border()
 	_place_kings(animate)

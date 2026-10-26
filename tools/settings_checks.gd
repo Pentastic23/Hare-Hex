@@ -106,6 +106,29 @@ func _run():
 	chk("shadows on the run's light follow the setting", off and light.shadow_enabled)
 	light.free()
 
+	print("--- glow & fog")
+	Settings.set_preset("low")
+	var low_off := not Settings.post_fx
+	Settings.set_preset("medium")
+	chk("Glow & fog: off in the Low preset, on from Medium up", low_off and Settings.post_fx)
+	Settings.post_fx = false
+	Settings.save_settings()
+	Settings.post_fx = true
+	Settings._loaded = false
+	Settings.load_settings()
+	chk("Glow & fog comes back from disk", not Settings.post_fx)
+	var env := Environment.new()
+	var sun := DirectionalLight3D.new()
+	add_child(sun)
+	BoardThemes.apply_look(&"volcano", env, sun)
+	var fx_off := not env.glow_enabled and not env.fog_enabled
+	Settings.post_fx = true
+	BoardThemes.apply_look(&"volcano", env, sun)
+	var lit: Dictionary = BoardThemes.LIGHT[&"volcano"]
+	chk("a biome's look sets the sun, ambient and haze; Glow & fog switches glow and fog", fx_off and env.glow_enabled and env.fog_enabled and sun.light_color.is_equal_approx(Color(lit.sun)) and env.ambient_light_color.is_equal_approx(Color(lit.amb)) and is_equal_approx(sun.rotation_degrees.x, lit.pitch))
+	chk("every biome has a look", BoardThemes.ORDER.all(func(id): return BoardThemes.LIGHT.has(id)))
+	sun.free()
+
 	print("--- music")
 	Settings.music_volume = 0.4
 	Settings.save_settings()

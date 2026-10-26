@@ -42,11 +42,16 @@ func _input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		var u := _unit_under_mouse()
 		if u != null:
-			shown = u
-			visible = true
-			_fill()
+			show_unit(u)
 		else:
 			_close()
+
+# Opens on unit u, drawn (and hovered) over every other panel of the HUD.
+func show_unit(u: Unit) -> void:
+	shown = u
+	visible = true
+	get_parent().move_child(self, -1)
+	_fill()
 
 func _process(_delta):
 	if shown == null:
@@ -97,7 +102,7 @@ func _unit_under_mouse() -> Unit:
 func _fill():
 	var u := shown
 	var d := u.data
-	var mult: float = u.stat_scale * Unit.STAR_MULT[u.star]
+	var mult: float = u.stat_scale * Unit.star_mult(u.star, d.cost)
 
 	name_label.text = d.display_name
 	stars_label.text = "★".repeat(u.star)
@@ -312,6 +317,8 @@ func item_tip(it: ItemData, stacks: int) -> String:
 		if it.stack_hp > 0.0:
 			now.append("+%d HP" % roundi(it.hp + it.stack_hp * stacks))
 		lines.append("%d / %d stacks: %s now" % [stacks, it.max_stacks, ", ".join(now)])
+	if it.best_on() != "":
+		lines.append("Best on " + it.best_on() + ".")
 	return "\n".join(lines)
 
 # A resonance's tooltip: its name, the two elements, what it does (doubled by a Crystal).

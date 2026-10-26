@@ -137,6 +137,13 @@ const ICON_STEP := 0.58    # spacing between item icons
 const ICON_HEIGHT := 0.45  # how far above the health bar the row sits (its middle)
 
 const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2}
+const FIVE_COST_3STAR := 5.0   # a 3-star 5-cost is meant to win fights on its own: x5 instead of x3.2
+
+# HP and damage multiplier for a star level (and cost: 3-star 5-costs get FIVE_COST_3STAR).
+static func star_mult(star: int, cost: int) -> float:
+	if star >= 3 and cost >= 5:
+		return FIVE_COST_3STAR
+	return STAR_MULT[clampi(star, 1, 3)]
 const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45}
 @onready var board: Board = get_parent().get_parent()
 const BAR_PX_W := 100
@@ -158,10 +165,10 @@ const MANA_OFFSET := 0.13       # how far below the health bar the mana bar sits
 const DEFAULT_ABILITY := preload("res://Scripts/ability.gd")
 
 func max_hp() -> float:
-	return (data.max_health + item_hp) * stat_scale * STAR_MULT[star] * (1.0 + bonus_hp)
+	return (data.max_health + item_hp) * stat_scale * star_mult(star, data.cost) * (1.0 + bonus_hp)
 
 func damage() -> float:
-	return (data.attack_damage + item_dmg) * stat_scale * STAR_MULT[star] * damage_bonus()
+	return (data.attack_damage + item_dmg) * stat_scale * star_mult(star, data.cost) * damage_bonus()
 
 # 1 + the damage bonus from synergies, items and ability buffs (attacks and ability damage).
 func damage_bonus() -> float:
@@ -198,6 +205,7 @@ func set_star(s: int):
 		_place_bars()
 	if letter_label != null:
 		letter_label.text = data.label() + ("*".repeat(star - 1))
+	_update_star_mark()
 
 # Moves the health and mana bars to bar_height (models: just above the head at the current star).
 func _place_bars():
@@ -210,6 +218,34 @@ func _place_bars():
 	shield_fill.position.y = bar_height
 	mana_bg.position.y = bar_height - MANA_OFFSET
 	mana_fill.position.y = bar_height - MANA_OFFSET
+	_update_star_mark()
+
+# The star level as little stars at the left end of the health bar (silver, silver, gold), so a unit's
+# star reads on the board at a glance. A child of Bars, so it hides with them.
+const STAR_MARK_COLORS := {1: Color("aab3c8"), 2: Color("dfe6f2"), 3: Color("f2c14e")}
+var star_mark: Label3D
+
+func _update_star_mark() -> void:
+	if bar_bg == null or data == null:
+		return
+	if star_mark == null:
+		star_mark = Label3D.new()
+		star_mark.name = "StarMark"
+		star_mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		star_mark.no_depth_test = true
+		star_mark.shaded = false
+		star_mark.render_priority = 3
+		star_mark.outline_render_priority = 2
+		star_mark.pixel_size = 0.005
+		star_mark.font_size = 34
+		star_mark.outline_size = 10
+		star_mark.outline_modulate = Color(0.05, 0.05, 0.08, 0.95)
+		star_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		star_mark.offset = Vector2(-112, 2)   # just left of the bar (pixels at pixel_size: the bar is 100 px of 0.01 wide)
+		$Bars.add_child(star_mark)
+	star_mark.text = "★".repeat(star)
+	star_mark.modulate = STAR_MARK_COLORS[star]
+	star_mark.position.y = bar_height
 
 func _process(delta):
 	if _charm_fx != null:
@@ -262,7 +298,7 @@ func setup(d: UnitData, t: int):
 	if holder == null:
 		push_error("Unit was not created from unit.tscn (no ModelHolder)")
 		return
-	rotation.y = PI if team == 1 else 0.0   # face the other side of the board
+	face_rest()
 	var b := get_parent().get_parent() as Board if get_parent() != null else null
 	if d.model and (b == null or b.visual):   # the lobby server's hidden boards skip models (visual only)
 		var body := d.model.instantiate()
@@ -284,7 +320,11 @@ func setup(d: UnitData, t: int):
 	mana = d.start_mana
 
 # On the viewer's side (blue ring, green bar)?
+# Your own units (bench and board: they have a uid and aren't a lobby fight's copy) are always yours, even
+# while you watch a lobby fight from the away side (viewer_team 1); everything else goes by team.
 func mine() -> bool:
+	if team == 0 and uid >= 0 and source_uid < 0:
+		return true
 	return team == viewer_team
 
 # The flat ring at a model's feet (a node in unit.tscn) in the team colour, a shared material (the
@@ -292,6 +332,18 @@ func mine() -> bool:
 func _make_ring():
 	ring.visible = true
 	ring.material_override = RING_MATS[0 if mine() else 1]
+
+# Hovering a trait in the Synergies tab lights up the rings of your units that have it (synergy_panel.gd):
+# gold and a little bigger. Visual only.
+const RING_HIGHLIGHT := preload("res://tres/ring_highlight.tres")
+var highlighted := false
+
+func set_highlight(on: bool) -> void:
+	if highlighted == on or ring == null or not ring.visible:
+		return
+	highlighted = on
+	ring.material_override = RING_HIGHLIGHT if on else (RING_CHARM if charm_left > 0.0 else RING_MATS[0 if mine() else 1])
+	ring.scale = Vector3.ONE * (1.25 if on else 1.0)
 
 func begin_combat():
 	if data == null:
@@ -308,6 +360,19 @@ func begin_combat():
 	damage_taken = 0.0
 	_reset_fight_state()
 	shield = shield_pct * max_hp()
+	face_board()   # turn from the camera to the fight
+
+# Out of a fight your units (bench and board) look at the camera; the other side's look across the board.
+func face_rest():
+	if not mine():
+		face_board()
+		return
+	var b := get_parent().get_parent() as Board if get_parent() != null else null
+	rotation = Vector3(0.0, 0.0 if b != null and b.view_flipped else PI, 0.0)   # world +Z either way
+
+# Facing the other side of the board (in the Units node's space): how fights start.
+func face_board():
+	rotation = Vector3(0.0, PI if team == 1 else 0.0, 0.0)
 
 # Clears burns, chills, curses, shields, ramp and counters between fights.
 func _reset_fight_state():
@@ -390,8 +455,7 @@ func end_combat(won := false):
 	dead = false
 	visible = true
 	_hide_in = -1.0
-	if team == 0:
-		rotation = Vector3.ZERO   # face the enemy side again
+	face_rest()   # back to the camera
 	if model_view != null:
 		model_view.on_fight_over(celebrate)
 	clear_bonuses()   # synergies are re-applied at the next combat start
@@ -454,7 +518,7 @@ func combat_step(delta: float):
 		move_from = position
 		move_to = board.grid_to_world(next)
 		move_progress = 0.0
-		_face_point(move_to)
+		_face_point(_world(move_to))
 
 # One attack on `t`: crits, dodges, damage, omnivamp, then the on-hit effects (burn, chill, curse,
 # execute) and kill heals. Part of the fixed combat tick.
@@ -581,7 +645,11 @@ func leap_to(c: Vector2i, secs := 0.25):
 	move_to = board.grid_to_world(c)
 	move_progress = 0.0
 	move_rate = 1.0 / secs
-	_face_point(move_to)
+	_face_point(_world(move_to))
+	if board.runner != null:   # it dashed out of reach: whoever was attacking it picks a target again
+		for other in board.runner.combatants:
+			if other != self and is_instance_valid(other) and other.target == self:
+				other.target = null
 
 # Runs fn after secs (the later hits of a multi-hit cast); a delay of 0 runs it now.
 func queue_action(secs: float, fn: Callable):
@@ -986,6 +1054,13 @@ func _update_charm_fx(delta: float):
 func _face(u: Unit):
 	_face_point(u.global_position)
 
+# A point in the Units node's space (move_to, grid_to_world) in world space: they differ while a lobby
+# client watches a fight from the away side (the board is turned), where facing a local point walked
+# units backwards.
+func _world(local_p: Vector3) -> Vector3:
+	return get_parent().to_global(local_p) if get_parent() is Node3D else local_p
+
+# Turns to face world point p (on the ground plane).
 func _face_point(p: Vector3):
 	var flat := Vector3(p.x, global_position.y, p.z)
 	if flat.distance_to(global_position) > 0.01:

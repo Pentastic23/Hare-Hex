@@ -28,8 +28,13 @@ const SHOP_ODDS := {
 # Overall round numbers whose PREP start drops a free item (items v2: 14 a run): 1-2, 1-3; 2-2, 2-4,
 # 2-6; 3-2, 3-4, 3-6; 4-3, 4-6; 5-3, 5-6; 6-3, 6-6.
 const ITEM_DROP_ROUNDS := [2, 3, 5, 7, 9, 11, 13, 15, 18, 21, 24, 27, 30, 33]
-# Rounds that also hand out Tinker's Tongs (free play and async PvP only): the end of stages 3 and 5.
-const TONGS_ROUNDS := [15, 27]
+# Rounds that also hand out Tinker's Tongs (free play, async PvP and lobbies): the end of stages 2 to 6.
+const TONGS_ROUNDS := [9, 15, 21, 27, 33]
+const CAMPAIGN_TONGS_ROUND := 3   # a chapter level hands out one Tongs, at its third wave
+# Losing a fight costs the stage's base damage plus 1 per enemy unit still standing (stars don't matter;
+# a clean wipe costs only the base). Index = stage; stage 8 and later (none today) hit for 150.
+const STAGE_DAMAGE := [0, 0, 2, 6, 7, 10, 12, 17]
+const LATE_STAGE_DAMAGE := 150
 const SPECIAL_DROP_CHANCE := 0.3   # from stage 3, a drop is a special item this often
 const MENU_SCENE := "res://scenes/menu.tscn"
 
@@ -106,11 +111,16 @@ func _standard_income(r: int) -> int:
 func odds_for_level(l: int) -> Array:
 	return SHOP_ODDS[clampi(l, 1, 9)]
 
-func damage_for_loss(enemy_star_total: int) -> int:
-	var base := 5.0 * stage()
+# The HP a lost fight costs the local player this round: the stage's base damage plus 1 per enemy unit
+# still standing. A campaign level with loss_damage set uses that as the base (rounds restart every level).
+func damage_for_loss(enemy_survivors: int) -> int:
+	var base := stage_damage(stage())
 	if run_level != null and run_level.loss_damage > 0:
-		base = run_level.loss_damage   # campaign: rounds restart each level, so the level sets the stakes
-	return roundi(base + 0.25 * enemy_star_total)
+		base = run_level.loss_damage
+	return base + maxi(enemy_survivors, 0)
+
+func stage_damage(s: int) -> int:
+	return STAGE_DAMAGE[s] if s < STAGE_DAMAGE.size() else LATE_STAGE_DAMAGE
 
 func reset():
 	round_number = 1
@@ -193,5 +203,6 @@ func go_to_menu():
 	run_level = null
 	run_campaign = null
 	run_carry = {}
+	players = [me]
 	reset()
 	get_tree().change_scene_to_file(MENU_SCENE)

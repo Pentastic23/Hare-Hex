@@ -15,9 +15,13 @@ static var done := false
 
 @onready var stage: Node3D = $SubViewport/Stage
 @onready var light: DirectionalLight3D = $SubViewport/Light
+@onready var world: WorldEnvironment = $SubViewport/WorldEnvironment
 
 func _ready():
 	Settings.apply_light(light)   # shadows on or off like the run's light, so the same shaders compile
+	world.environment = world.environment.duplicate()   # fog on or off like the run's (Glow & fog), so the same shaders compile
+	world.environment.fog_enabled = Settings.post_fx
+	world.environment.glow_enabled = Settings.post_fx
 	_run.call_deferred()
 
 func _run():

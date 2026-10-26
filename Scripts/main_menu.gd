@@ -48,10 +48,23 @@ var room_start: Button
 const LOBBY_CFG := "user://lobby.cfg"
 const LOBBY_TIP := "Up to 8 players, a shared unit pool, a fight against another player every round; the last one standing wins. Play against bots here, or host or join a game on your local network."
 var credits_panel: PanelContainer   # who made what (music, fonts)
+var king_panel: PanelContainer      # pick your king skin (KingSkins)
+var planner_panel: PanelContainer   # the team planner (team_planner.gd) with the full roster, to plan comps before a run
+var planner: VBoxContainer
+const PLANNER_SCRIPT := preload("res://Scripts/team_planner.gd")
+var king_button: Button
+var _king_rows: VBoxContainer
 var confirm: ConfirmationDialog
 var _confirm_action: Callable
+# In a run (the pause menu's Settings): only the Settings and Keybinds screens, over the paused game. Set
+# before adding it to the tree; Back (or Esc) on Settings closes it and emits `closed`.
+var overlay := false
+signal closed
 
 func _ready():
+	if overlay:
+		_ready_overlay()
+		return
 	get_window().title = TITLE   # the window's own title (config/name stays "Azerothtactics": the save folder is named after it)
 	Settings.ensure_loaded()
 	Settings.apply()
@@ -96,16 +109,23 @@ func _ready():
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 8)
 	main_box.add_child(row)
-	_button(row, "Settings", func(): _show_panel(settings_panel)).custom_minimum_size = Vector2(150, 44)
-	_button(row, "Credits", func(): _show_panel(credits_panel)).custom_minimum_size = Vector2(150, 44)
+	king_button = _button(row, "King", func(): _show_panel(king_panel))
+	king_button.custom_minimum_size = Vector2(120, 44)
+	var plan_btn := _button(row, "Planner", func(): _show_panel(planner_panel))
+	plan_btn.custom_minimum_size = Vector2(120, 44)
+	plan_btn.tooltip_text = Tip.wrap("Plan a team and save comps before you play. Your plan carries into every run (planned units are starred in the shop).")
+	_button(row, "Settings", func(): _show_panel(settings_panel)).custom_minimum_size = Vector2(120, 44)
+	_button(row, "Credits", func(): _show_panel(credits_panel)).custom_minimum_size = Vector2(120, 44)
 	if OS.get_name() != "Web":
-		_button(row, "Quit", func(): get_tree().quit()).custom_minimum_size = Vector2(150, 44)
+		_button(row, "Quit", func(): get_tree().quit()).custom_minimum_size = Vector2(120, 44)
 
 	campaign_panel = _build_campaign_panel()
 	settings_panel = _build_settings_panel()
 	keybinds_panel = _build_keybinds_panel()
 	info_panel = _build_info_panel()
 	credits_panel = _build_credits_panel()
+	king_panel = _build_king_panel()
+	planner_panel = _build_planner_panel()
 	lobby_panel = _build_lobby_panel()
 	room_panel = _build_room_panel()
 	LobbyNet.failed.connect(_on_lobby_failed)
@@ -122,6 +142,28 @@ func _ready():
 		_fill_settings()
 		_show_panel(settings_panel)
 	_warm_up.call_deferred()
+
+func _ready_overlay() -> void:
+	add_to_group("settings_overlay")
+	process_mode = Node.PROCESS_MODE_ALWAYS   # the run is paused behind it
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.color = Color(0.04, 0.045, 0.07, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	main_box = VBoxContainer.new()   # _show_panel hides its parent; nothing else uses it here
+	var holder := Control.new()
+	holder.visible = false
+	holder.add_child(main_box)
+	add_child(holder)
+	settings_panel = _build_settings_panel()
+	keybinds_panel = _build_keybinds_panel()
+	confirm = ConfirmationDialog.new()
+	confirm.confirmed.connect(func(): _confirm_action.call())
+	add_child(confirm)
+	_style_dialog(confirm)
+	_built_contrast = Settings.high_contrast
+	_show_panel(settings_panel)
 
 # Once the menu is on screen, the run starts loading in the background (Preload), so picking a mode
 # doesn't wait for it.
@@ -143,6 +185,8 @@ func _process(_delta):
 		add_child(_warmup)
 
 func _unhandled_input(event):
+	if overlay:
+		return
 	if event.is_action_pressed("ui_cancel") and _panel_open():
 		_show_panel(settings_panel if keybinds_panel.get_parent().visible else null)   # Keybinds goes back to Settings
 		get_viewport().set_input_as_handled()
@@ -156,6 +200,7 @@ func _start(level: CampaignLevel, carry: Dictionary, ghost := false):
 	GameState.run_campaign = campaign if level != null else null
 	GameState.run_carry = carry
 	GameState.launched_from_menu = true   # so Game Manager's Debug Level doesn't override this choice
+	GameState.players = [GameState.me]   # a lobby's other players never carry into a single-player run
 	GameState.reset()
 	GameState.change_to_run()   # usually already loaded in the background (Preload)
 
@@ -197,17 +242,26 @@ func _start_chapter(chapter: CampaignChapter):
 # --- panels -------------------------------------------------------------------------------------
 
 func _show_panel(panel: Control):
-	main_box.get_parent().visible = panel == null
 	_stop_listening()
-	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel]:
-		p.get_parent().visible = panel == p
-	_refresh()
+	if overlay and panel == null:
+		closed.emit()
+		queue_free()
+		return
+	main_box.get_parent().visible = panel == null
+	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel, king_panel, planner_panel]:
+		if p != null:
+			p.get_parent().visible = panel == p
+	if panel != null and panel == planner_panel:
+		planner._rebuild()
+	if not overlay:
+		_refresh()
 
 func _panel_open() -> bool:
-	return [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel].any(func(p): return p.get_parent().visible)
+	return [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel, king_panel, planner_panel].any(func(p): return p != null and p.get_parent().visible)
 
 func _refresh():
 	var saved := _saved_level()
+	king_button.tooltip_text = Tip.wrap("Your king: %s. It stands beside the board, can't be hurt, and every 10 s strikes a random enemy. Its skin adds one more effect." % KingSkins.display_name(KingSkins.selected()))
 	continue_button.visible = saved != null
 	if saved != null:
 		continue_button.text = continue_text(saved, SaveGame.chapter_run())
@@ -410,10 +464,109 @@ func _fill_room() -> void:
 	lines.append("%d of %d seats. %s" % [seats.size(), LobbyServer.MAX_SEATS, "Add bots or wait for players, then Start (2 or more)." if c.host else "Waiting for the host to start."])
 	room_info.text = "\n".join(lines)
 
+# King: pick the king you play with (KingSkins). Every king strikes a random enemy every 10 s; the skin
+# adds one effect. Locked skins show how they are unlocked. Opened from the King button on the bottom row.
+func _build_king_panel() -> PanelContainer:
+	var panel := _panel()
+	var box := panel.get_child(0) as VBoxContainer
+	box.add_child(_heading("Your King"))
+	var rules := _label("Your king stands beside the board and can't be hurt. Every 10 s of a fight it strikes a random enemy unit anywhere on the board (stronger as you level up). Its skin adds one more effect.", 13, GREY)
+	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rules.custom_minimum_size = Vector2(520, 0)
+	box.add_child(rules)
+	_king_rows = VBoxContainer.new()
+	_king_rows.add_theme_constant_override("separation", 8)
+	box.add_child(_king_rows)
+	_fill_kings()
+	_button(box, "Back", func(): _show_panel(null))
+	return panel
+
+func _fill_kings() -> void:
+	for c in _king_rows.get_children():
+		c.queue_free()
+	for id in KingSkins.ORDER:
+		var def: Dictionary = KingSkins.DEFS[id]
+		var owned := KingSkins.owned(id)
+		var chosen := owned and KingSkins.selected() == id
+		var row := HudPlate.new()
+		row.setup_plate(8, 10, 8, DockKit.WELL)
+		row.set_edge(HudStyle.EDGE_GOLD if chosen else HudStyle.EDGE)
+		_king_rows.add_child(row)
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 12)
+		row.add_child(h)
+		h.add_child(_king_preview(id))
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		h.add_child(col)
+		var name_l := _label(def.name, 18, HudStyle.GOLD if owned else GREY)
+		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		col.add_child(name_l)
+		var text_l := _label(def.text, 13, HudStyle.INK if owned else GREY)
+		text_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		text_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text_l.custom_minimum_size = Vector2(300, 0)
+		col.add_child(text_l)
+		var state := _label(("Your king" if chosen else "Owned") if owned else "Locked: " + str(def.unlock), 11, HudStyle.GOLD if chosen else GREY)
+		state.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		col.add_child(state)
+		if owned and not chosen:
+			var pick := _button(h, "Choose", func():
+				SaveGame.set_king_skin(String(id))
+				_fill_kings()
+				_refresh(), true)
+			pick.custom_minimum_size = Vector2(110, 38)
+			pick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+# A small turning 3D view of a king (its own little world in a SubViewport).
+func _king_preview(id: StringName) -> Control:
+	var holder := SubViewportContainer.new()
+	holder.custom_minimum_size = Vector2(96, 96)
+	holder.stretch = true
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	vp.size = Vector2i(96, 96)
+	holder.add_child(vp)
+	var cam := Camera3D.new()
+	cam.fov = 32.0
+	cam.position = Vector3(0, 1.6, 3.6)
+	vp.add_child(cam)
+	cam.look_at_from_position(cam.position, Vector3(0, 0.8, 0))
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-45, -30, 0)
+	vp.add_child(sun)
+	var m := MeshInstance3D.new()
+	m.mesh = KingSkins.model(id)
+	vp.add_child(m)
+	if not Settings.reduce_motion:
+		var t := m.create_tween().set_loops()
+		t.tween_property(m, "rotation:y", TAU, 6.0).from(0.0)
+	if not KingSkins.owned(id):
+		holder.modulate = Color(0.35, 0.35, 0.4)
+	return holder
+
 const MUSIC_URL := "https://soundcloud.com/joe-gallagher-620567095"
 
 # Credits: the music (with a link to the composer's page) and the fonts.
 # Add in Phillip Wilkins as a tester with a thank you to all testers
+func _build_planner_panel() -> PanelContainer:
+	var panel := _panel()
+	var box := panel.get_child(0) as VBoxContainer
+	box.add_child(_heading("Team planner"))
+	var note := _label("Plan the team you're aiming for and save comps. The plan comes with you into every run: planned units are starred in the shop.", 12, GREY)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(300, 0)
+	box.add_child(note)
+	planner = PLANNER_SCRIPT.new()
+	planner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	planner.custom_minimum_size = Vector2(216, 0)
+	box.add_child(planner)
+	_button(box, "Back", func(): _show_panel(null))
+	return panel
+
 func _build_credits_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := panel.get_child(0) as VBoxContainer
@@ -540,11 +693,12 @@ func _build_settings_panel() -> PanelContainer:
 		_ask("Put every setting back to its default?", func():
 			Settings.reset_options()
 			_settings_changed())).custom_minimum_size = Vector2(240, 42)
-	_button(row, "Reset campaign progress", func():
-		_ask("Erase all campaign progress, unlocks and your current run? This can't be undone.",
-			func():
-				SaveGame.reset_progress()
-				_refresh())).custom_minimum_size = Vector2(240, 42)
+	if not overlay:   # not from inside a run
+		_button(row, "Reset campaign progress", func():
+			_ask("Erase all campaign progress, unlocks and your current run? This can't be undone.",
+				func():
+					SaveGame.reset_progress()
+					_refresh())).custom_minimum_size = Vector2(240, 42)
 	_button(box, "Back", func(): _show_panel(null))
 	_fill_settings()
 	return panel
@@ -616,6 +770,10 @@ func _fill_settings() -> void:
 				Settings.shadows = Settings.SHADOW_LEVELS[i]
 				_custom_graphics(),
 				"Shadows under units. Takes effect from the next run.")
+			_setting_option("post_fx", "Glow & fog", ["Off", "On"], 1 if Settings.post_fx else 0, func(i):
+				Settings.post_fx = i == 1
+				_custom_graphics(),
+				"Glowing blades, crystals, lava and spells bloom, and the far ground fades into each biome's haze. Turn it off on slow computers. Takes effect from the next run.")
 		"controls":
 			_setting_slider("pointer_sens_x", "Controller pointer, horizontal", Settings.pointer_sens_x, func(v): Settings.pointer_sens_x = v)
 			_setting_slider("pointer_sens_y", "Controller pointer, vertical", Settings.pointer_sens_y, func(v): Settings.pointer_sens_y = v)
@@ -645,15 +803,10 @@ func _fill_settings() -> void:
 				Settings.reduce_motion = on
 				_settings_changed(),
 				"No camera zoom easing, no tile pop-in, and combat words fade in place instead of floating. (The camera has no head-bob.)")
-			var note := _label("Subtitles: the game has no speech or sound yet, so there is nothing to subtitle.", 12, GREY)
+			var note := _label("Subtitles: the game has no speech, so there is nothing to subtitle.", 12, GREY)
 			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			note.custom_minimum_size = Vector2(560, 0)
 			settings_body.add_child(note)
-			var rebind := _button(settings_body, "Key and button binds", func():
-				_stop_listening()
-				_fill_keybinds()
-				_show_panel(keybinds_panel))
-			rebind.custom_minimum_size = Vector2(280, 40)
 		"audio":
 			var vol := _setting_slider("volume", "Volume", Settings.master_volume, func(v): Settings.master_volume = v, 0.0, 1.0, 0.05, true)
 			vol.tooltip_text = Tip.wrap("Overall volume of everything in the game.")
@@ -661,6 +814,10 @@ func _fill_settings() -> void:
 			mus.tooltip_text = Tip.wrap("Volume of the soundtrack: the menu, the run and boss fights.")
 			var sfx := _setting_slider("sfx", "Sound effects", Settings.sfx_volume, func(v): Settings.sfx_volume = v, 0.0, 1.0, 0.05, true)
 			sfx.tooltip_text = Tip.wrap("Volume of the sound effects: the shop, merging, fighting.")
+			_setting_check("mute_unfocused", "Mute when the game is in the background", Settings.mute_unfocused, func(on):
+				Settings.mute_unfocused = on
+				_settings_changed(),
+				"Silences the music and sounds while you are tabbed out of the game.")
 
 # Saves and applies after a change; `rebuild` refreshes the tab (rows that depend on the change).
 func _settings_changed(rebuild := false) -> void:
@@ -668,7 +825,7 @@ func _settings_changed(rebuild := false) -> void:
 	Settings.save_settings()
 	if rebuild:
 		_fill_settings.call_deferred()
-		if Settings.high_contrast != _built_contrast:   # helpers pick text colours when labels are made
+		if Settings.high_contrast != _built_contrast and not overlay:   # helpers pick text colours when labels are made (in a run only the rows are rebuilt)
 			_built_contrast = Settings.high_contrast
 			_rebuild_menu.call_deferred()
 
@@ -677,7 +834,7 @@ func _custom_graphics() -> void:
 	Settings.graphics_preset = "custom"
 	for p in Settings.PRESETS:
 		var v: Dictionary = Settings.PRESET_VALUES[p]
-		if is_equal_approx(v.render_scale, Settings.render_scale) and v.msaa == Settings.msaa and v.shadows == Settings.shadows:
+		if is_equal_approx(v.render_scale, Settings.render_scale) and v.msaa == Settings.msaa and v.shadows == Settings.shadows and v.post_fx == Settings.post_fx:
 			Settings.graphics_preset = p   # it happens to match a preset again
 	_settings_changed(true)
 
@@ -900,6 +1057,10 @@ func _stop_listening():
 
 # While a keyboard bind waits for a key, the next key press is the new bind (Esc cancels).
 func _input(event):
+	if overlay and _listening == "" and event.is_action_pressed("ui_cancel"):   # in a run: Esc steps back here, not to the pause menu
+		get_viewport().set_input_as_handled()
+		_show_panel(settings_panel if keybinds_panel.get_parent().visible else null)
+		return
 	if _listening == "" or not event is InputEventKey or not event.pressed or event.echo:
 		return
 	get_viewport().set_input_as_handled()

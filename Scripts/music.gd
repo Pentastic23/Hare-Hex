@@ -21,6 +21,13 @@ var _players: Array[AudioStreamPlayer] = []
 var _active := 0
 var _tween: Tween
 
+# Tabbed out (the window lost focus): with Settings.mute_unfocused everything goes quiet until it is back.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		Settings.unfocused = what == NOTIFICATION_APPLICATION_FOCUS_OUT
+		Settings.ensure_loaded()
+		AudioServer.set_bus_mute(0, Settings.master_volume <= 0.0 or (Settings.mute_unfocused and Settings.unfocused))
+
 func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Settings.music_bus()

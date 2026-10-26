@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://k16twlfjjky5"]
 
 [ext_resource type="Script" uid="uid://f7ptqaaw660r" path="res://Scripts/board.gd" id="1_ya4ey"]
+[ext_resource type="Environment" path="res://tres/world_env.tres" id="2_worldenv"]
 [ext_resource type="PackedScene" uid="uid://df83a14ngjth8" path="res://scenes/ui.tscn" id="5_jkv2x"]
 [ext_resource type="Script" uid="uid://bh1hjcky8ybb2" path="res://Scripts/game_manager.gd" id="6_jbj1t"]
 [ext_resource type="Resource" uid="uid://m4qbus7x7gkb" path="res://tres/berserker.tres" id="7_jkv2x"]
@@ -90,6 +91,7 @@
 [node name="Main" type="Node3D" unique_id=1680323474]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1869755004]
+environment = ExtResource("2_worldenv")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1037157775]
 transform = Transform3D(1, 0, 0, 0, 0.75363743, 0.65729046, 0, -0.65729046, 0.75363743, 0, 18.175846, 32)

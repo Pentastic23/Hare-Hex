@@ -45,6 +45,7 @@ func _run():
 	Keybinds.load_binds()
 	SaveGame.path = "user://keybinds_test_save.json"
 	SaveGame.reset_progress()
+	SaveGame.set_king_skin("lion")   # a king picked, so the menu doesn't open the King screen first
 	Settings.path = "user://keybinds_test_settings.cfg"
 	Settings._loaded = true
 

@@ -2,12 +2,16 @@
 extends VBoxContainer
 
 # The Menu panel of the right box (right_dock.gd; DOCKS_SPEC "Menu panel"; Esc opens it): "Paused",
-# Resume, Main menu, Quit game. While it is open the game is paused (prep timer, combat, dragging) and
+# Resume, Settings (the main menu's Settings screen over the paused run: main_menu.gd's `overlay`), Main
+# menu, Quit game. While it is open the game is paused (prep timer, combat, dragging) and
 # the screen behind the HUD is dimmed; the right box does both. Not available once the run has ended
 # (the end screen has its own buttons).
 
 var resume_button: Button
 var menu_button: Button
+var settings_button: Button
+var settings_overlay: Control   # the open Settings screen, or null
+const MENU_SCRIPT := preload("res://Scripts/main_menu.gd")
 var quit_button: Button
 var pad_help: Control       # controller buttons, while a pad is connected
 
@@ -30,6 +34,9 @@ func _ready():
 	resume_button = DockKit.primary_button("Resume")
 	resume_button.pressed.connect(close)
 	add_child(resume_button)
+	settings_button = DockKit.secondary_button("Settings")
+	settings_button.pressed.connect(open_settings)
+	add_child(settings_button)
 	menu_button = DockKit.secondary_button("Main menu")
 	menu_button.pressed.connect(func(): GameState.go_to_menu())
 	add_child(menu_button)
@@ -83,6 +90,22 @@ func _pad_help() -> Control:
 		g.add_child(t)
 	v.visible = false
 	return v
+
+# The Settings screen over the paused game (a layer above the HUD); Back or Esc closes it.
+func open_settings() -> void:
+	if settings_overlay != null:
+		return
+	var layer := CanvasLayer.new()
+	layer.layer = 60
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().current_scene.add_child(layer)
+	var s = MENU_SCRIPT.new()
+	s.overlay = true
+	layer.add_child(s)
+	settings_overlay = s
+	s.closed.connect(func():
+		settings_overlay = null
+		layer.queue_free())
 
 func _dock():
 	return get_tree().get_first_node_in_group("right_dock")

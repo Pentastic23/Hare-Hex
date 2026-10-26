@@ -6,6 +6,9 @@ extends VBoxContainer
 # (portrait, a cost-colour strip, "x2" when owned, a gold outline and check when planned), the
 # count planned at that cost, and the planned team's synergies as chips. Planned units are
 # highlighted in the shop (shop_slot.gd). The plan is saved (SaveGame.team_plan) by unit name.
+# A trait filter shows only that trait's units (every cost) instead of a cost tab; the Comps row saves
+# the plan as a named comp (named after its strongest traits; SaveGame.team_comps), loads one back or
+# deletes it. The main menu shows this panel too (Planner), with the full roster.
 
 const COLUMNS := 5
 const GAP := 4
@@ -18,6 +21,11 @@ var summary_label: Label
 var planned_label: Label      # "9 units planned"
 var chips: HFlowContainer     # planned synergies
 var _tile_side := 40.0
+var filter := ""              # a trait: the grid shows its units of every cost; "" = the cost tab
+var filter_pick: OptionButton
+var comps_pick: OptionButton
+var save_button: Button
+var delete_button: Button
 
 func _ready():
 	add_to_group("team_planner")
@@ -43,6 +51,16 @@ func _ready():
 		b.pressed.connect(show_cost.bind(c))
 		tabs.add_child(b)
 		cost_tabs.append(b)
+	filter_pick = _dropdown("Show only one trait's units, of every cost.")
+	filter_pick.add_item("All traits (by cost)")
+	var tags: Array = Synergies.DEFS.keys()
+	tags.sort()
+	for t in tags:
+		filter_pick.add_item(String(t))
+	filter_pick.item_selected.connect(func(i):
+		filter = "" if i == 0 else filter_pick.get_item_text(i)
+		_rebuild())
+	add_child(filter_pick)
 	grid = GridContainer.new()
 	grid.columns = COLUMNS
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -51,6 +69,29 @@ func _ready():
 	add_child(grid)
 	summary_label = DockKit.text(12)
 	add_child(summary_label)
+	var comps_row := HBoxContainer.new()
+	comps_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	comps_row.add_theme_constant_override("separation", 4)
+	add_child(comps_row)
+	comps_pick = _dropdown("Your saved comps: pick one to plan it.")
+	comps_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	comps_pick.item_selected.connect(_on_comp_picked)
+	comps_row.add_child(comps_pick)
+	save_button = DockKit.secondary_button("Save")
+	save_button.custom_minimum_size = Vector2(46, 26)
+	save_button.add_theme_font_size_override("font_size", 11)
+	save_button.tooltip_text = Tip.wrap("Save this plan as a comp (up to %d; the oldest goes)." % SaveGame.MAX_COMPS)
+	save_button.pressed.connect(save_comp)
+	comps_row.add_child(save_button)
+	delete_button = DockKit.secondary_button("Del")
+	delete_button.custom_minimum_size = Vector2(38, 26)
+	delete_button.add_theme_font_size_override("font_size", 11)
+	delete_button.tooltip_text = Tip.wrap("Delete the comp picked on the left.")
+	delete_button.pressed.connect(func():
+		SaveGame.delete_comp(comps_pick.selected - 1)
+		_fill_comps())
+	comps_row.add_child(delete_button)
+	_fill_comps()
 	var div := ColorRect.new()
 	div.color = DockKit.LINE
 	div.custom_minimum_size = Vector2(0, 1)
@@ -101,12 +142,63 @@ func is_open() -> bool:
 
 func show_cost(c: int) -> void:
 	cost = c
+	filter = ""
+	if filter_pick != null:
+		filter_pick.select(0)
 	_rebuild()
+
+func _dropdown(tip: String) -> OptionButton:
+	var o := OptionButton.new()
+	o.focus_mode = Control.FOCUS_NONE
+	o.fit_to_longest_item = false
+	o.clip_text = true
+	o.custom_minimum_size = Vector2(0, 26)
+	o.add_theme_font_override("font", HudStyle.label_font())
+	o.add_theme_font_size_override("font_size", 11)
+	o.tooltip_text = Tip.wrap(tip)
+	var s := DockKit.flat(DockKit.WELL, 3, Vector4(6, 2, 6, 2))
+	for k in ["normal", "hover", "pressed", "focus", "disabled"]:
+		o.add_theme_stylebox_override(k, s if k != "hover" else DockKit.flat(DockKit.WELL.lightened(0.06), 3, Vector4(6, 2, 6, 2)))
+	return o
+
+# The Comps dropdown: a placeholder line, then each saved comp.
+func _fill_comps() -> void:
+	comps_pick.clear()
+	var comps := SaveGame.team_comps()
+	comps_pick.add_item("Saved comps (%d)" % comps.size() if not comps.is_empty() else "No saved comps")
+	for c in comps:
+		comps_pick.add_item("%s  (%d)" % [c.name, (c.units as Array).size()])
+	comps_pick.select(0)
+	delete_button.disabled = true
+
+func _on_comp_picked(i: int) -> void:
+	delete_button.disabled = i == 0
+	if i > 0:
+		_set_plan(SaveGame.team_comps()[i - 1].units)
+
+# Saves the plan as a comp named after its strongest traits ("Order Warrior"), or "Comp n".
+func save_comp() -> void:
+	var plan: Array = SaveGame.team_plan()
+	if plan.is_empty():
+		return
+	var planned := _roster().filter(func(d): return plan.has(d.display_name))
+	var top := chip_entries(planned).slice(0, 2).map(func(e): return e[0])
+	var comp_name := " ".join(top) if not top.is_empty() else "Comp %d" % (SaveGame.team_comps().size() + 1)
+	var taken := SaveGame.team_comps().map(func(c): return c.name)
+	var base := comp_name
+	var n := 2
+	while taken.has(comp_name):
+		comp_name = "%s %d" % [base, n]
+		n += 1
+	var at := SaveGame.save_comp(comp_name, plan)
+	_fill_comps()
+	comps_pick.select(at + 1)
+	delete_button.disabled = false
 
 # The units the shop can offer this run (a campaign level may limit them).
 func _roster() -> Array:
 	var gm := get_tree().get_first_node_in_group("game_manager")
-	var list: Array = gm.roster.duplicate() if gm != null else []
+	var list: Array = gm.roster.duplicate() if gm != null else (LobbyProtocol.rosters().units as Array).duplicate()   # the main menu: every unit
 	list.sort_custom(func(a, b): return a.cost < b.cost or (a.cost == b.cost and a.display_name < b.display_name))
 	return list
 
@@ -136,7 +228,7 @@ func clear_plan():
 
 func _rebuild():
 	for i in cost_tabs.size():
-		var on := i + 1 == cost
+		var on := i + 1 == cost and filter == ""
 		DockKit.set_tab_active(cost_tabs[i], on, DockKit.SELECTED)
 		var s := DockKit.flat(DockKit.SELECTED if on else DockKit.WELL)
 		if on:
@@ -152,14 +244,14 @@ func _rebuild():
 	var owned := _owned_counts()
 	var roster := _roster()
 	_tile_side = floorf((INNER_WIDTH - GAP * (COLUMNS - 1)) / COLUMNS)
-	var at_cost := roster.filter(func(d): return d.cost == cost)
+	var at_cost := roster.filter(func(d): return d.cost == cost) if filter == "" else roster.filter(func(d): return d.tags.any(func(t): return String(t) == filter))
 	var planned_here := 0
 	for d in at_cost:
 		var on: bool = plan.has(d.display_name)
 		if on:
 			planned_here += 1
 		grid.add_child(_tile(d, on, int(owned.get(d.display_name, 0))))
-	summary_label.text = "%d of %d planned at %d gold" % [planned_here, at_cost.size(), cost]
+	summary_label.text = ("%d of %d planned at %d gold" % [planned_here, at_cost.size(), cost]) if filter == "" else ("%d of %d %s units planned" % [planned_here, at_cost.size(), filter])
 	var planned_data := roster.filter(func(d): return plan.has(d.display_name))
 	planned_label.text = "%d unit%s planned" % [planned_data.size(), "" if planned_data.size() == 1 else "s"]
 	for c in chips.get_children():

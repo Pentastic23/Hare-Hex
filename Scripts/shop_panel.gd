@@ -83,6 +83,7 @@ func _ready():
 	Events.gold_changed.connect(func(_g): _refresh_stats())
 	Events.xp_changed.connect(func(_l, _x, _n): _refresh_stats())
 	Events.round_changed.connect(func(_s, _r): _refresh_stats())
+	Events.phase_changed.connect(func(_p): _refresh_stats())   # the opening's shut shop opens with round 2
 	Events.streak_changed.connect(func(_w, _l): _refresh_stats())
 	_on_lock_changed(GameState.me.shop_locked)
 	_refresh_stats()
@@ -240,13 +241,18 @@ func _refresh_stats() -> void:
 	if price_l != null:
 		price_l.text = "0" if free else str(_gm_const("REROLL_COST", 2))
 		price_l.add_theme_color_override("font_color", HudStyle.GOLD if free else HudStyle.INK)
+	_style_panel_button(reroll_button, free and not me.shop_locked)   # a gold edge while a reroll is free (Merchant's Ledger)
+	if not me.shop_locked:
+		reroll_button.tooltip_text = Tip.wrap("Free reroll (Merchant's Ledger): %d left this round." % me.free_rerolls) if free else Tip.wrap("New offers for %d gold." % _gm_const("REROLL_COST", 2))
 	_refresh_affordable()
 
-# Buy XP and Reroll dim when you can't pay for them (they stay clickable; the game ignores it).
+# Buy XP and Reroll dim when you can't pay for them (they stay clickable; the game ignores it), and in the
+# PvP opening, when the shop is shut.
 func _refresh_affordable() -> void:
 	var g := GameState.me.gold
-	buy_xp_button.modulate.a = 1.0 if g >= _gm_const("BUY_XP_COST", 4) else 0.55
-	reroll_button.modulate.a = 1.0 if g >= _gm_const("REROLL_COST", 2) or GameState.me.free_rerolls > 0 or reroll_button.disabled else 0.55
+	var shut := GameState.me.opening
+	buy_xp_button.modulate.a = 1.0 if g >= _gm_const("BUY_XP_COST", 4) and not shut else 0.55
+	reroll_button.modulate.a = 1.0 if (g >= _gm_const("REROLL_COST", 2) or GameState.me.free_rerolls > 0 or reroll_button.disabled) and not shut else 0.55
 
 func _on_lock_changed(on: bool):
 	lock_button.set_pressed_no_signal(on)

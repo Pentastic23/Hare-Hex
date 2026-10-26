@@ -49,12 +49,12 @@ func _ground_pos() -> Vector3:
 	return hit if hit else Vector3.ZERO
 
 func _pick():
-	if get_viewport().gui_get_hovered_control() != null:
+	if get_viewport().gui_get_hovered_control() != null or _scouting():
 		return
 	var hit := _ray(2, true, false)   # layer 2 = units
 	if hit.is_empty(): return
 	var u := hit.collider.get_parent() as Unit
-	if u == null or u.team != 0: return
+	if u == null or u.team != 0 or u.get_parent() != board.get_node("Units"): return   # not a scouted player's unit
 	if not in_prep and u.coord.x >= 0:
 		return
 	dragging = u
@@ -75,7 +75,7 @@ func _drop():
 		if lobby != null:
 			lobby.sell(u)
 		else:
-			board.sell_unit(u)
+			_rules().sell(u)   # refused in the PvP opening
 		return
 	var bench_i := board.bench_slot_near(ground)
 	var tile: Tile = board.nearest_tile(ground) if bench_i == -1 else null
@@ -90,6 +90,22 @@ func _drop():
 
 func _rules() -> PlayerRules:
 	return get_node("../Game Manager").rules
+
+# A shop card dragged onto the board (ShopSlot) was just bought onto the bench: in prep it moves on to the
+# tile under the pointer (single player; in a lobby it stays on the bench). `before`: the bench units
+# before the purchase, to tell the new one apart.
+func place_bought(d: UnitData, before: Array) -> void:
+	if not in_prep or get_node("../Game Manager").lobby != null:
+		return
+	var fresh: Unit = null
+	for u in board.bench:
+		if u != null and u.data == d and not before.has(u):
+			fresh = u
+	var tile: Tile = board.nearest_tile(_ground_pos())
+	if fresh == null or tile == null:
+		return
+	if _rules().move(fresh, -1, tile.coord, true) == "limit":
+		Events.board_limit_hit.emit()
 
 func _on_item_drag_started(index: int):
 	if index >= 0 and index < GameState.me.items.size():
@@ -106,12 +122,38 @@ func _end_item_drag():
 func _drop_item():
 	var item := dragging_item
 	_end_item_drag()
-	if get_viewport().gui_get_hovered_control() != null:
+	if get_viewport().gui_get_hovered_control() != null or _scouting():
 		return
-	var hit := _ray(2, true, false)   # layer 2 = units
-	if hit.is_empty():
-		return
-	equip_item_on(hit.collider.get_parent() as Unit, item)
+	var target := unit_for_item(get_viewport().get_mouse_position())
+	if target == null:
+		var hit := _ray(2, true, false)   # layer 2 = units
+		if hit.is_empty():
+			return
+		target = hit.collider.get_parent() as Unit
+	equip_item_on(target, item)
+
+# The unit of yours an item let go at screen point `at` is meant for: the one whose body (its middle, on
+# screen) is nearest the pointer, within ITEM_PICK_PX. The first collision box along the camera ray is
+# often the unit standing in front of the one you aimed at, when two stand next to each other.
+const ITEM_PICK_PX := 48.0
+func unit_for_item(at: Vector2) -> Unit:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return null
+	var best: Unit = null
+	var best_d := ITEM_PICK_PX
+	for n in board.get_node("Units").get_children():
+		var u := n as Unit
+		if u == null or not u.visible or u.dead or not u.mine() or u.summoned or u.data == null:
+			continue
+		var mid := u.global_position + Vector3(0, minf(u.bar_height, 2.4) * 0.45, 0)
+		if cam.is_position_behind(mid):
+			continue
+		var d := cam.unproject_position(mid).distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = u
+	return best
 
 func equip_item_on(u: Unit, item: ItemData) -> bool:
 	var lobby: LobbyGame = get_node("../Game Manager").lobby
@@ -142,9 +184,17 @@ func _sell_with_key():
 		u.position = board.bench_local(slot) if slot != -1 else board.grid_to_world(u.coord)   # back in place until the server answers
 		lobby.sell(u)
 	else:
-		board.sell_unit(u)
+		_rules().sell(u)
+
+# A lobby showing another player's board (LobbyGame.scout): your own units are hidden, so nothing of
+# yours can be dragged or sold until you look at your board again.
+func _scouting() -> bool:
+	var lobby: LobbyGame = get_node("../Game Manager").lobby
+	return lobby != null and lobby.scouting >= 0
 
 func _unit_near_mouse() -> Unit:
+	if _scouting():
+		return null
 	var ground := _ground_pos()
 	var best: Unit = null
 	var best_d := 1.2

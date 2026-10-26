@@ -1,7 +1,8 @@
 # theme_shots.gd
 # Dev tool, not part of the game: renders the board in each of the 10 themes (with a few units on it)
 # and saves one contact sheet. Needs a real window (not --headless), because headless runs draw nothing:
-#   Godot_v4.7.2-stable_win64.exe --path . res://tools/theme_shots.tscn -- <output.png>
+#   Godot_v4.7.2-stable_win64.exe --path . res://tools/theme_shots.tscn -- <output.png>  [level] [biome,biome...]
+# With a list of biomes it renders only those, at full size, one under the other (for looking closely).
 # Without a path it writes user://theme_shots.png.
 
 extends Node
@@ -17,8 +18,15 @@ func _run():
 	var args := OS.get_cmdline_user_args()
 	var out := args[0] if not args.is_empty() else "user://theme_shots.png"
 	var level := int(args[1]) if args.size() > 1 else 8   # board level: 8 = the full board, 1 = the first round
+	var ids: Array = Array(BoardThemes.ORDER)
+	var shot := SHOT
+	var cols := COLS
+	if args.size() > 2:   # just these biomes, full size
+		ids = Array(args[2].split(",")).map(func(s): return StringName(s))
+		shot = Vector2i(1152, 648)
+		cols = 1
 	var shots: Array[Image] = []
-	for id in BoardThemes.ORDER:
+	for id in ids:
 		GameState.run_level = null
 		GameState.run_carry = {}
 		GameState.next_seed = 7
@@ -44,17 +52,17 @@ func _run():
 		for i in 12:
 			await get_tree().process_frame
 		var img := get_viewport().get_texture().get_image()
-		img.resize(SHOT.x, SHOT.y, Image.INTERPOLATE_BILINEAR)
+		img.resize(shot.x, shot.y, Image.INTERPOLATE_BILINEAR)
 		shots.append(img)
 		print("shot: ", id)
 		main.queue_free()
 		await get_tree().process_frame
-	var rows := ceili(shots.size() / float(COLS))
-	var sheet := Image.create_empty(SHOT.x * COLS, SHOT.y * rows, false, Image.FORMAT_RGBA8)
+	var rows := ceili(shots.size() / float(cols))
+	var sheet := Image.create_empty(shot.x * cols, shot.y * rows, false, Image.FORMAT_RGBA8)
 	for i in shots.size():
 		var s := shots[i]
 		s.convert(Image.FORMAT_RGBA8)
-		sheet.blit_rect(s, Rect2i(Vector2i.ZERO, SHOT), Vector2i((i % COLS) * SHOT.x, (i / COLS) * SHOT.y))
+		sheet.blit_rect(s, Rect2i(Vector2i.ZERO, shot), Vector2i((i % cols) * shot.x, (i / cols) * shot.y))
 	sheet.save_png(out)
 	print("sheet -> ", out)
 	get_tree().quit()

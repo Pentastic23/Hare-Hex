@@ -22,6 +22,9 @@ var my_side := "home"
 var replay_id := -1
 var replaying := false   # a fight is on the board (running or just finished)
 var _rolls := -1         # last shop roll count seen (only a new roll refills the shop slots)
+var scouting := -1       # the seat whose board is on show instead of yours (scout()); -1 = your own
+var scouting_name := ""
+var _scout_timer: Timer   # asks for the scouted board again while it is on show
 var _shown_out := false
 
 func _init(game_manager):
@@ -45,6 +48,12 @@ func begin() -> void:
 	gm.rules = PlayerRules.new(me, board, gm.shared_pool, gm.roster, gm.item_roster)   # for read-only helpers (Coin Purse income)
 	gm.prep_time = int(client.prep_time)
 	gm.opponents = null
+	board.foe_level = 1   # the enemy half stays small until a fight opens the opponent's own tiles
+	board.refresh_unlocks(me.level, false)
+	_scout_timer = Timer.new()
+	_scout_timer.wait_time = 1.5
+	_scout_timer.timeout.connect(func(): if scouting >= 0: client.scout(scouting))
+	gm.add_child(_scout_timer)
 	board.apply_theme(BoardThemes.for_run(null, client.seed), client.seed)
 	gm.runner.on_finish = _on_replay_finish
 	gm.runner.gold_sink = Callable()   # gold comes from the server's state
@@ -56,6 +65,7 @@ func begin() -> void:
 	client.result_received.connect(_on_result)
 	client.rejected.connect(_on_rejected)
 	client.game_over.connect(_on_over)
+	client.board_received.connect(_on_board)
 	LobbyNet.lost.connect(_on_lost)
 	Music.play("game")
 	# Catch up with what arrived while the scene loaded.
@@ -87,6 +97,7 @@ func _on_phase(msg: Dictionary) -> void:
 		_end_replay()
 	gm.phase = p
 	gm.prep_left = float(msg.get("time", 0.0)) if p == Events.Phase.PREP else 0.0
+	gm.prep_length = gm.prep_left
 	Events.phase_changed.emit(p)
 	Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
 	if p == Events.Phase.PREP:
@@ -109,6 +120,7 @@ func _on_state(msg: Dictionary) -> void:
 		me.loss_streak = int(msg.loss)
 		Events.streak_changed.emit(me.win_streak, me.loss_streak)
 	me.free_rerolls = int(msg.get("free_rerolls", 0))
+	me.opening = bool(msg.get("opening", false))
 	me.cheap_shop = bool(msg.get("cheap", false))
 	if me.shop_locked != bool(msg.locked):
 		me.shop_locked = bool(msg.locked)
@@ -149,6 +161,8 @@ func _on_public(msg: Dictionary) -> void:
 		p.start_hp = GameState.MAX_HP
 		p.player_hp = int(e.hp)
 		p.level = int(e.level)
+		p.win_streak = int(e.get("win", 0))
+		p.loss_streak = int(e.get("loss", 0))
 		list.append(p)
 	GameState.players = list
 	Events.hp_changed.emit(GameState.me.player_hp)   # the standings redraw
@@ -165,6 +179,7 @@ func _last_fight() -> Node3D:
 	return holder
 
 func _on_fight(desc: Dictionary) -> void:
+	scout(-1)   # back to your own board for the fight
 	if replaying:
 		_end_replay()
 	for n in _last_fight().get_children():
@@ -172,6 +187,7 @@ func _on_fight(desc: Dictionary) -> void:
 	my_side = "home" if int(desc.get("home", -1)) == client.seat else "away"
 	Unit.viewer_team = 0 if my_side == "home" else 1
 	sides = Arena.setup(board, desc, gm.roster, gm.item_roster, gm.unit_scene, true)
+	_show_foe_bench(desc.get("away_bench" if my_side == "home" else "home_bench", []))
 	board.set_view_flipped(my_side == "away")
 	gm.snapshot.clear()
 	for u in sides[my_side]:
@@ -179,6 +195,9 @@ func _on_fight(desc: Dictionary) -> void:
 			gm.snapshot[u] = u.coord   # the damage meter lists your fighters
 	replay_id = int(desc.get("id", -1))
 	replaying = true
+	Arena.set_kings(gm.runner, desc)
+	for team in mini(board.kings.size(), 2):   # each side's king wears its player's skin
+		board.kings[team].set_skin(StringName(str(desc.get("home_king" if team == 0 else "away_king", ""))))
 	gm.runner.start()
 	for input in client.inputs:
 		Arena.schedule_input(gm.runner, sides, input, gm.item_roster)
@@ -220,6 +239,7 @@ func _end_replay() -> void:
 	replaying = false
 	replay_id = -1
 	sides = {}
+	_show_foe_bench([])
 	Unit.viewer_team = 0
 	board.set_view_flipped(false)
 	board.refresh_unlocks(GameState.me.level, false)
@@ -339,6 +359,90 @@ func reconcile(entries: Array, bench_only: bool) -> void:
 		board.get_node("Units").remove_child(u)
 		u.free()
 
+# The opponent's bench during a fight: display copies on the far bench (a FoeBench node, not in Units, so
+# nothing fights, drags or counts them), facing you. [] clears it.
+func _show_foe_bench(entries: Array) -> void:
+	var old := board.get_node_or_null("FoeBench")
+	if old != null:
+		board.remove_child(old)
+		old.queue_free()
+	if entries.is_empty():
+		return
+	var holder := Node3D.new()
+	holder.name = "FoeBench"
+	board.add_child(holder)
+	for e in entries:
+		var d := EnemyBoard.lookup_unit(gm.roster, str(e.get("unit", "")))
+		if d == null:
+			continue
+		var u := gm.unit_scene.instantiate() as Unit
+		holder.add_child(u)
+		u.setup(d, 1 - Unit.viewer_team)   # the other side's colours, whichever side you watch from
+		u.set_star(clampi(int(e.get("star", 1)), 1, 3))
+		u.position = board.enemy_bench_to_world(clampi(int(e.get("bench", 0)), 0, Board.BENCH_SLOTS - 1))
+		u.rotation = Vector3(0.0, PI, 0.0)   # facing the camera, like your own bench
+
+# --- scouting ------------------------------------------------------------------------------------
+
+# Shows another player's board in place of yours (click their row in the standings), or yours again
+# (seat -1 or your own; Space). Their units are display copies under a ScoutView node, so nothing can
+# drag them or drop items on them; yours stay where they are, hidden. Not during your fight.
+func scout(seat: int) -> void:
+	if seat == client.seat or seat < 0 or replaying:
+		if scouting < 0:
+			return
+		scouting = -1
+		scouting_name = ""
+		_scout_timer.stop()
+		var view := board.get_node_or_null("ScoutView")
+		if view != null:
+			board.remove_child(view)
+			view.queue_free()
+		board.get_node("Units").visible = true
+		board.refresh_unlocks(GameState.me.level, false)
+		Events.hp_changed.emit(GameState.me.player_hp)   # the standings show whose board is up
+		return
+	scouting = seat
+	client.scout(seat)
+	_scout_timer.start()
+
+# The scouted board arrived (again): rebuilt from scratch, it is only a handful of units.
+func _on_board(msg: Dictionary) -> void:
+	if int(msg.get("seat", -1)) != scouting or scouting < 0:
+		return
+	scouting_name = str(msg.get("name", ""))
+	var old := board.get_node_or_null("ScoutView")
+	if old != null:
+		board.remove_child(old)
+		old.free()
+	var view := Node3D.new()
+	view.name = "ScoutView"
+	board.add_child(view)
+	board.get_node("Units").visible = false
+	for e in msg.get("units", []):
+		var d := EnemyBoard.lookup_unit(gm.roster, str(e.get("unit", "")))
+		if d == null:
+			continue
+		var u := gm.unit_scene.instantiate() as Unit
+		view.add_child(u)
+		u.setup(d, 0)
+		u.set_star(clampi(int(e.get("star", 1)), 1, 3))
+		var its: Array[ItemData] = []
+		for id in e.get("items", []):
+			var it := EnemyBoard.lookup_item(gm.item_roster, StringName(str(id)))
+			if it != null:
+				its.append(it)
+		u.set_items(its)
+		u.health = u.max_hp()
+		if e.has("bench"):
+			u.position = board.bench_to_world(clampi(int(e.bench), 0, Board.BENCH_SLOTS - 1))
+		else:
+			var c = e.get("coord", [0, 0])
+			u.position = board.grid_to_world(Vector2i(int(c[0]), int(c[1])))
+		u.face_rest()
+	board.refresh_unlocks(int(msg.get("level", 1)), false)
+	Events.hp_changed.emit(GameState.me.player_hp)
+
 # --- your requests -------------------------------------------------------------------------------
 
 func buy(d: UnitData) -> void:
@@ -374,6 +478,8 @@ func equip(u: Unit, item: ItemData) -> bool:
 	var index := GameState.me.items.find(item)
 	if u == null or index == -1:
 		return false
+	if u.get_parent() != board.get_node("Units"):
+		return false   # a scouted player's unit
 	var uid := u.uid
 	if u.source_uid >= 0:
 		if u.source_seat != client.seat:

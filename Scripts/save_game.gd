@@ -10,7 +10,9 @@ class_name SaveGame extends RefCounted
 #     "completed_levels": { "<level id>": { "best_hp": int, "times": int, "first_completed": unix } },
 #     "unlocks": [ "<id>", ... ],
 #     "chapter_run": {} or the carried state at the start of the next level (see GameManager.make_carry),
-#     "team_plan": [ "<unit display name>", ... ] }
+#     "team_plan": [ "<unit display name>", ... ],
+#     "team_comps": [ { "name": str, "units": [ "<unit display name>", ... ] }, ... ],   (saved plans, the planner's Comps)
+#     "king": "<king skin id>" }   (the chosen king; "" = not picked yet)
 # Version 1 files (no chapter_run) and files without team_plan load fine.
 #
 # Mid-level saves: while a chapter level is being played, chapter_run is rewritten at the start of every
@@ -39,7 +41,7 @@ static func data() -> Dictionary:
 	return _data
 
 static func _defaults() -> Dictionary:
-	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}, "team_plan": []}
+	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}, "team_plan": [], "team_comps": [], "king": ""}
 
 static func load_game() -> void:
 	_data = _defaults()
@@ -87,6 +89,12 @@ static func _migrate(d: Dictionary) -> Dictionary:
 		for n in plan:
 			if not out.team_plan.has(str(n)):
 				out.team_plan.append(str(n))
+	var comps = d.get("team_comps", [])
+	if comps is Array:
+		for c in comps:
+			if c is Dictionary and c.get("units") is Array:
+				out.team_comps.append({"name": str(c.get("name", "Comp")), "units": (c.units as Array).map(func(n): return str(n))})
+	out.king = str(d.get("king", ""))
 	return out
 
 # Writes to a temp file first, then swaps it in, so a crash mid-write can't destroy the save.
@@ -133,12 +141,45 @@ static func add_unlock(id: StringName, write := true) -> void:
 			save_game()
 
 # Team planner: display names of the units the player is aiming for.
+# The chosen king skin (KingSkins): "" until the player has picked one (the menu then asks).
+static func king_skin() -> String:
+	return data().king
+
+static func set_king_skin(id: String) -> void:
+	data().king = id
+	save_game()
+
 static func team_plan() -> Array:
 	return data().team_plan
 
 static func set_team_plan(names: Array) -> void:
 	data().team_plan = names.duplicate()
 	save_game()
+
+# Saved team comps (the planner's Comps row): [{name, units}], at most MAX_COMPS; the newest last.
+const MAX_COMPS := 8
+static func team_comps() -> Array:
+	return data().team_comps
+
+# Saves `units` as a comp called `comp_name` (one with that name is replaced). Returns its index.
+static func save_comp(comp_name: String, units: Array) -> int:
+	var comps: Array = data().team_comps
+	for i in comps.size():
+		if comps[i].name == comp_name:
+			comps[i].units = units.duplicate()
+			save_game()
+			return i
+	if comps.size() >= MAX_COMPS:
+		comps.pop_front()
+	comps.append({"name": comp_name, "units": units.duplicate()})
+	save_game()
+	return comps.size() - 1
+
+static func delete_comp(i: int) -> void:
+	var comps: Array = data().team_comps
+	if i >= 0 and i < comps.size():
+		comps.remove_at(i)
+		save_game()
 
 # The chapter run in progress: what the player carries into level `level`. Empty = none.
 static func chapter_run() -> Dictionary:
@@ -171,7 +212,11 @@ static func clear_chapter_run() -> void:
 # Wipes progress (for a future "reset progress" button, and tests).
 static func reset_progress() -> void:
 	var plan: Array = data().team_plan   # the team plan is a preference, not progress: keep it
+	var king: String = data().king   # so is the chosen king
+	var comps: Array = data().team_comps   # and the saved comps
 	_data = _defaults()
 	_data.team_plan = plan
+	_data.team_comps = comps
+	_data.king = king
 	_loaded = true
 	save_game()

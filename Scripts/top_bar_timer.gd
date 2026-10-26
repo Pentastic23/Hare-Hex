@@ -3,13 +3,15 @@ extends HBoxContainer
 
 # The timer half of the top bar (top_bar.gd): "PREP 0:12" counting down gm.prep_left of gm.prep_time,
 # "COMBAT 0:48" counting down to the 60 s fight limit (reaching it counts as a loss). Gold in prep, red
-# for the last 5 s of prep and the last 10 s of a fight; "--" in a very long prep (the tutorial's).
+# for the last 5 s of prep and the last 10 s of a fight; "--" in a very long prep (the tutorial's). In async
+# PvP's untimed prep (gm.manual_start) a gold START FIGHT button takes the clock's place.
 # The top bar draws the progress track from `ratio` and `color` and its edge from `edge_color`.
 
-const UNTIMED_PREP := 300.0   # prep_time at or above this is treated as "no timer"
+const UNTIMED_PREP := 300.0   # a prep this long or longer is treated as "no timer"
 
 var phase_label: Label
 var time_label: Label
+var start_button: Button       # async PvP: ends the prep (GameManager.end_prep_early)
 var active := false            # false outside prep and combat, or once the run is over
 var ratio := 1.0               # time left / phase length
 var color := HudStyle.GOLD
@@ -27,12 +29,26 @@ func _ready():
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	time_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	add_child(time_label)
+	start_button = DockKit.primary_button("START FIGHT")
+	start_button.name = "StartFight"
+	start_button.custom_minimum_size = Vector2(112, 26)
+	start_button.focus_mode = Control.FOCUS_NONE
+	start_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	start_button.add_theme_font_size_override("font_size", 12)
+	start_button.tooltip_text = Tip.wrap("No timer in async PvP: the fight starts when you're ready.")
+	start_button.visible = false
+	start_button.pressed.connect(func():
+		var gm = get_tree().get_first_node_in_group("game_manager")
+		if gm != null:
+			gm.end_prep_early())
+	add_child(start_button)
 
 func _process(_delta):
 	var gm = get_tree().get_first_node_in_group("game_manager")
 	var phase := ""
 	var time := ""
 	var urgent := false
+	var can_start := false
 	ratio = 1.0
 	if gm == null or gm.game_over:
 		pass
@@ -44,16 +60,20 @@ func _process(_delta):
 		urgent = left <= 10.0
 	elif gm.phase == Events.Phase.PREP:
 		phase = "PREP"
-		if gm.prep_time >= UNTIMED_PREP:
+		var length: float = gm.prep_length if gm.prep_length > 0.0 else float(gm.prep_time)
+		if length >= UNTIMED_PREP:
 			time = "--"
+			can_start = gm.manual_start
 		else:
 			time = clock(gm.prep_left)
-			ratio = gm.prep_left / maxf(float(gm.prep_time), 0.01)
+			ratio = gm.prep_left / maxf(length, 0.01)
 			urgent = gm.prep_left <= 5.0
 	active = phase != ""
 	visible = active
 	color = HudStyle.RED if urgent else (HudStyle.GOLD if phase == "PREP" else HudStyle.INK)
 	edge_color = HudStyle.EDGE_RED if urgent else (HudStyle.EDGE_GOLD if phase == "PREP" else HudStyle.EDGE)
+	start_button.visible = can_start
+	time_label.visible = not can_start
 	var state := "%s|%s|%s" % [phase, time, urgent]
 	if state == _shown:
 		return

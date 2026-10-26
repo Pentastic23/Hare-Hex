@@ -184,6 +184,8 @@ func _ui_root() -> Node:
 # An item's tooltip: name, what it does, and (for elements) what it resonates with.
 func item_tip(item: ItemData) -> String:
 	var lines: PackedStringArray = [item.display_name, item.description]
+	if item.best_on() != "":
+		lines.append("Best on " + item.best_on() + ".")
 	if item.element != &"":
 		lines.append("%s. With another element on the same unit:" % String(item.element))
 		for e in Resonance.ELEMENTS:

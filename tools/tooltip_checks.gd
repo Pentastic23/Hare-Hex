@@ -63,6 +63,7 @@ func frames(n := 3):
 func _run():
 	SaveGame.path = "user://tooltip_test_save.json"
 	SaveGame.reset_progress()
+	SaveGame.set_king_skin("lion")   # a king picked, so the menu doesn't open the King screen first
 	Settings.path = "user://tooltip_test_settings.cfg"
 	Settings._loaded = true
 	LocalSnapshotStore.root = "user://tooltip_test_snapshots"

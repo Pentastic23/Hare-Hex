@@ -65,8 +65,8 @@ func _run():
 	chk("the board has two kings, player's first", board.kings.size() == 2 and board.kings[0].team == 0 and board.kings[1].team == 1)
 	chk("king_of(team) finds them", board.king_of(0) == board.kings[0] and board.king_of(1) == board.kings[1] and board.king_of(2) == null)
 	chk("both are in the 'kings' group, under the board's Kings node", get_tree().get_nodes_in_group("kings").size() == 2 and board.kings[0].get_parent() == board.get_node("Kings"))
-	chk("each has a placeholder cylinder", board.kings.all(func(k): return k.body != null and k.body.mesh is CylinderMesh))
-	chk("in the team colours (your blue, the enemy's orange)", (board.kings[0].body.material_override as StandardMaterial3D).albedo_color == Unit.RING_COLORS[0] and (board.kings[1].body.material_override as StandardMaterial3D).albedo_color == Unit.RING_COLORS[1])
+	chk("each stands as its skin's voxel model (the Golden Lion)", board.kings.all(func(k): return k.body != null and k.body.mesh != null and k.body.mesh.resource_path.ends_with("/kings/lion.res")))
+	chk("the enemy's in darker rival colours, each with an outline in its team colour", board.kings[0].body.material_override == null and board.kings[1].body.material_override != null and board.kings[0]._mats[0].albedo_color == Unit.RING_COLORS[0] and board.kings[1]._mats[0].albedo_color == Unit.RING_COLORS[1])
 	chk("the hex under each is dressed like a board tile (the biome's voxel tile)", board.kings.all(func(k): return (k.get_node("MeshInstance3D") as MeshInstance3D).mesh.resource_path.contains("/base_")))
 
 	print("--- not units")
@@ -157,6 +157,71 @@ func _run():
 	var after: Mesh = (board.kings[0].get_node("MeshInstance3D") as MeshInstance3D).mesh
 	chk("changing the board theme re-skins the king hexes too", after != null and after != before)
 
+
+	print("--- what kings do in a fight")
+	await load_main()
+	var runner: CombatRunner = gm.runner
+	GameState.me.level = 4
+	board.refresh_unlocks(4, false)
+	var mine: Array[Unit] = []
+	var theirs: Array[Unit] = []
+	for i in 3:
+		mine.append(_unit("guardian", board.player_order[i], 0))
+		theirs.append(_unit("guardian", board.enemy_order[i], 1))
+	runner.king_skins = [KingSkins.DEFAULT, &""]
+	runner.king_levels = [4, 4]
+	runner.king_seed = 99
+	runner.start()
+	var before_mine := mine.map(func(u): return u.health + u.shield)
+	var before_theirs := theirs.map(func(u): return u.health + u.shield)
+	runner.ticks = CombatRunner.KING_PERIOD - 1
+	runner._kings_act()
+	var hit_theirs := 0
+	var lost_theirs := 0.0
+	for i in 3:
+		var d: float = before_theirs[i] - (theirs[i].health + theirs[i].shield)
+		if d > 0.01:
+			hit_theirs += 1
+			lost_theirs = d
+	chk("your king strikes one random enemy unit for 30 + 10 per level (70 at level 4, before armour)", hit_theirs == 1 and lost_theirs > 0.0 and lost_theirs <= 70.0, "%d hit for %.1f" % [hit_theirs, lost_theirs])
+	var shielded := mine.filter(func(u): return u.ab_shield > 0.0)
+	chk("the Golden Lion shields one random ally: 35% of its max HP", shielded.size() == 1 and is_equal_approx(shielded[0].ab_shield, shielded[0].max_hp() * KingSkins.SHIELD_SHARE))
+	chk("the enemy king strikes too, but has no skin effect (no shields on its side)", theirs.all(func(u): return u.ab_shield == 0.0))
+	var hidden := theirs.filter(func(u): return not u.dead)
+	for u in hidden:
+		u.untargetable_left = 5.0
+	var hp_hidden := hidden.map(func(u): return u.health)
+	runner._kings_act()
+	chk("a hidden unit can't be struck", hidden.map(func(u): return u.health) == hp_hidden)
+	runner.stop()
+
+	print("--- kings keep fights deterministic")
+	var sigs: PackedStringArray = []
+	for run in 2:
+		await load_main()
+		GameState.next_seed = 5
+		GameState.me.level = 6
+		board.refresh_unlocks(6, false)
+		for i in 4:
+			_unit(["knight", "archer", "mage", "cleric"][i], board.player_order[i], 0)
+			_unit(["thief", "guardian", "hunter", "berserker"][i], board.enemy_order[i], 1)
+		gm.runner.king_skins = [KingSkins.DEFAULT, &""]
+		gm.runner.king_levels = [6, 6]
+		gm.runner.king_seed = 1234
+		gm.runner.start()
+		while gm.runner.fighting and gm.runner.ticks < 2400:
+			gm.runner.tick()
+		var parts: PackedStringArray = ["ticks=%d" % gm.runner.ticks]
+		for u in gm.runner.combatants:
+			if is_instance_valid(u):
+				parts.append("%s%d hp=%.2f sh=%.2f" % [u.data.display_name, u.team, u.health, u.shield])
+		sigs.append(" | ".join(parts))
+		gm.runner.stop()
+	chk("the same fight with kings twice gives the same result", sigs[0] == sigs[1], sigs[0].left(120))
+	var desc := {"id": 7, "round": 3, "home_level": 5, "away_level": 2, "home_king": "lion", "away_king": "nope"}
+	var r := CombatRunner.new()
+	Arena.set_kings(r, desc)
+	chk("a lobby fight description sets both kings (unknown skins become none)", r.king_skins == [&"lion", &""] and r.king_levels == [5, 2] and r.king_seed == hash([7, 3]))
 	main.queue_free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
@@ -165,3 +230,13 @@ func _run():
 
 func _ready():
 	_run.call_deferred()
+
+# A unit of `team` on a tile, ready to fight (no synergies).
+func _unit(n: String, c: Vector2i, team: int) -> Unit:
+	var p := "res://tres/units/%s.tres" % n
+	var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
+	board.get_node("Units").add_child(u)
+	u.setup(load(p if ResourceLoader.exists(p) else "res://tres/%s.tres" % n), team)
+	board.put_enemy_on_tile(u, c)
+	u.begin_combat()
+	return u

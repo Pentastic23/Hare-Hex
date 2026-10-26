@@ -147,7 +147,16 @@ func _run():
 	print("--- campaign run: level 1")
 	await start(l1)
 	chk("level modifiers: start gold 4, level 1, hp 100", GameState.me.gold == 4 and GameState.me.level == 1 and GameState.me.player_hp == 100, "gold %d" % GameState.me.gold)
-	chk("campaign loss damage from the level (6 + stars)", GameState.damage_for_loss(4) == 7)
+	chk("campaign loss damage: the level's base (6) + 1 per enemy unit standing", GameState.damage_for_loss(4) == 10 and GameState.damage_for_loss(0) == 6)
+	var lvl_saved := GameState.run_level
+	GameState.run_level = null   # free play: the stage table
+	var table_ok := GameState.stage_damage(1) == 0 and GameState.stage_damage(2) == 2 and GameState.stage_damage(3) == 6 and GameState.stage_damage(4) == 7 and GameState.stage_damage(5) == 10 and GameState.stage_damage(6) == 12 and GameState.stage_damage(7) == 17 and GameState.stage_damage(8) == 150
+	var r_saved := GameState.round_number
+	GameState.round_number = 10   # stage 3
+	var fp_ok := GameState.damage_for_loss(3) == 9 and GameState.damage_for_loss(0) == 6
+	GameState.round_number = r_saved
+	GameState.run_level = lvl_saved
+	chk("free play loss damage: the stage's base (0 2 6 7 10 12 17, 150 later) + 1 per survivor; a wipe costs the base", table_ok and fp_ok)
 	chk("campaign rounds = waves", GameState.total_rounds() == 5)
 	var music_first: String = Music.current
 	GameState.round_number = 5
@@ -188,13 +197,17 @@ Knight *", tip.replace("
 	chk("too many units: fills open tiles, skips the rest", spawned.size() == 2 and spawned.all(func(u): return board.is_unlocked(u.coord) and not board.is_player_side(u.coord)), str(spawned.map(func(u): return u.coord)))
 	clear_enemies()
 
-	# Final wave lost -> defeat, not saved.
+	# Final wave lost with HP left -> it comes again (same round); lost at 0 HP -> defeat, not saved.
 	var lost := [false]
 	Events.run_lost.connect(func(): lost[0] = true, CONNECT_ONE_SHOT)
 	GameState.round_number = 5
 	gm.fighting = true
 	gm._end_combat(false, 0)
-	chk("losing the final wave is a defeat", lost[0] and gm.game_over and not SaveGame.is_level_complete(&"ch1_l1"))
+	chk("losing the final wave with HP left: it comes again next round (no defeat, no new drop)", not lost[0] and not gm.game_over and gm.phase == Events.Phase.PREP and GameState.round_number == 5)
+	GameState.me.player_hp = 1
+	gm._enter(Events.Phase.COMBAT)
+	gm._end_combat(false, 3)
+	chk("losing it again at 0 HP is a defeat", lost[0] and gm.game_over and not SaveGame.is_level_complete(&"ch1_l1"))
 	var es = main.get_node("UI/End Screen")
 	chk("end screen: DEFEAT + Restart chapter", es.visible and es.title.text == "DEFEAT" and es.restart_button.text == "Restart chapter" and es.restart_button.visible and not es.next_button.visible)
 
@@ -263,6 +276,7 @@ Knight *", tip.replace("
 	chk("carried run: round-1 shop is not limited to 1-cost", not GameState.me.cheap_shop)
 
 	GameState.round_number = 6
+	GameState.me.player_hp = 1   # a defeat: out of HP (a lost final wave with HP left comes again)
 	gm.fighting = true
 	gm._end_combat(false, 0)
 	es = main.get_node("UI/End Screen")
@@ -335,6 +349,9 @@ Wave 1/6: Scouts"), tip2.replace("
 	var tile0: Tile = board.tiles[Vector2i(3, 4)]
 	var tile_mesh := (tile0.get_node("MeshInstance3D") as MeshInstance3D).mesh
 	chk("a level dresses the board in its biome (Throne of Cinders: volcano)", board.theme == &"volcano" and tile_mesh != null and tile_mesh.resource_path.contains("/volcano/base_"))
+	var run_env := (board.get_parent().get_node("WorldEnvironment") as WorldEnvironment).environment
+	var run_sun := board.get_parent().get_node("DirectionalLight3D") as DirectionalLight3D
+	chk("and lights the run for it: the volcano's sun, ambient light and haze", run_env != null and run_sun.light_color.is_equal_approx(Color(BoardThemes.LIGHT[&"volcano"].sun)) and run_env.fog_light_color.is_equal_approx(Color(BoardThemes.LIGHT[&"volcano"].fog)))
 	var bench_mesh := (board._bench_tiles[0].get_node("MeshInstance3D") as MeshInstance3D).mesh
 	var sell_mesh := (board._sell_tile.get_node("MeshInstance3D") as MeshInstance3D).mesh
 	chk("the playable board is plain tiles; the bench and sell hex have their own", tile_mesh.resource_path.get_file().begins_with("base_") and bench_mesh.resource_path.ends_with("/volcano/bench.res") and sell_mesh.resource_path.ends_with("/volcano/sell.res"))
@@ -342,7 +359,13 @@ Wave 1/6: Scouts"), tip2.replace("
 	for i in Board.BENCH_SLOTS + 1:
 		row_x += board.bench_to_world(i).x
 	var board_mid := sqrt(3.0) * ((Board.COLS - 1) / 2.0 + 0.25)
-	chk("the bench and the sell hex are centred under the board", absf(row_x / (Board.BENCH_SLOTS + 1) - board_mid) < 0.01)
+	var on_grid := true   # both benches on the hex grid the board and the scenery use, so their hexes fit edge to edge
+	for i in Board.BENCH_SLOTS + 1:
+		for b: Vector3 in [board.bench_to_world(i), board.enemy_bench_to_world(mini(i, Board.BENCH_SLOTS - 1))]:
+			var row := roundi(b.z / 1.5)
+			var col := b.x / sqrt(3.0) - 0.5 * (row & 1)
+			on_grid = on_grid and is_equal_approx(b.z, row * 1.5) and absf(col - roundf(col)) < 0.001
+	chk("the bench and the sell hex sit under the middle of the board, both benches on the hex grid", absf(row_x / (Board.BENCH_SLOTS + 1) - board_mid) <= sqrt(3.0) * 0.25 + 0.01 and on_grid)
 	chk("the enemy has a bench across the board, in the same biome", board._enemy_bench_tiles.size() == Board.BENCH_SLOTS and (board._enemy_bench_tiles[0].get_node("MeshInstance3D") as MeshInstance3D).mesh.resource_path.ends_with("/volcano/bench.res") and board.enemy_bench_to_world(0).z < 0.0)
 	var cells: Dictionary = board.backdrop_cells
 	var on_board := 0

@@ -24,3 +24,4 @@ signal item_drag_ended
 signal shop_lock_changed(locked: bool)
 signal team_plan_changed              # SaveGame team plan edited in the team planner
 signal opponent_announced(text: String)   # who the coming fight is against (async PvP); "" = nothing to show
+signal notice(text: String, color: Color)   # a short message flashed over the board (fight results, BOARD FULL)

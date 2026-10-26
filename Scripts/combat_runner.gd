@@ -27,6 +27,17 @@ var on_finish: Callable
 var gold_sink: Callable
 var _inputs := {}   # tick -> Array[Callable]: actions applied at the start of that tick (lobby item drops)
 
+# The kings (king_skins.gd): every KING_PERIOD ticks each side's king strikes a random enemy unit
+# (KING_DAMAGE + KING_DAMAGE_PER_LEVEL x its level), then its skin's effect runs. Set before start();
+# the picks come from an RNG seeded with king_seed, so every copy of a fight picks the same.
+const KING_PERIOD := 600            # 10 s
+const KING_DAMAGE := 30
+const KING_DAMAGE_PER_LEVEL := 10
+var king_skins: Array = [&"", &""]  # per team: a KingSkins id, or "" for no skin effect
+var king_levels: Array = [1, 1]     # per team: the player level the strike scales with
+var king_seed := 0
+var _king_rng := RandomNumberGenerator.new()
+
 func _init(b: Board = null):
 	board = b
 	if b != null:
@@ -39,6 +50,7 @@ func start() -> void:
 	zones.clear()
 	ticks = 0
 	time = 0.0
+	_king_rng.seed = hash(["kings", king_seed])
 	fighting = true
 
 # Fixed acting order for a fight: each side sorted by tile (row, then column), then interleaved
@@ -78,6 +90,8 @@ func tick() -> void:
 			fn.call()
 		_inputs.erase(ticks)
 	_tick_zones()
+	if ticks % KING_PERIOD == 0:
+		_kings_act()
 	for u in combatants:
 		if is_instance_valid(u) and not u.dead and u.coord.x >= 0:
 			u.combat_step(TICK)
@@ -160,3 +174,40 @@ func _tick_zones() -> void:
 				if is_instance_valid(u) and not u.dead and u.coord.x >= 0 and u.team != z.team and u.health < u.max_hp() * 0.5:
 					u.apply_stun(1.5)
 	zones = zones.filter(func(z): return z.left > 0.0001)   # (float steps: 240 ticks of 1/60 leave a crumb)
+
+# --- the kings ---------------------------------------------------------------------------------------
+
+# Both kings act, your side first: a strike on a random targetable enemy unit, then the skin's effect.
+func _kings_act() -> void:
+	for team in 2:
+		var foes := alive_units(1 - team, true)
+		if not foes.is_empty():
+			var t: Unit = foes[_king_rng.randi_range(0, foes.size() - 1)]
+			var lvl: int = king_levels[team]
+			t.take_damage(KING_DAMAGE + KING_DAMAGE_PER_LEVEL * lvl, null)
+			king_fx(team, t, false)
+		var skin: StringName = king_skins[team]
+		if skin != &"":
+			KingSkins.act(skin, self, team, _king_rng)
+
+# The living units of a team in the fight's acting order; `targetable`: without the hidden ones.
+func alive_units(team: int, targetable: bool) -> Array[Unit]:
+	var out: Array[Unit] = []
+	for u in combatants:
+		if is_instance_valid(u) and not u.dead and u.coord.x >= 0 and u.team == team and not (targetable and u.untargetable_left > 0.0):
+			out.append(u)
+	return out
+
+# The look of a king acting (visual only): a golden bolt from the king to the unit it strikes, or a
+# golden burst on the ally it helps.
+func king_fx(team: int, u: Unit, helps: bool) -> void:
+	if not Vfx.enabled or board == null or board.kings.size() <= team or not is_instance_valid(board.kings[team]):
+		return
+	var k: Node3D = board.kings[team]
+	if helps:
+		Vfx.ring(u, u.global_position + Vector3(0, 0.08, 0), 0.4, 1.1, Color("ffd46b"), 0.5)
+		Vfx.burst(u, u.global_position + Vector3(0, 1.0, 0), Color("ffe9a0"), 8, 0.6)
+	else:
+		Vfx.projectile(k, k.global_position + Vector3(0, 1.6, 0), u.global_position + Vector3(0, 1.0, 0), Color("ffd46b"))
+	if k.has_method("act"):
+		k.act()

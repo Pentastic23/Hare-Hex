@@ -251,6 +251,14 @@ class Driver extends Node:
 		srv.receive(5, {"t": "start", "seed": 31337})
 		chk("with a bot it starts", srv.phase == LobbyProtocol.PHASE_PREP and srv.round_number == 1)
 		var me: LobbyServer.Seat = srv.seats[0]
+		# round 1 is the opening (rules_checks covers it): clear its free unit and open the shop, as in round 2
+		me.player.opening = false
+		for fu in me.board.all_player_units():
+			me.board.detach(fu)
+			srv.pool.give_back(fu.data)
+			fu.free()
+		me.rules.roll_shop()
+		srv.send_seat(me, srv.state_of(me))
 		var last_state := func() -> Dictionary:
 			for i in range(inbox.size() - 1, -1, -1):
 				if inbox[i].t == "state":
@@ -302,6 +310,7 @@ class Driver extends Node:
 		var srv: LobbyServer = LobbyNet.server
 		srv.prep_time = 1.5
 		srv.result_time = 0.5
+		srv.opening_time = 0.5
 		var ok := await until(func(): return scene() != null and scene().name == "Main" and scene().get_node("Game Manager").lobby != null and not LobbyNet.client.state.is_empty(), 600)
 		chk("Play vs bots: straight into the game scene in lobby mode", ok and srv.seats.size() == 8 and srv.phase != LobbyProtocol.PHASE_LOBBY)
 		if not ok:
@@ -313,8 +322,11 @@ class Driver extends Node:
 		chk("eight players in the standings (you and seven bots)", GameState.players.size() == 8 and GameState.players.filter(func(p): return not p.is_local).all(func(p): return p.display_name != ""))
 		chk("your shop shows the server's offers", GameState.me.shop_offers.size() == srv.seats[c.seat].player.shop_offers.size() and GameState.me.gold == srv.seats[c.seat].player.gold)
 		# buy through the HUD's own signal, as a shop slot does
-		await until(func(): return gm.phase == Events.Phase.PREP)
+		await until(func(): return gm.phase == Events.Phase.PREP and not GameState.me.opening and not GameState.me.shop_offers.is_empty(), 3000)   # past the opening (round 1: the shop is shut)
 		var mine: LobbyServer.Seat = srv.seats[c.seat]
+		if GameState.me.shop_offers.is_empty():
+			chk("a shop with offers after the opening", false)
+			return
 		var offer: UnitData = GameState.me.shop_offers[0]
 		var before: int = mine.board.all_player_units().size()
 		mine.player.gold = maxi(mine.player.gold, 20)

@@ -50,6 +50,20 @@ class Driver extends Node:
 		SaveGame.path = "user://menu_test_save.json"
 		SaveGame.reset_progress()
 		Settings.path = "user://menu_test_settings.cfg"
+		SaveGame.set_king_skin("")   # a first launch: no king picked yet
+		await to_menu()
+		var kp = scene().king_panel
+		chk("the first time, the menu opens on the main screen, not the King screen", not kp.get_parent().visible and find_button(scene(), "Free Play") != null)
+		var kb: Button = find_button(scene(), "King")
+		chk("King sits on the bottom row with Settings, Credits and Quit", kb != null and kb.get_parent() == find_button(scene(), "Settings").get_parent())
+		press("King")
+		await get_tree().process_frame
+		chk("King opens its own screen", kp.get_parent().visible and find_button(scene(), "Free Play") == null)
+		chk("it lists the Golden Lion as your king, with its effect", labels(scene()).has("Golden Lion") and labels(scene()).has("Your king") and find_button(scene(), "Choose") == null)
+		press("Back")
+		await get_tree().process_frame
+		chk("Back returns to the menu", not kp.get_parent().visible and find_button(scene(), "Free Play") != null)
+		SaveGame.reset_progress()
 		var l1: CampaignLevel = load("res://tres/campaign/levels/ch1_l1.tres")
 		var l2: CampaignLevel = load("res://tres/campaign/levels/ch1_l2.tres")
 

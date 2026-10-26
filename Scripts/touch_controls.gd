@@ -7,8 +7,9 @@ extends Node
 # This adds what a mouse has and a finger doesn't:
 #   - Tap a unit: open the unit inspector (a right-click); tap empty ground: close it.
 #   - Long press (0.45 s) on a unit: the same. Long press on anything in the HUD with a tooltip: shows
-#     the tooltip in a box above the finger until the finger lifts, without pressing the button under it
-#     (so a long press on a shop card reads it instead of buying it).
+#     the tooltip in a box above the finger, without pressing the button under it (so a long press on a
+#     shop card reads it instead of buying it). The tooltip stays up after the finger lifts; the next
+#     touch anywhere only closes it (it presses nothing), so tooltips toggle rather than need holding.
 #   - Two fingers: pinch to zoom, move both to pan. A second finger cancels a unit or item drag.
 #   - Android back button: acts like Esc (closes the planner, opens / closes the menu).
 # Mouse and keyboard play is unchanged: only InputEventScreenTouch / ScreenDrag are read here.
@@ -33,6 +34,7 @@ var _tip_layer: CanvasLayer
 var _tip: PanelContainer
 var _tip_label: Label
 var _swallow := false        # a tooltip is up: the finger's mouse events must not reach the HUD
+var _eat_touch := false      # this touch only closes the tooltip: none of its mouse events reach the game
 
 func _ready():
 	process_mode = Node.PROCESS_MODE_ALWAYS   # the pause menu works by touch too
@@ -67,9 +69,20 @@ func _notification(what):
 
 func _input(event):
 	if event is InputEventScreenTouch:
+		var eating: bool = _eat_touch or (event.pressed and _tip.visible)
 		_on_touch(event)
+		if eating:
+			get_viewport().set_input_as_handled()   # the touch that closes a tooltip reaches nothing else either
 	elif event is InputEventScreenDrag:
 		_on_drag(event)
+	elif event is InputEventMouseButton and event.pressed and _tip.visible and not _swallow:
+		# a finger touching down while a tooltip is up (Godot sends the emulated click before the touch itself):
+		# this touch only closes the tooltip
+		_tip.visible = false
+		_eat_touch = true
+		get_viewport().set_input_as_handled()
+	elif _eat_touch and event is InputEventMouse and event.position.x > FAR.x / 2.0:
+		get_viewport().set_input_as_handled()   # the rest of that touch: nothing under it is pressed
 	elif _swallow and event is InputEventMouse and not (event is InputEventMouseButton and event.pressed) and event.position.x > FAR.x / 2.0:
 		get_viewport().set_input_as_handled()   # the finger reading a tooltip moves or lifts: the HUD never sees it (our own moves off-screen go through)
 
@@ -84,6 +97,11 @@ func _process(delta):
 func _on_touch(e: InputEventScreenTouch):
 	if e.pressed:
 		touches[e.index] = e.position
+		if touches.size() == 1 and _tip.visible:   # (no emulated click came first) this touch only closes it
+			_tip.visible = false
+			_eat_touch = true
+		if _eat_touch:
+			return
 		if touches.size() == 1 and not _multi:
 			_single = true
 			_long_fired = false
@@ -94,6 +112,10 @@ func _on_touch(e: InputEventScreenTouch):
 			_begin_multi()
 		return
 	touches.erase(e.index)
+	if _eat_touch:
+		if touches.is_empty():
+			_eat_touch = false   # its mouse release came (and was eaten) before this
+		return
 	if _single and touches.is_empty():
 		var quick := Time.get_ticks_msec() / 1000.0 - _start_time < TAP_TIME
 		if not _long_fired and quick and e.position.distance_to(_start_pos) <= SLOP:
@@ -101,7 +123,7 @@ func _on_touch(e: InputEventScreenTouch):
 	if touches.is_empty():
 		_single = false
 		_multi = false
-		_end_tooltip()
+		_release_held()   # a tooltip opened by this touch stays up until the next touch
 	elif touches.size() == 1:
 		_mid = touches.values()[0]   # one finger left: keep panning from it without a jump
 
@@ -196,6 +218,10 @@ func _end_tooltip():
 	if not _swallow and not _tip.visible:
 		return
 	_tip.visible = false
+	_release_held()
+
+# The finger that opened a tooltip lifted: release the emulated button away from everything.
+func _release_held():
 	if _swallow:
 		_swallow = false
 		var up := InputEventMouseButton.new()   # release the emulated button away from everything

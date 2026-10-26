@@ -47,7 +47,7 @@ grow_vertical = 0
 mouse_filter = 2
 script = ExtResource("9_cgfq5")
 
-[node name="OddsLabel" type="Label" parent="BottomInfo" unique_id=2112330561]
+[node name="OddsLabel" type="HBoxContainer" parent="BottomInfo" unique_id=2112330561]
 layout_mode = 2
 script = ExtResource("7_p7vwb")
 

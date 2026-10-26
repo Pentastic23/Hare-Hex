@@ -2,21 +2,20 @@
 class_name King extends Node3D
 
 # Each side's king (Board.kings, index = team): one extra hex just left of that side's part of the
-# board, with a placeholder cylinder standing on it. The board keeps it at the left edge of the open
+# board, with the king standing on it (its skin's voxel model, KingSkins; the enemy's in darker colours). The board keeps it at the left edge of the open
 # tiles and slides it outwards as the board grows (Board.king_spot / _place_kings).
 #
-# It is NOT a Unit on purpose, so for now it stays out of everything units take part in: no tile,
-# bench slot, targeting, merging, team size, selling, dragging or inspecting. It is locked to its hex
-# (`locked`): nothing can pick it up, sell it or take it off the board. Its mechanics (health, what
-# happens when it falls, abilities...) come later; this node is where they hook in.
+# It is NOT a Unit on purpose: no tile, bench slot, targeting, merging, team size, selling, dragging or
+# inspecting, and it can't be hurt. It is locked to its hex (`locked`). What it does in a fight (a
+# strike every 10 s, plus its skin's effect) is CombatRunner._kings_act, which works without this node
+# (the lobby server's boards have none); this is only how it looks, and act() is its little hop.
 
-const RADIUS := 0.38     # of the placeholder cylinder
-const HEIGHT := 1.5
 const SLIDE := 0.4       # seconds to slide to a new spot when the board grows
 
 var team := 0            # 0 you, 1 the enemy
 var locked := true       # fixed to its hex: never dragged, sold, benched or removed
-var body: MeshInstance3D # the placeholder cylinder
+var body: MeshInstance3D # the king itself (its skin's model)
+var skin: StringName = KingSkins.DEFAULT
 var _tween: Tween
 var _mats: Array[StandardMaterial3D] = []   # body and outline, recoloured by recolour()
 
@@ -33,18 +32,10 @@ func setup(t: int) -> void:
 	_outline(colour)
 	body = MeshInstance3D.new()
 	body.name = "Body"
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = RADIUS
-	cyl.bottom_radius = RADIUS
-	cyl.height = HEIGHT
-	body.mesh = cyl
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = colour
-	mat.roughness = 0.7
-	body.material_override = mat
-	_mats.append(mat)
-	body.position.y = HEIGHT / 2.0 + 0.02
+	body.position.y = 0.01
+	body.rotation.y = PI if t == 1 else 0.0   # faces the other side, like the units
 	add_child(body)
+	set_skin(KingSkins.DEFAULT)
 
 # A thin glowing outline round the hex in the team colour, so you can tell the two kings apart.
 func _outline(colour: Color) -> void:
@@ -90,3 +81,26 @@ func recolour() -> void:
 		m.albedo_color = colour
 		if m.emission_enabled:
 			m.emission = colour
+	if body != null:
+		body.material_override = _rival_mat() if team != Unit.viewer_team else null
+
+# Dresses the king in a skin (KingSkins). The other side's wears it in darker, rival colours.
+func set_skin(id: StringName) -> void:
+	skin = id if KingSkins.has(id) else KingSkins.DEFAULT
+	body.mesh = KingSkins.model(skin)
+	body.material_override = _rival_mat() if team != Unit.viewer_team else null
+
+static var _rival: StandardMaterial3D
+static func _rival_mat() -> StandardMaterial3D:
+	if _rival == null:
+		_rival = (VoxelTiles.SOLID as StandardMaterial3D).duplicate()
+		_rival.albedo_color = Color(0.62, 0.42, 0.42)   # a darker, redder king across the board
+	return _rival
+
+# A little hop when it strikes or helps (visual only; Reduce motion: none).
+func act() -> void:
+	if Settings.reduce_motion or not is_inside_tree():
+		return
+	var t := create_tween()
+	t.tween_property(body, "position:y", 0.35, 0.12).set_ease(Tween.EASE_OUT)
+	t.tween_property(body, "position:y", 0.01, 0.18).set_ease(Tween.EASE_IN)

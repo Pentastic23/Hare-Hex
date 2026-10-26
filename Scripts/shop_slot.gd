@@ -4,8 +4,10 @@ class_name ShopSlot extends Button
 # One unit card in the shop bar (shop_panel.gd), in the style of the shop mockup in the Art assets
 # folder ("autochess ui"): a dark slate card with the unit's portrait in a well (a cost-colour edge
 # under it), the name, its traits, a gold coin with the cost, and three pips for the copies you
-# already own toward the next star. Planned units (team planner) get a gold outline and a star.
-# A bought (empty) slot shows a dim silhouette. Click to buy, as before.
+# already own toward the next star. The card is edged and faintly tinted in its cost colour (grey, green,
+# blue, purple, gold); planned units (team planner) get a gold outline and a star instead.
+# A bought (empty) slot shows a dim silhouette. Click to buy, or drag the card onto the board: it is bought
+# and, in prep, put on the tile you drop it on (else it goes to the bench as usual).
 
 const W := 140.0
 const H := 64.0
@@ -128,7 +130,7 @@ func _update_text():
 		portrait.texture = DockKit.portrait(offer)
 		portrait.modulate = Color.WHITE
 		well.add_theme_stylebox_override("panel", DockKit.well_box(DockKit.COST_COLORS.get(offer.cost, HudStyle.NEUTRAL), 3))
-		tooltip_text = Tip.wrap("%s (%d gold)\n%s%s%s\nClick to buy." % [offer.display_name, offer.cost, ", ".join(tags), Abilities.tooltip_line(offer), "\nIn your team plan." if planned else ""])
+		tooltip_text = Tip.wrap("%s (%d gold)\n%s%s%s\nClick to buy, or drag it onto the board." % [offer.display_name, offer.cost, ", ".join(tags), Abilities.tooltip_line(offer), "\nIn your team plan." if planned else ""])
 		refresh_owned()
 	else:
 		var p := SILHOUETTE_DIR % (index % 5 + 1)
@@ -136,11 +138,13 @@ func _update_text():
 		portrait.modulate = Color(1, 1, 1, 0.5)
 		well.add_theme_stylebox_override("panel", DockKit.well_box())
 		tooltip_text = ""
-	var n := DockKit.flat(CARD if has else CARD.darkened(0.25), 3)
-	n.set_border_width_all(2 if planned else 1)
-	n.border_color = HudStyle.GOLD if planned else CARD_EDGE
+	var cost_col: Color = DockKit.COST_COLORS.get(offer.cost, CARD_EDGE) if has else CARD_EDGE
+	var bg := CARD.lerp(cost_col, 0.12) if has else CARD.darkened(0.25)
+	var n := DockKit.flat(bg, 3)
+	n.set_border_width_all(2 if has else 1)
+	n.border_color = HudStyle.GOLD if planned else (cost_col.darkened(0.15) if has else CARD_EDGE)
 	var h := n.duplicate() as StyleBoxFlat
-	h.bg_color = CARD.lightened(0.06)
+	h.bg_color = bg.lightened(0.06)
 	var p2 := n.duplicate() as StyleBoxFlat
 	p2.bg_color = DockKit.WELL
 	add_theme_stylebox_override("normal", n)
@@ -173,12 +177,58 @@ func _pressed():
 	var gm := get_tree().get_first_node_in_group("game_manager")
 	var in_prep: bool = gm == null or gm.phase == Events.Phase.PREP
 	var board := get_tree().get_first_node_in_group("board") as Board
-	# During combat a purchase must land on the bench, so completing a merge doesn't help.
-	if board != null and board.first_free_bench() == -1 and not (in_prep and board.would_complete_merge(offer)):
+	# During combat a purchase lands on the bench, so only a merge with bench copies makes room.
+	if board != null and board.first_free_bench() == -1 and not board.would_complete_merge(offer, not in_prep):
 		_flash("Bench full")
 		return
 	Events.unit_bought.emit(offer)
 	clear_offer()   # also forgets the offer, so a team plan change can't bring its name back
+
+# Dragging the card out of the shop: its portrait follows the pointer; letting go anywhere off the shop
+# bar buys it (see _notification).
+func _get_drag_data(_at: Vector2) -> Variant:
+	if offer == null or disabled:
+		return null
+	var ghost := TextureRect.new()
+	ghost.texture = DockKit.portrait(offer)
+	ghost.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	ghost.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ghost.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ghost.size = Vector2(56, 56)
+	ghost.position = -ghost.size * 0.5
+	ghost.modulate.a = 0.85
+	var holder := Control.new()
+	holder.add_child(ghost)
+	set_drag_preview(holder)
+	_dragging = true
+	return {"shop_offer": offer}
+
+var _dragging := false
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_DRAG_END or not _dragging:
+		return
+	_dragging = false
+	if get_viewport().gui_is_drag_successful() or offer == null:
+		return
+	var bar := get_parent()
+	while bar != null and not bar.name == "ShopPanel":
+		bar = bar.get_parent()
+	var m := get_viewport().get_mouse_position()
+	if not get_viewport().get_visible_rect().has_point(m):
+		return   # let go off the window (a touch long press slides the pointer away to read a tooltip)
+	if bar is Control and (bar as Control).get_global_rect().has_point(m):
+		return   # let go over the shop bar: nothing
+	var dc := get_tree().current_scene.get_node_or_null("DragController") if get_tree().current_scene != null else null
+	var d := offer
+	var before := _bench_units()
+	_pressed()   # the same checks (gold, bench room) and the same purchase as a click
+	if offer == null and dc != null and dc.has_method("place_bought"):
+		dc.place_bought(d, before)   # in prep: onto the tile under the pointer
+
+func _bench_units() -> Array:
+	var board := get_tree().get_first_node_in_group("board") as Board
+	return board.bench.filter(func(u): return u != null) if board != null else []
 
 func _flash(msg: String):
 	flash_label.text = msg

@@ -2,7 +2,9 @@
 class_name StandingRow extends HudPlate
 
 # One row of the HP standings: name (plus a "VS" tag for this round's opponent) and HP on top, a
-# 10-segment HP bar under it. role: "you", "opponent", "other" or "out" (eliminated).
+# 10-segment HP bar under it. role: "you", "opponent", "other" or "out" (eliminated). In a lobby a
+# streak of 2 or more shows beside the HP (StreakMark: red flames for a win streak, blue droplets for a
+# loss streak), and the row of the player whose board you are scouting gets a gold edge.
 
 const WIDTH := 210
 const SEGMENTS := 10
@@ -12,6 +14,10 @@ var name_text := ""
 var hp := -1          # -1 = no HP to show (campaign waves, random enemies)
 var max_hp := 100
 var number_text := ""   # shown instead of the HP (a campaign wave's "4/5")
+var seat := -1          # a lobby seat (clicking the row scouts that board); -1 = none
+var streak := 0         # lobby streak: wins (> 0) or losses (< 0) in a row
+var scouted := false    # its board is the one on show (LobbyGame.scout)
+var mark: StreakMark
 
 var name_lbl: Label
 var vs_tag: PanelContainer
@@ -36,6 +42,47 @@ class Bar extends Control:
 			var part := clampf(ratio * SEGMENTS - i, 0.0, 1.0)   # partly filled segments show the remainder
 			if part > 0.0:
 				draw_rect(Rect2(x, 0, w * part, size.y), color)
+
+# The streak beside the HP: a little pixel flame (win streak) or two falling water droplets (loss
+# streak), animated, with the streak's length. Hidden under 2.
+class StreakMark extends Control:
+	var n := 0
+	var t := 0.0
+	func _init():
+		custom_minimum_size = Vector2(30, 18)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	func set_streak(s: int) -> void:
+		n = s
+		visible = absi(s) >= 2
+		set_process(visible and not Settings.reduce_motion)
+		queue_redraw()
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+	func _draw() -> void:
+		var px := 2.0
+		if n > 0:   # a flame: flickering rows of pixels, red at the base, orange and yellow at the tip
+			var rows := [[2, 3, Color("ffd36b")], [1, 4, Color("ffa53a")], [1, 5, Color("ff7a2a")], [0, 6, Color("ff5a1f")], [0, 6, Color("e8402a")], [1, 5, Color("c8302a")]]
+			for r in rows.size():
+				var sway := roundf(sin(t * 9.0 + r * 1.3) * 0.6) if r < 3 else 0.0
+				var row: Array = rows[r]
+				var y := 3.0 + r * px
+				if r == 0 and fmod(t * 4.0, 1.0) < 0.3:
+					y -= px   # the tip licks up now and then
+				draw_rect(Rect2((2.0 + row[0] + sway) * px, y, (row[1] - row[0] + 1) * px, px), row[2])
+		else:   # two droplets falling in turn
+			for k in 2:
+				var fall := fmod(t * 0.9 + k * 0.5, 1.0)
+				var x := 2.0 + k * 7.0
+				var y := 1.0 + fall * 6.0
+				var c := Color("6cc4ff")
+				c.a = 1.0 - fall * 0.6
+				draw_rect(Rect2(x + px, y, px, px), c)
+				draw_rect(Rect2(x, y + px, px * 3, px * 2), c)
+				draw_rect(Rect2(x + px, y + px * 3, px, px), Color("3a8ad0", c.a))
+		var font := HudStyle.number_font()
+		draw_string(font, Vector2(17, 15), str(absi(n)), HORIZONTAL_ALIGNMENT_LEFT, -1, 15, HudStyle.RED if n > 0 else HudStyle.YOU)
 
 func _init():
 	setup_plate(6, 10, 7)
@@ -80,6 +127,9 @@ func _init():
 	vs.text = "VS"
 	vs_tag.add_child(vs)
 	top.add_child(vs_tag)
+	mark = StreakMark.new()
+	mark.visible = false
+	top.add_child(mark)
 	hp_lbl = HudStyle.number(22)
 	hp_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(hp_lbl)
@@ -101,6 +151,7 @@ func _apply() -> void:
 	modulate.a = 0.45 if out else 1.0
 	set_fill(HudStyle.FILL_YOU if role == "you" else HudStyle.FILL)
 	match role:
+		_ when scouted: set_edge(HudStyle.EDGE_GOLD)
 		"you": set_edge(HudStyle.YOU_EDGE)
 		"opponent": set_edge(HudStyle.ENEMY_EDGE)
 		"out": set_edge(HudStyle.EDGE_OUT)
@@ -109,6 +160,7 @@ func _apply() -> void:
 	name_lbl.add_theme_color_override("font_color", HudStyle.INK if role == "you" or role == "opponent" else HudStyle.MUTED)
 	_strike.visible = out   # an eliminated player's name is struck through
 	vs_tag.visible = role == "opponent"
+	mark.set_streak(0 if out else streak)
 	if out:
 		hp_lbl.text = "Out"
 	elif number_text != "":

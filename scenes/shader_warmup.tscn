@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://Scripts/shader_warmup.gd" id="1_warm"]
+[ext_resource type="Environment" path="res://tres/world_env.tres" id="2_env"]
 
 [node name="ShaderWarmup" type="Node"]
 script = ExtResource("1_warm")
@@ -19,3 +20,6 @@ fov = 60.0
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 6, 0)
 
 [node name="Stage" type="Node3D" parent="SubViewport"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewport"]
+environment = ExtResource("2_env")

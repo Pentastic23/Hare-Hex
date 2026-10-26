@@ -39,16 +39,35 @@ func _init(p: PlayerState = null, b: Board = null, shared: UnitPool = null, unit
 
 # A PREP start: income (round, interest, streak, Coin Purses), free rerolls (Merchant's Ledger), the
 # round's item drop, the merges skipped during the fight, the round-1 cheap shop, then a new shop unless
-# it is locked. `cheap` = this round's shop offers 1-cost units only. Returns true if an item dropped.
-func start_prep(round_number: int, cheap: bool) -> bool:
+# it is locked. `cheap` = this round's shop offers 1-cost units only. `opening` = the PvP opening (round 1
+# of async PvP and lobbies): no shop, a free unit on the board instead (give_opening_unit), and nothing can
+# be bought, sold or moved until the next round. `drops` false: no item drop (a campaign level's lost final
+# wave fought again). Returns true if an item dropped.
+func start_prep(round_number: int, cheap: bool, opening := false, drops := true) -> bool:
+	player.opening = opening
 	player.gold += player.total_income_for_round(round_number) + item_income()
 	player.free_rerolls = item_free_rerolls()
-	var dropped := drop_item(round_number)
+	var dropped := drop_item(round_number) if drops else false   # (a replayed final wave drops nothing new)
 	board.merge_all()
 	player.cheap_shop = cheap
-	if not player.shop_locked or not player.shop_has_rolled:
+	if opening:
+		return_offers()
+		if player.is_local:
+			Events.shop_rolled.emit([])
+		give_opening_unit()
+	elif not player.shop_locked or not player.shop_has_rolled:
 		roll_shop()
 	return dropped
+
+# The opening's free unit: a random 1-cost unit from the shared pool (by the player's own RNG), put
+# straight onto the board where it fights best.
+func give_opening_unit() -> Unit:
+	var d := pool.pick(1, player.rng)
+	if d == null or not pool.take(d):
+		return null
+	var u := board.make_unit(d, unit_scene)
+	board.put_on_tile(u, board.open_tile_for(d))
+	return u
 
 # Gold the items on the board pay each round (Coin Purse; items v2).
 func item_income() -> int:
@@ -59,13 +78,13 @@ func item_income() -> int:
 				n += it.gold_per_round
 	return n
 
-# Free rerolls this round from items on the board (Merchant's Ledger: the first reroll is free).
+# Free rerolls this round from items on the board (Merchant's Ledger: one each, so two Ledgers give two).
 func item_free_rerolls() -> int:
 	var n := 0
 	for u in board.all_player_units():
 		if u.coord.x >= 0:
 			for it in u.items:
-				n = maxi(n, it.free_rerolls)
+				n += it.free_rerolls   # each Ledger on the board adds its own
 	return n
 
 func drop_stage(round_number: int) -> int:
@@ -158,33 +177,33 @@ func _random_unit_of_cost(tier: int) -> UnitData:
 				return d
 	return null
 
-# Buys offer `d` (one of player.shop_offers). Outside PREP it only goes to the bench (no merges while
-# units fight); with a full bench it is bought only when it completes a merge (in PREP). Returns the
-# new unit, or null if it couldn't be bought. A unit consumed by an immediate merge is returned freed.
+# Buys offer `d` (one of player.shop_offers). Outside PREP it goes to the bench and merges only with copies
+# on the bench (units fighting on the board are left alone; the rest merges at the next PREP start); with
+# a full bench it is bought only when it completes such a merge. Returns the new unit, or null if it
+# couldn't be bought. A unit consumed by an immediate merge is returned freed.
 # `strict` (the lobby server): only an offer in the shop, and only with the gold for it. Single player
 # leaves those checks to the shop button (tests buy any unit through Events.unit_bought).
 func buy(d: UnitData, in_prep: bool, strict := true) -> Unit:
-	if d == null or (strict and (not player.shop_offers.has(d) or player.gold < d.cost)):
+	if d == null or player.opening or (strict and (not player.shop_offers.has(d) or player.gold < d.cost)):
 		return null
 	var slot := board.first_free_bench()
-	if slot == -1 and not (in_prep and board.would_complete_merge(d)):
+	if slot == -1 and not board.would_complete_merge(d, not in_prep):
 		return null
 	player.gold -= d.cost
 	player.shop_offers.erase(d)   # stays out of the pool; it's the player's now
 	var u := board.make_unit(d, unit_scene)
 	if slot != -1:
 		board.put_on_bench(u, slot)
-		if in_prep:
-			board.merge_all()   # merges that were skipped during combat run at the next PREP start
+		board.merge_all(not in_prep)
 	else:
-		board.merge_pending_unit(u)
+		board.merge_pending_unit(u, not in_prep)
 	return u
 
-# Rerolls: a free reroll first (Merchant's Ledger), else REROLL_COST gold. Not while the shop is locked
-# or outside PREP.
-func reroll(in_prep: bool) -> bool:
+# Rerolls: a free reroll first (Merchant's Ledger), else REROLL_COST gold. Any phase (also mid-fight);
+# not while the shop is locked or in the opening.
+func reroll() -> bool:
 	var free := player.free_rerolls > 0
-	if player.shop_locked or not in_prep or (not free and player.gold < REROLL_COST):
+	if player.shop_locked or player.opening or (not free and player.gold < REROLL_COST):
 		return false
 	if free:
 		player.free_rerolls -= 1
@@ -197,7 +216,7 @@ func reroll(in_prep: bool) -> bool:
 	return true
 
 func buy_xp() -> bool:
-	if player.gold < BUY_XP_COST:
+	if player.opening or player.gold < BUY_XP_COST:
 		return false
 	player.gold -= BUY_XP_COST
 	add_xp(XP_PER_BUY)
@@ -231,7 +250,7 @@ func unit_by_uid(uid: int) -> Unit:
 	return null
 
 func sell(u: Unit) -> bool:
-	if not owns(u):
+	if player.opening or not owns(u):
 		return false
 	board.sell_unit(u)
 	return true
@@ -241,7 +260,7 @@ func sell(u: Unit) -> bool:
 # within the bench. A move onto the board past the unit cap is refused (returns "limit"). Returns
 # "ok", "limit" or "back" (nothing changed). Merges run after a move in PREP.
 func move(u: Unit, bench_i: int, tile: Vector2i, in_prep: bool) -> String:
-	if not owns(u):
+	if player.opening or not owns(u):   # the opening: the free unit stays where it is
 		return "back"
 	var ob := board.bench.find(u)
 	var oc := u.coord

@@ -22,8 +22,9 @@ const KEYS := {
 	"zoom_in":      ["Zoom in", KEY_EQUAL, [KEY_KP_ADD]],
 	"zoom_out":     ["Zoom out", KEY_MINUS, [KEY_KP_SUBTRACT]],
 	"reset_view":   ["Reset the view", KEY_HOME, []],
+	"scout_home":   ["Back to your own board (after scouting in a lobby)", KEY_SPACE, []],
 }
-const KEY_ORDER := ["sell_unit", "buy_xp", "reroll", "lock_shop", "team_planner", "zoom_in", "zoom_out", "reset_view"]
+const KEY_ORDER := ["sell_unit", "buy_xp", "reroll", "lock_shop", "team_planner", "zoom_in", "zoom_out", "reset_view", "scout_home"]
 
 # id -> [label, default pad button]
 const PAD := {

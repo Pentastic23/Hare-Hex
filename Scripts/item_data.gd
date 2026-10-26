@@ -35,6 +35,28 @@ class_name ItemData extends Resource
 # bender: the holder counts twice for this part of its traits ("origin" or "class")
 @export var counts_twice: StringName = &""
 
+# Which units each item suits (shown as "Best on ..." in the item tooltips), by its stat: damage for
+# fighters and archers, health and reduction for the front line, mana for casters, omnivamp for units
+# that hit hard and need to stay up.
+const BEST_ON := {
+	&"longsword": "Warriors, Duelists, Knights, Rangers",
+	&"iron_belt": "Protectors, Brutes, Knights",
+	&"quick_bow": "Rangers, Duelists, Rogues",
+	&"chain_vest": "Protectors, Knights, Warriors",
+	&"blood_fang": "Brutes, Warlocks, Tricksters, Rogues",
+	&"mana_charm": "Casters, Elementalists, Healers, Summoners, Bards",
+	&"heros_blade": "Warriors, Duelists, Rangers (a unit that survives fights)",
+	&"heartwood_charm": "Protectors, Brutes (a unit that survives fights)",
+	&"resonance_crystal": "your best item carrier (a unit with two other items)",
+	&"coin_purse": "any unit that stays on your board",
+	&"merchants_ledger": "any unit that stays on your board",
+	&"twin_sigil": "a unit whose origin is one short of its next tier",
+	&"twin_crest": "a unit whose class is one short of its next tier",
+}
+
+func best_on() -> String:
+	return BEST_ON.get(id, "")
+
 func is_special() -> bool:
 	return kind != &"basic"
 

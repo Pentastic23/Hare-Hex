@@ -7,12 +7,13 @@ class_name LobbyProtocol extends RefCounted
 # and the balance hash (BoardSnapshot.balance_hash: unit and item stats) match.
 #
 # Client -> server
-#   hello {v, balance, name, token}   join (token: rejoin your seat after a disconnect; "" otherwise)
+#   hello {v, balance, name, token, king}   join (king: your king skin id) (token: rejoin your seat after a disconnect; "" otherwise)
 #   add_bot {} / remove_bot {seat} / start {seed?}   the host, in the lobby room
 #   leave {}
 #   intents, during PREP (and bench-only during a fight), each with a client "seq":
 #     buy {offer: shop index}  sell {uid}  move {uid, bench: slot or -1, tile: [x, y]}
 #     reroll {}  xp {}  lock {on}  equip {uid, item: inventory index}
+#   scout {seat}                      ask for another player's board (any time in a game)
 # Server -> client
 #   welcome {seat, token, host}       your seat (sent again if it changes)
 #   error {why, text}                 refused to join (version, full, started)
@@ -20,15 +21,19 @@ class_name LobbyProtocol extends RefCounted
 #   started {seed, seats, prep_time}  the game begins: load the game scene
 #   phase {phase, round, stage, in_stage, time, pve}
 #   state {...}                       your own state (LobbyServer.state_of): gold, level, xp, hp, streaks,
-#                                     items, shop offers, lock, units (uid, unit, star, items, stacks, coord or bench)
-#   public {round, seats: [{seat, name, hp, level, alive, place, bot, connected}]}
+#                                     items, shop offers, lock, opening (round 1: shop shut, nothing moves),
+#                                     units (uid, unit, star, items, stacks, coord or bench)
+#   public {round, seats: [{seat, name, hp, level, alive, place, bot, connected, win, loss}]}   (win / loss: streaks)
+#   board {seat, level, units}        a scouted player's board (units as in state)
 #   fight {fight: description}        your fight (arena.gd); "at_tick" / "inputs" when joining late
 #   input {fight, input: {tick, side, index, item}}   an item dropped onto a fighting unit
 #   result {round, fights: [{id, home, away, ghost, winner, home_damage, away_damage}]}
 #   reject {seq, why, of}             an intent that wasn't allowed (your state follows anyway)
 #   over {places: [{seat, name, place, hp}], round}
 
-const VERSION := 1
+const VERSION := 3   # 2: hello carries the king skin; fights carry home_king / away_king / away_level
+                     # 3: the opening round (state.opening), streaks in public, scout / board; fights carry
+                     #    home_bench / away_bench (display only: each player sees the other's bench)
 const DEFAULT_PORT := 7777
 
 const HELLO := "hello"
@@ -43,6 +48,7 @@ const REROLL := "reroll"
 const BUY_XP := "xp"
 const LOCK := "lock"
 const EQUIP := "equip"
+const SCOUT := "scout"
 const INTENTS := [BUY, SELL, MOVE, REROLL, BUY_XP, LOCK, EQUIP]
 
 const WELCOME := "welcome"
@@ -57,6 +63,7 @@ const INPUT := "input"
 const RESULT := "result"
 const REJECT := "reject"
 const OVER := "over"
+const BOARD := "board"
 
 const PHASE_LOBBY := "lobby"
 const PHASE_PREP := "prep"

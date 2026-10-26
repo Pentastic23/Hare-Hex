@@ -59,11 +59,12 @@ func _run():
 	SaveGame.path = "user://tutorial_test_save.json"
 	SaveGame.reset_progress()
 	SaveGame.set_chapter_run(FAKE_RUN)   # a campaign run in progress must survive the tutorial
+	SaveGame.set_team_plan([])   # (the plan survives reset_progress: start from an empty one)
 	Settings.path = "user://tutorial_test_settings.cfg"
 	Settings._loaded = true
 
 	await start_tutorial()
-	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 15")
+	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 17")
 	for k in 3:
 		await get_tree().process_frame
 	var tut_rect: Rect2 = tut.get_global_rect()
@@ -88,10 +89,15 @@ func _run():
 	await wait_phase(Events.Phase.PREP)
 	await get_tree().create_timer(1.5).timeout
 	chk("after the fight it waits on 'Watch the fight' with Next enabled", tut.title_label.text == "Watch the fight" and not tut.next_button.disabled, tut.title_label.text)
+	chk("'Watch the fight' opens the Damage window it talks about", main.get_node("UI/RightDock").current == "damage")
 	chk("Start fight is hidden while the step waits for Next", not tut.fight_button.visible)
 	chk("the old prep timer didn't start a second fight", gm.phase == Events.Phase.PREP and GameState.round_number == 2)
 	tut.next_button.pressed.emit()
-	chk("Next moves to 'Merge three into a star'", tut.title_label.text == "Merge three into a star", tut.title_label.text)
+	chk("Next moves to 'Inspect a unit'", tut.title_label.text == "Inspect a unit", tut.title_label.text)
+	main.get_node("UI/UnitInspector").show_unit(board.all_player_units()[0])
+	await poll()
+	chk("opening the inspector on a unit moves to 'Merge three into a star'", tut.title_label.text == "Merge three into a star", tut.title_label.text)
+	chk("the merge step explains 3-star units too", tut.body_label.text.contains("3-star"))
 
 	GameState.me.gold = 30
 	Events.unit_bought.emit(U("knight"))
@@ -99,6 +105,8 @@ func _run():
 	await poll()
 	var knights := board.all_player_units().filter(func(u): return u.data.display_name == "Knight")
 	chk("three Knights merge and the step moves to 'Synergies'", knights.size() == 1 and knights[0].star == 2 and tut.title_label.text == "Synergies")
+	var left = main.get_node("UI/LeftDock")
+	chk("'Synergies' opens the Synergies tab", not left.collapsed and left.tab == "synergies")
 
 	Events.unit_bought.emit(load("res://tres/units/militia.tres"))
 	var cleric = board.all_player_units().filter(func(u): return u.data.display_name == "Militia")[0]
@@ -108,16 +116,15 @@ func _run():
 	await poll()
 	chk("Knight + Militia on the board activates Order: 'Plan your team'", tut.title_label.text == "Plan your team", tut.title_label.text)
 	var dock = main.get_node("UI/RightDock")
-	dock.open_panel("planner")
 	await poll()
-	chk("opening the planner alone doesn't finish the step", tut.title_label.text == "Plan your team")
+	chk("'Plan your team' opens the planner, and that alone doesn't finish the step", dock.current == "planner" and tut.title_label.text == "Plan your team" and tut.body_label.text.contains("Click a unit's portrait in it"))
 	dock.planner.tile_for("Knight").pressed.emit()
 	await poll()
 	chk("planning a unit with the planner still open waits (the planner would cover the next step)", tut.title_label.text == "Plan your team" and SaveGame.team_plan().has("Knight"))
 	dock.close_panel()
 	await poll()
 	chk("closing the planner moves to 'Equip an item'", tut.title_label.text == "Equip an item", tut.title_label.text)
-	chk("the items step hands out an item", GameState.me.items.size() >= 1)
+	chk("the items step hands out the Longsword (no random drops in the tutorial) and opens the Items tab", GameState.me.items.size() == 1 and GameState.me.items[0].id == &"longsword" and left.tab == "items", str(GameState.me.items.map(func(i): return i.id)))
 
 	main.get_node("DragController").equip_item_on(knights[0], GameState.me.items[0])
 	await poll()
@@ -146,7 +153,10 @@ func _run():
 	Events.buy_xp_pressed.emit()
 	Events.buy_xp_pressed.emit()
 	await poll()
-	chk("buying XP to the next level moves to the last step", tut.title_label.text == "Win the last wave" and not tut.next_button.visible)
+	chk("buying XP to the next level moves to 'Shop odds' (Next), with the odds strip open", tut.title_label.text == "Shop odds" and tut.next_button.visible and Settings.show_odds, tut.title_label.text)
+	tut.next_button.pressed.emit()
+	await poll()
+	chk("then the last step", tut.title_label.text == "Win the last wave" and not tut.next_button.visible)
 
 	# Play the rest with Start fight. Make the team strong enough that the test is about the flow.
 	GameState.me.gold = 60
@@ -178,8 +188,27 @@ func _run():
 	chk("tutorial completion is saved", SaveGame.is_level_complete(&"tutorial"))
 	chk("winning the tutorial leaves the saved campaign run alone", str(SaveGame.chapter_run().get("level", "")) == "ch1_l2" and int(SaveGame.chapter_run().hp) == 77)
 
+	print("--- merging early and finishing early")
+	await start_tutorial()
+	var k1 := board.make_unit(U("knight"), gm.unit_scene)
+	board.put_on_bench(k1, 0)
+	k1.set_star(2)
+	var merge_i := -1
+	for i in tut._steps.size():
+		if tut._steps[i].title == "Merge three into a star":
+			merge_i = i
+	tut._enter_step(merge_i)
+	await poll()
+	chk("a merge made before the merge step doesn't skip it: it waits for Next", tut.title_label.text == "Merge three into a star" and tut.next_button.visible)
+	GameState.round_number = 5
+	gm.fighting = true
+	gm._end_combat(true, 0)
+	await get_tree().process_frame
+	chk("beating the last wave before the steps are done doesn't end the tutorial: the wave comes again", not gm.game_over and gm.phase == Events.Phase.PREP and GameState.round_number == 5 and not main.get_node("UI/End Screen").visible)
+
 	await start_tutorial()
 	GameState.round_number = 5
+	GameState.me.player_hp = 1   # out of HP (a lost last wave with HP left comes again)
 	gm.fighting = true
 	gm._end_combat(false, 0)
 	es = main.get_node("UI/End Screen")

@@ -50,6 +50,17 @@ var combat_ticks: int:
 	get: return runner.ticks if runner != null else 0
 var _no_units: Array[Unit] = []
 var prep_left := 0.0   # seconds of PREP left; 0 when not in PREP
+# Seconds between a fight's end and the next PREP (the fallers and the victory dance finish first). Headless
+# runs (the check suites, the bot) skip it.
+var result_pause := 0.0 if DisplayServer.get_name() == "headless" else 3.0
+# Async PvP: no prep timer, the player presses Start fight (the top bar). Round 1 of async PvP is the
+# opening instead: a free unit already on the board, the shop shut, and the fight starts by itself.
+var manual_start := false
+var prep_length := 0.0   # how long this PREP started out (the top bar's track)
+const UNTIMED := 1000000.0      # prep_left / prep_time of a prep that waits for Start fight
+const OPENING_PREP := 4.0       # seconds before the opening fight starts by itself
+var _result_timer: Timer
+var _replay_wave := false   # the coming PREP fights a lost final wave again (no new item drop)
 var rng := RandomNumberGenerator.new()   # run RNG (seeded): random enemies and placement. Shop and drops use GameState.me.rng.
 var shared_pool: UnitPool
 var rules: PlayerRules   # the local player's actions and round economy (player_rules.gd), shared with the lobby server
@@ -73,13 +84,21 @@ func _enter(p: int):
 	match p:
 		Events.Phase.PREP:
 			# Income (+ Coin Purses), free rerolls (Merchant's Ledger), the item drop, merges, the shop: PlayerRules.
-			rules.start_prep(GameState.round_number, GameState.round_number == 1 and not GameState.run_carried)
+			var opening := is_opening()
+			rules.start_prep(GameState.round_number, GameState.round_number == 1 and not GameState.run_carried, opening, not _replay_wave)
+			_replay_wave = false
 			Events.round_changed.emit(GameState.stage(), GameState.round_in_stage())
 			Music.play("boss" if is_boss_round() else "game")   # Final Struggle for the boss round, else Aspiration Woods
 			if opponents != null:
 				opponents.prepare(GameState.round_number)   # async PvP picks this round's ghost now
 				Events.opponent_announced.emit(opponents.describe_next())
-			prep_left = float(prep_time)   # counted down in _process, so the timer label can show it and pausing stops it
+			if opponents is SnapshotOpponents:   # the enemy half opens as far as the ghost's own level
+				var ghost: Dictionary = opponents.current_snapshot()
+				board.foe_level = int(ghost.get("level", -1)) if not ghost.is_empty() else -1
+				board.refresh_unlocks(GameState.me.level, true)
+			# counted down in _process, so the timer label can show it and pausing stops it
+			prep_length = OPENING_PREP if opening else (UNTIMED if manual_start else float(prep_time))
+			prep_left = prep_length
 			_write_mid("prep")   # a chapter run is saved at the start of every PREP...
 		Events.Phase.COMBAT:
 			_write_mid("combat")   # ...and of every fight, with the board as it fights (so quitting can't dodge a loss)
@@ -89,21 +108,48 @@ func _enter(p: int):
 				_lose_run()
 				return
 			if GameState.is_final_round():
-				# A campaign level is only complete if the final wave is beaten.
-				if GameState.run_level != null and not GameState.me.last_combat_won:
-					_lose_run()
-				else:
-					_win_run()
+				# A campaign level is only complete once its final wave is beaten: lost with HP left, the
+				# final wave comes again next round (HP is what runs out, not the level). The tutorial also
+				# waits for its last step (tutorial.gd finished()): until then its last wave comes again.
+				var tut = get_tree().get_first_node_in_group("tutorial")
+				var steps_left: bool = tut != null and tut.is_visible_in_tree() and not tut.finished()
+				if GameState.run_level != null and (not GameState.me.last_combat_won or steps_left):
+					_replay_wave = true
+					Events.notice.emit("FINISH THE TUTORIAL STEPS" if steps_left and GameState.me.last_combat_won else "THE LAST WAVE COMES AGAIN", HudStyle.GOLD)
+					if result_pause > 0.0:
+						_result_timer.start(result_pause)
+					else:
+						_next_round()
+					return
+				_win_run()
 				return
-			GameState.round_number += 1
-			GameState.me.add_xp(2)
-			_enter(Events.Phase.PREP)
+			if result_pause > 0.0:
+				_result_timer.start(result_pause)   # a child Timer: it stops while paused and goes with the scene
+			else:
+				_next_round()
+
+# Round 1 of async PvP is the opening (PlayerRules.start_prep): a free unit on the board, no shop, and the
+# fight starts by itself. Lobbies have the same opening, run by the server.
+func is_opening() -> bool:
+	return GameState.ghost_mode and GameState.round_number == 1 and not GameState.run_carried
+
+func _next_round() -> void:
+	if game_over or phase != Events.Phase.RESULT:
+		return
+	if not _replay_wave:
+		GameState.round_number += 1   # (a lost final wave is fought again: same round)
+	GameState.me.add_xp(2)
+	_enter(Events.Phase.PREP)
 
 			
 func _ready():
 	add_to_group("game_manager")   # shop_slot.gd finds us by group; the node name has a space
+	_result_timer = Timer.new()
+	_result_timer.one_shot = true
+	_result_timer.timeout.connect(_next_round)
+	add_child(_result_timer)
 	runner = CombatRunner.new(board)
-	runner.on_finish = func(alive: Array, stars: Array): _end_combat(alive[1] == 0 and alive[0] > 0, stars[1])
+	runner.on_finish = func(alive: Array, _stars: Array): _end_combat(alive[1] == 0 and alive[0] > 0, alive[1])
 	runner.gold_sink = func(team: int, amount: int):
 		if team == 0:
 			GameState.me.gold += amount   # your Pickpocket kills; enemy boards earn nothing
@@ -158,6 +204,8 @@ func _begin_run():
 	var carry := GameState.begin_run(lvl, camp)
 	rng.seed = GameState.run_seed
 	board.apply_theme(BoardThemes.for_run(lvl, GameState.run_seed), GameState.run_seed)   # the level's biome (or one from the seed) and its scenery
+	if not board.kings.is_empty():
+		board.kings[0].set_skin(KingSkins.selected())   # your king: the skin picked on the main menu
 	roster = unit_pool
 	if lvl != null and not lvl.allowed_units.is_empty():
 		roster = lvl.allowed_units
@@ -165,9 +213,10 @@ func _begin_run():
 		prep_time = lvl.prep_time
 	shared_pool = UnitPool.new(roster)
 	rules = PlayerRules.new(GameState.me, board, shared_pool, roster, item_roster)
-	rules.drop_rounds = GameState.item_drop_rounds()
-	rules.tongs_rounds = GameState.TONGS_ROUNDS if lvl == null else []   # Tongs: free play and async PvP only
+	rules.drop_rounds = GameState.item_drop_rounds() if lvl == null or lvl.id != &"tutorial" else []   # the tutorial hands out its two items itself
+	rules.tongs_rounds = GameState.TONGS_ROUNDS if lvl == null else ([GameState.CAMPAIGN_TONGS_ROUND] if _in_chapter(lvl) else [])   # Tongs: none in the tutorial
 	rules.drop_stage_fixed = drop_stage() if lvl != null else 0
+	manual_start = GameState.ghost_mode   # async PvP: no prep timer, the top bar's Start fight
 	_resume = {}
 	if not carry.is_empty():
 		_restore_carry(carry)
@@ -385,7 +434,8 @@ func _resume_run() -> void:
 		opponents.prepare(GameState.round_number)
 		Events.opponent_announced.emit(opponents.describe_next())
 	Events.shop_rolled.emit(me.shop_offers.duplicate())
-	prep_left = float(prep_time)
+	prep_length = float(prep_time)
+	prep_left = prep_length
 
 func set_shop_locked(on: bool):
 	if lobby != null:
@@ -428,7 +478,7 @@ func _on_reroll():
 	if lobby != null:
 		lobby.reroll()
 		return
-	if not rules.reroll(phase == Events.Phase.PREP):   # locked, outside PREP, or not enough gold
+	if not rules.reroll():   # locked, the opening, or not enough gold
 		Sfx.play(&"error")
 		return
 	Sfx.play(&"reroll")
@@ -469,6 +519,9 @@ func start_combat():
 		var u := n as Unit
 		if u and u.coord.x >= 0:
 			u.begin_combat()
+	runner.king_skins = [KingSkins.selected(), &""]   # your king's skin effect; the enemy king strikes but has no skin
+	runner.king_levels = [GameState.me.level, GameState.me.level]
+	runner.king_seed = hash([GameState.run_seed, GameState.round_number])
 	runner.start()
 
 # Fixed acting order for a fight (CombatRunner.order).
@@ -577,7 +630,7 @@ func _shuffle(arr: Array) -> void:
 		arr[i] = arr[j]
 		arr[j] = tmp
 
-func _end_combat(player_won: bool, enemy_stars: int):
+func _end_combat(player_won: bool, enemy_alive: int):
 	if not fighting: return
 	runner.stop()
 	GameState.me.last_combat_won = player_won
@@ -596,8 +649,14 @@ func _end_combat(player_won: bool, enemy_stars: int):
 		GameState.me.gold += 1
 		if current_board != null:
 			GameState.me.heal(current_board.hp_reward)   # campaign HP pack for beating this wave
+		Events.notice.emit("VICTORY  +1 GOLD", HudStyle.GOLD)
 	else:
-		GameState.me.player_hp -= GameState.damage_for_loss(enemy_stars)
+		var hp_before: int = GameState.me.player_hp
+		GameState.me.player_hp -= GameState.damage_for_loss(enemy_alive)
+		var lost: int = hp_before - GameState.me.player_hp
+		var timed_out := runner.ticks >= COMBAT_MAX_TICKS
+		# a fight is only won by wiping out the enemy: time running out, or both sides falling, is a loss too
+		Events.notice.emit("%s  -%d HP" % ["TIME UP" if timed_out else ("BOTH SIDES FELL" if enemy_alive == 0 else "DEFEAT"), lost], HudStyle.RED)
 	Events.combat_ended.emit(player_won)
 	_enter(Events.Phase.RESULT)
 

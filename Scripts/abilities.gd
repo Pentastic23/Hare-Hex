@@ -115,31 +115,31 @@ static func text(d: UnitData, star := 0) -> String:
 	var out: String = def.text
 	for k in ["a", "b", "c"]:
 		if def.has(k):
-			out = out.replace("{%s}" % k, _shown(def[k], star))
+			out = out.replace("{%s}" % k, _shown(def[k], star, d.cost))
 	return out
 
 # The ability as a tooltip paragraph (shop cards, planner tiles), all three stars; "" without one.
 static func tooltip_line(d: UnitData) -> String:
 	return "\n%s: %s" % [name_of(d), text(d)] if has(d) else ""
 
-static func _shown(v, star: int) -> String:
+static func _shown(v, star: int, cost := 1) -> String:
 	if star > 0:
-		return _num(value_at(v, star))
-	return " / ".join([_num(value_at(v, 1)), _num(value_at(v, 2)), _num(value_at(v, 3))])
+		return _num(value_at(v, star, cost))
+	return " / ".join([_num(value_at(v, 1, cost)), _num(value_at(v, 2, cost)), _num(value_at(v, 3, cost))])
 
 static func _num(x: float) -> String:
 	return str(int(x)) if is_equal_approx(x, roundf(x)) else str(x)
 
 # A value at a star: arrays as they are, plain numbers scaled like stats (rounded to 5).
-static func value_at(v, star: int) -> float:
+static func value_at(v, star: int, cost := 1) -> float:
 	if v is Array:
 		return float(v[clampi(star, 1, 3) - 1])
-	return snappedf(float(v) * Unit.STAR_MULT[clampi(star, 1, 3)], 5.0)
+	return snappedf(float(v) * Unit.star_mult(star, cost), 5.0)
 
 # This caster's amount for a key: scaled by star, and by stat_scale for plain numbers (enemies).
 static func amt(u: Unit, key: String) -> float:
 	var v = DEFS[u.data.display_name][key]
-	return value_at(v, u.star) * (1.0 if v is Array else u.stat_scale)
+	return value_at(v, u.star, u.data.cost) * (1.0 if v is Array else u.stat_scale)
 
 # --- casting ------------------------------------------------------------------------------------
 
@@ -609,8 +609,8 @@ static func summon(u: Unit, sname: String, hp_key: String, dmg_key: String) -> U
 	d.display_name = sname
 	d.short_name = info.label
 	d.cost = 0
-	d.max_health = value_at(def[hp_key], u.star)
-	d.attack_damage = value_at(def[dmg_key], u.star)
+	d.max_health = value_at(def[hp_key], u.star, u.data.cost)
+	d.attack_damage = value_at(def[dmg_key], u.star, u.data.cost)
 	d.attack_range = 1.0
 	d.attacks_per_second = info.aps
 	d.move_speed = look.move_speed

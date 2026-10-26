@@ -186,8 +186,8 @@ func _on_tutorial_resized() -> void:
 	_shrink.call_deferred()
 
 func _input(event):
-	if BugReporter.is_open:
-		return   # Esc closes the bug report first (BugReportUI.gd)
+	if BugReporter.is_open or get_tree().get_first_node_in_group("settings_overlay") != null:
+		return   # Esc closes the bug report (BugReportUI.gd) or the in-run Settings screen first
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	if current == "menu":

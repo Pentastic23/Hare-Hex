@@ -172,9 +172,13 @@ func _run():
 	var after_free: int = GameState.me.gold
 	Events.reroll_pressed.emit()
 	chk("Merchant's Ledger: the first reroll is free, the second costs 2", after_free == 10 and GameState.me.gold == 8, "%d then %d" % [after_free, GameState.me.gold])
+	var p2 := place("archer", 1)
+	p2.equip(I("merchants_ledger"))
+	gm._enter(Events.Phase.PREP)
+	chk("two Ledgers on the board give two free rerolls", GameState.me.free_rerolls == 2)
 
 	print("--- drops")
-	chk("14 drop rounds in a free-play run, Tongs at the end of stages 3 and 5", GameState.ITEM_DROP_ROUNDS.size() == 14 and GameState.TONGS_ROUNDS == [15, 27])
+	chk("14 drop rounds in a free-play run, Tongs at the end of stages 2 to 6 (and one in each chapter level)", GameState.ITEM_DROP_ROUNDS.size() == 14 and GameState.TONGS_ROUNDS == [9, 15, 21, 27, 33] and GameState.CAMPAIGN_TONGS_ROUND == 3)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
 	var early := true

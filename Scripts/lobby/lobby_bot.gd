@@ -20,7 +20,7 @@ static func take_turn(rules: PlayerRules, round_number: int) -> void:
 	for pass_i in 4:
 		_buy_round(rules, keep)
 		if pass_i < 3 and p.gold >= 20 + keep:
-			rules.reroll(true)
+			rules.reroll()
 	while p.gold >= 50 and p.level < 9:   # rich: level up rather than sit on gold
 		if not rules.buy_xp():
 			break

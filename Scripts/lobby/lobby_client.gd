@@ -18,6 +18,7 @@ signal input_received(fight_id: int, input: Dictionary)
 signal result_received(msg: Dictionary)
 signal rejected(msg: Dictionary)
 signal game_over(msg: Dictionary)
+signal board_received(msg: Dictionary)   # a scouted player's board (scout())
 
 var net   # LobbyNet
 var name := ""
@@ -42,7 +43,7 @@ func _init(lobby_net, player_name: String):
 	name = LobbyProtocol.clean_name(player_name)
 
 func say_hello() -> void:
-	net.send_to_server({"t": LobbyProtocol.HELLO, "v": LobbyProtocol.VERSION, "balance": LobbyProtocol.balance(), "name": name, "token": token})
+	net.send_to_server({"t": LobbyProtocol.HELLO, "v": LobbyProtocol.VERSION, "balance": LobbyProtocol.balance(), "name": name, "token": token, "king": String(KingSkins.selected())})
 
 func send(msg: Dictionary) -> void:
 	_seq += 1
@@ -96,6 +97,8 @@ func on_message(msg: Dictionary) -> void:
 		LobbyProtocol.OVER:
 			over = msg
 			game_over.emit(msg)
+		LobbyProtocol.BOARD:
+			board_received.emit(msg)
 
 # The room (host only).
 func add_bot() -> void:
@@ -125,6 +128,10 @@ func buy_xp() -> void:
 
 func lock(on: bool) -> void:
 	send({"t": LobbyProtocol.LOCK, "on": on})
+
+# Asks for another player's board (the answer comes as board_received).
+func scout(seat_index: int) -> void:
+	net.send_to_server({"t": LobbyProtocol.SCOUT, "seat": seat_index})
 
 func equip(uid: int, item_index: int) -> void:
 	send({"t": LobbyProtocol.EQUIP, "uid": uid, "item": item_index})

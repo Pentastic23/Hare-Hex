@@ -4,7 +4,8 @@ extends VBoxContainer
 # The Synergies tab of the left box (left_dock.gd; DOCKS_SPEC "Synergies tab"): one row per tag on
 # your board, active first, then by count. Each row: the count in a hexagon (gold = every tier
 # reached, darker gold = some, slate = none), the name, the tier numbers on the right, and for active
-# rows the current effect underneath. Refreshes a few times a second while the run plays.
+# rows the current effect underneath. Hovering a row lights up the rings of your units with that trait
+# (highlight, Unit.set_highlight). Refreshes a few times a second while the run plays.
 
 const ROW_GAP := 4
 const MAX_LIST_H := 360.0   # then the list scrolls
@@ -47,8 +48,9 @@ func counts() -> Dictionary:
 	if board == null:
 		return {}
 	var units: Array = []
-	for u in board.all_player_units():
-		if u.coord.x >= 0:
+	for n in board.get_node("Units").get_children():   # your side on the board: in a lobby fight seen from
+		var u := n as Unit                              # the away side, your copies are team 1 (Unit.mine)
+		if u != null and u.data != null and u.mine() and u.coord.x >= 0 and not u.summoned and not u.is_queued_for_deletion():
 			units.append(u)
 	return Synergies.count(units)
 
@@ -58,6 +60,7 @@ func _refresh():
 	if sig == _last_sig:
 		return
 	_last_sig = sig
+	highlight("")   # the rows are rebuilt: whatever was hovered is gone
 	for r in list.get_children():
 		list.remove_child(r)
 		r.queue_free()
@@ -96,6 +99,8 @@ func _row(tag: String, n: int, tier: int) -> Control:
 	row.add_theme_stylebox_override("panel", DockKit.flat(DockKit.ROW_ACTIVE if active else Color.TRANSPARENT, 3, Vector4(4, 4, 4, 6)))
 	row.tooltip_text = Tip.wrap(Synergies.tooltip(tag, n))
 	row.set_meta("tag", tag)
+	row.mouse_entered.connect(highlight.bind(tag))
+	row.mouse_exited.connect(highlight.bind(""))
 	var h := HBoxContainer.new()
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_theme_constant_override("separation", 6)
@@ -127,6 +132,13 @@ func _row(tag: String, n: int, tier: int) -> Control:
 		eff.text = DockKit.effect_text(tag, tier)
 		mid.add_child(eff)
 	return row
+
+# Lights up the rings of your units (board and bench) that have `tag`; "" turns them all off.
+func highlight(tag: String) -> void:
+	if board == null:
+		return
+	for u in board.all_player_units():
+		u.set_highlight(tag != "" and u.data.tags.any(func(t): return String(t) == tag))
 
 # For checks: the tag names in display order.
 func shown_tags() -> Array:
