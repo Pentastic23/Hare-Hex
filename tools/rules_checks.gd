@@ -245,7 +245,7 @@ func _run():
 	await frames(1)
 	var cam := get_viewport().get_camera_3d()
 	var dc = main.get_node("DragController")
-	var aim := cam.unproject_position(right.global_position + Vector3(0, minf(right.bar_height, 2.4) * 0.45, 0))
+	var aim := cam.unproject_position(right.global_position + Vector3(0, minf(right.head_height(), 2.4) * 0.45, 0))
 	chk("an item let go over a unit goes to that unit, not its neighbour", dc.unit_for_item(aim) == right and dc.unit_for_item(aim + Vector2(400, 400)) == null)
 	Settings.unfocused = true
 	Settings.apply()

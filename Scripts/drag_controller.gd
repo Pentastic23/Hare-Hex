@@ -147,7 +147,7 @@ func unit_for_item(at: Vector2) -> Unit:
 		var u := n as Unit
 		if u == null or not u.visible or u.dead or not u.mine() or u.summoned or u.data == null:
 			continue
-		var mid := u.global_position + Vector3(0, minf(u.bar_height, 2.4) * 0.45, 0)
+		var mid := u.global_position + Vector3(0, minf(u.head_height(), 2.4) * 0.45, 0)
 		if cam.is_position_behind(mid):
 			continue
 		var d := cam.unproject_position(mid).distance_to(at)

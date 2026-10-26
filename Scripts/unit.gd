@@ -23,7 +23,7 @@ var move_to := Vector3.ZERO
 var move_progress := 0.0   # 0..1 along the current step
 var letter_label: Label3D   # the placeholder capsule's name tag; units with a model don't show it
 var model_view: UnitModel   # the animated model (UnitData.model), or null for the placeholder capsule
-var bar_height := BAR_HEIGHT   # where the bars sit; set from the model's height and star
+var bar_height := BAR_HEIGHT + ITEM_ROOM   # where the bars sit; set from the model's height and star
 var _hide_in := -1.0   # seconds until a dead unit with a model disappears (its death animation plays first)
 @onready var bar_bg: Sprite3D = $Bars/BarBg   # the bars are nodes in unit.tscn, sharing one white texture
 @onready var bar_fill: Sprite3D = $Bars/BarFill
@@ -129,12 +129,13 @@ var item_as := 0.0
 var item_mana := 0.0
 var item_dr := 0.0
 var item_lifesteal := 0.0
-var item_icons: Node3D   # row of item icons above the health bar, one per item
+var item_icons: Node3D   # row of item icons between the head and the bars, one per item
 static var _icon_tex: ImageTexture   # plain white square (items without an icon)
 const ICON_PX := 16
-const ICON_SIZE := 0.6     # world size of one item icon (readable, a row of 3 stays about one tile wide)
-const ICON_STEP := 0.58    # spacing between item icons
-const ICON_HEIGHT := 0.45  # how far above the health bar the row sits (its middle)
+const ICON_SIZE := 0.5     # world size of one item icon (readable, a row of 3 stays about one tile wide)
+const ICON_STEP := 0.52    # spacing between item icons
+const ICON_HEIGHT := -0.4  # where the row's middle sits from the bars' line: under the bar plate, over the head
+const ITEM_ROOM := 0.6     # the bars sit this much higher than before, so the item row fits under them
 
 const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2}
 const FIVE_COST_3STAR := 5.0   # a 3-star 5-cost is meant to win fights on its own: x5 instead of x3.2
@@ -161,7 +162,20 @@ static func bar_texture() -> Texture2D:
 const MANA_PER_ATTACK := 10.0
 const MANA_FROM_DAMAGE := 0.1   # mana per point of damage taken
 const MANA_HIT_CAP := 15.0      # max mana from a single hit
-const MANA_OFFSET := 0.13       # how far below the health bar the mana bar sits
+const MANA_OFFSET := 0.0        # (the mana bar is laid out inside the plate by its sprite offset)
+# The bars in the HUD's look (HudStyle): one dark plate with a lit top edge and a dark lip, holding the
+# health bar (team colour, a notch every BAR_TICK HP and a deeper one every BAR_TICK_MAJOR, so you can read HP
+# off the bar) and a thin mana bar under it.
+# Pixel layout at 0.01 world units a pixel (y up from the bars' line): plate -11..5, health -4..3, mana -8..-5.
+const BAR_TICK := 100.0         # one segment of the health bar
+const BAR_TICK_MAJOR := 1000.0  # every tenth notch runs the full height
+const TICK_RES := 4             # the notch texture has 4 texels per bar pixel, so close notches stay apart
+const HP_COLORS := [Color("6fd86a"), Color("ff6b5e")]   # yours, the other side's
+const MANA_COLOR := Color("5aa8ff")
+const MANA_FULL := Color("a8e4ff")                      # ready to cast
+const BURN_TINT := Color("ff9a3c")
+static var _plate_tex: ImageTexture
+static var _tick_tex := {}   # max HP (rounded) -> texture
 const DEFAULT_ABILITY := preload("res://Scripts/ability.gd")
 
 func max_hp() -> float:
@@ -210,7 +224,7 @@ func set_star(s: int):
 # Moves the health and mana bars to bar_height (models: just above the head at the current star).
 func _place_bars():
 	if model_view != null:
-		bar_height = model_view.height * STAR_SIZE[star] + BAR_GAP
+		bar_height = model_view.height * STAR_SIZE[star] + BAR_GAP + ITEM_ROOM
 	if bar_bg == null:
 		return
 	bar_bg.position.y = bar_height
@@ -218,7 +232,92 @@ func _place_bars():
 	shield_fill.position.y = bar_height
 	mana_bg.position.y = bar_height - MANA_OFFSET
 	mana_fill.position.y = bar_height - MANA_OFFSET
+	if bar_ticks != null:
+		bar_ticks.position.y = bar_height
 	_update_star_mark()
+
+# The head's height (where the bars used to sit, before the item row went under them).
+func head_height() -> float:
+	return bar_height - ITEM_ROOM
+
+var bar_ticks: Sprite3D   # the HP notches over the health bar
+
+# Restyles the scene's bar sprites into the HUD look (once per unit; the textures are shared).
+func _dress_bars() -> void:
+	if bar_bg == null or bar_ticks != null:
+		return
+	bar_bg.texture = _plate()
+	bar_bg.scale = Vector3.ONE
+	bar_bg.modulate = Color.WHITE
+	bar_bg.offset = Vector2(-53, -11)
+	bar_bg.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	for sp in [bar_fill, shield_fill, mana_bg, mana_fill]:
+		(sp as Sprite3D).scale = Vector3.ONE
+	bar_fill.offset = Vector2(-50, -4)
+	bar_fill.region_rect = Rect2(0, 0, BAR_PX_W, 7)
+	shield_fill.offset = Vector2(-50, 0)   # the top half of the health bar
+	shield_fill.modulate = Color(1, 1, 1, 0.85)
+	mana_bg.visible = false   # the plate has the mana well
+	mana_bg.offset = Vector2(-50, -8)
+	mana_fill.offset = Vector2(-50, -8)
+	mana_fill.render_priority = 1
+	bar_ticks = Sprite3D.new()
+	bar_ticks.name = "Ticks"
+	bar_ticks.pixel_size = 0.01 / TICK_RES
+	bar_ticks.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	bar_ticks.shaded = false
+	bar_ticks.no_depth_test = true
+	bar_ticks.centered = false
+	bar_ticks.render_priority = 3
+	bar_ticks.offset = Vector2(-50, -4) * TICK_RES
+	bar_ticks.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	$Bars.add_child(bar_ticks)
+	_last_ticks = -1
+
+# The plate behind both bars: a lit top edge, wells for the health and mana bars, a dark lip.
+static func _plate() -> ImageTexture:
+	if _plate_tex == null:
+		var img := Image.create(106, 16, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		img.fill_rect(Rect2i(1, 0, 104, 16), Color("171a26"))
+		img.fill_rect(Rect2i(0, 1, 106, 13), Color("171a26"))
+		img.fill_rect(Rect2i(1, 0, 104, 1), HudStyle.EDGE)            # the lit top edge
+		img.fill_rect(Rect2i(3, 2, 100, 7), HudStyle.TRACK)          # the health well
+		img.fill_rect(Rect2i(3, 10, 100, 3), Color("1e2236"))        # the mana well
+		img.fill_rect(Rect2i(1, 14, 104, 2), HudStyle.LIP)           # the dark lip
+		_plate_tex = ImageTexture.create_from_image(img)
+	return _plate_tex
+
+var _last_ticks := -1
+# A notch every BAR_TICK (100) of max HP over the health bar, a full-height one every BAR_TICK_MAJOR.
+# One texture per max HP, shared by every unit with that max HP.
+func _update_ticks() -> void:
+	if bar_ticks == null:
+		return
+	var hp := roundi(max_hp())
+	if hp == _last_ticks:
+		return
+	_last_ticks = hp
+	if not _tick_tex.has(hp):
+		var w := BAR_PX_W * TICK_RES
+		var h := 7 * TICK_RES
+		var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		var count := int((hp - 1) / BAR_TICK)
+		var gap := w / maxf(hp / BAR_TICK, 1.0)   # texels between notches
+		var thin := clampi(int(gap / 3.0), 1, 5)   # notches as wide as fits: crowded bars (big 3-stars) stay readable
+		for i in range(1, count + 1):
+			var x := int(round(BAR_TICK * i / float(hp) * w))
+			if x <= 0 or x >= w:
+				continue
+			var major := is_zero_approx(fmod(BAR_TICK * i, BAR_TICK_MAJOR))
+			if major:
+				img.fill_rect(Rect2i(x - thin / 2 - 1, 0, thin + 2, h), Color(0.04, 0.05, 0.08, 0.9))
+			else:
+				img.fill_rect(Rect2i(x - thin / 2, 0, thin, h * 4 / 7), Color(0.04, 0.05, 0.08, 0.8))
+		img.generate_mipmaps()   # far away, thin notches blend in instead of dropping out
+		_tick_tex[hp] = ImageTexture.create_from_image(img)
+	bar_ticks.texture = _tick_tex[hp]
 
 # The star level as little stars at the left end of the health bar (silver, silver, gold), so a unit's
 # star reads on the board at a glance. A child of Bars, so it hides with them.
@@ -241,7 +340,7 @@ func _update_star_mark() -> void:
 		star_mark.outline_size = 10
 		star_mark.outline_modulate = Color(0.05, 0.05, 0.08, 0.95)
 		star_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		star_mark.offset = Vector2(-112, 2)   # just left of the bar (pixels at pixel_size: the bar is 100 px of 0.01 wide)
+		star_mark.offset = Vector2(-114, -6)   # just left of the plate (pixels at pixel_size: the plate is 106 px of 0.01 wide)
 		$Bars.add_child(star_mark)
 	star_mark.text = "★".repeat(star)
 	star_mark.modulate = STAR_MARK_COLORS[star]
@@ -259,32 +358,34 @@ func _process(delta):
 		item_icons.global_position = global_position + Vector3(0, bar_height + ICON_HEIGHT, 0)
 	if data == null or bar_fill == null:
 		return
+	_update_ticks()
 
 	var ratio := clampf(health / max_hp(), 0.0, 1.0)
 	if not is_equal_approx(ratio, _last_ratio):
 		_last_ratio = ratio
-		bar_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * ratio, 0.01), BAR_PX_H)
+		bar_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * ratio, 0.01), 7)
 
 	bar_bg.visible = not dead   # a dying model lies there without bars until it disappears
 	bar_fill.visible = not dead
+	if bar_ticks != null:
+		bar_ticks.visible = not dead
 	var sh := clampf(shield / max_hp(), 0.0, 1.0) if not dead else 0.0
 	if not is_equal_approx(sh, _last_shield):
 		_last_shield = sh
 		shield_fill.visible = sh > 0.0
-		shield_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * sh, 0.01), BAR_PX_H)
-	var base_col := Color(0.3, 0.85, 0.3) if mine() else Color(0.9, 0.25, 0.25)
-	bar_fill.modulate = base_col.lerp(Color(1.0, 0.55, 0.1), 0.6) if burn_left > 0.0 else base_col   # burning: orange tint
+		shield_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * sh, 0.01), 3)
+	var base_col: Color = HP_COLORS[0 if mine() else 1]
+	bar_fill.modulate = base_col.lerp(BURN_TINT, 0.6) if burn_left > 0.0 else base_col   # burning: orange tint
 	if item_icons != null:
 		item_icons.visible = not dead
 	var has_mana := data.max_mana > 0.0 and not dead
-	mana_bg.visible = has_mana
 	mana_fill.visible = has_mana
 	if has_mana:
 		var m := clampf(mana / data.max_mana, 0.0, 1.0)
 		if not is_equal_approx(m, _last_mana_ratio):
 			_last_mana_ratio = m
-			mana_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * m, 0.01), BAR_PX_H)
-			mana_fill.modulate = Color(0.55, 0.85, 1.0) if m >= 1.0 else Color(0.3, 0.55, 1.0)
+			mana_fill.region_rect = Rect2(0, 0, maxf(BAR_PX_W * m, 0.01), 3)
+			mana_fill.modulate = MANA_FULL if m >= 1.0 else MANA_COLOR
 
 
 
@@ -292,7 +393,8 @@ func setup(d: UnitData, t: int):
 	data = d
 	team = t
 	if bar_fill:
-		bar_fill.modulate = Color(0.3, 0.85, 0.3) if mine() else Color(0.9, 0.25, 0.25)
+		_dress_bars()
+		bar_fill.modulate = HP_COLORS[0 if mine() else 1]
 	health = d.max_health
 	var holder := get_node_or_null("ModelHolder")
 	if holder == null:
@@ -939,7 +1041,7 @@ func _update_status(delta: float):
 			var s := Vfx.cube(0.2, Color(0.35, 0.35, 0.4, 0.8))
 			s.position = Vector3(cos(i * 1.6) * 0.25, 0.08 * i, sin(i * 1.6) * 0.25)
 			n.add_child(s)
-		return [n, Vector3(0, bar_height - 0.2, 0), true])
+		return [n, Vector3(0, head_height() - 0.2, 0), true])
 	_piece("doom", doom_left > 0.0, func():
 		var l := Label3D.new()
 		l.font_size = 64
@@ -1170,7 +1272,7 @@ func _recalc_items() -> void:
 		item_lifesteal += it.lifesteal
 	_update_item_icons()
 
-# The items as their icon images (textures/ui/items/<id>.png) in a row above the health bar: flat,
+# The items as their icon images (textures/ui/items/<id>.png) in a row under the bars, over the head: flat,
 # always facing the camera, drawn over the models. Bound items show their stack count (resonances are listed
 # in the inspector and the Items tab, not on the board). The row is top_level so it stays level when the unit
 # turns; _process moves it along with the unit.
