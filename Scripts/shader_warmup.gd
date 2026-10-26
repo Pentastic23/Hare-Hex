@@ -27,6 +27,8 @@ func _ready():
 func _run():
 	_add_misc()
 	await _hold()
+	if not is_inside_tree():
+		return
 	var models: Array[String] = []
 	for f in ResourceLoader.list_directory("res://scenes/models"):
 		if f.ends_with(".tscn"):
@@ -46,6 +48,8 @@ func _run():
 				m.position = Vector3((k % 4) - 1.5, 0, (k / 4) - 1.0)   # side by side, all in view
 				k += 1
 		await _hold()
+		if not is_inside_tree():
+			return   # the menu was left mid-way (a run started): it warms up again next time
 		for c in stage.get_children():
 			c.queue_free()
 	done = true
@@ -53,6 +57,8 @@ func _run():
 
 func _hold():
 	for i in HOLD_FRAMES:
+		if not is_inside_tree():
+			return
 		await get_tree().process_frame
 
 # The materials that aren't unit models: a themed tile block, a health bar sprite, a label, the team

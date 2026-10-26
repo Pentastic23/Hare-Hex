@@ -192,7 +192,19 @@ func _run():
 	chk("the main menu has a Planner screen with the full roster", menu.planner_panel.get_parent().visible and menu.planner.grid.get_child_count() > 5)
 	menu.queue_free()
 	await frames(2)
-	SaveGame.path = SaveGame.DEFAULT_PATH if "DEFAULT_PATH" in SaveGame else SaveGame.path
+	print("--- live portraits (PortraitStudio)")
+	var run_scene := Node3D.new()   # a run being set up: its biome is applied twice (the board's default, then the run's)
+	add_child(run_scene)
+	PortraitStudio.enabled = true   # off without a window; only opening it is checked here
+	PortraitStudio.open(run_scene, &"forest")
+	PortraitStudio.open(run_scene, &"volcano")
+	await frames(2)
+	var studios := run_scene.get_children().filter(func(n): return n is PortraitStudio)
+	chk("opening the portrait studio twice while a run is set up keeps one studio (freeing the first crashed the game)", studios.size() == 1 and studios[0].look == &"volcano")
+	PortraitStudio.enabled = false
+	run_scene.queue_free()
+	await frames(2)
+	SaveGame.path =SaveGame.DEFAULT_PATH if "DEFAULT_PATH" in SaveGame else SaveGame.path
 	Settings.path = Settings.DEFAULT_PATH
 	print("RESULT: ", "ALL PASS" if fails == 0 else "%d FAILED" % fails)
 	get_tree().quit()

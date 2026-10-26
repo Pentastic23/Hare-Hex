@@ -22,6 +22,7 @@ const FILL := 1.45         # how much of the frame the model's bounding sphere f
 
 static var enabled := DisplayServer.get_name() != "headless"
 static var _inst: PortraitStudio
+static var _inst_scene: Node   # the run the studio belongs to (it joins that scene a frame later)
 static var _tex := {}      # unit key -> the ImageTexture handed out
 static var _data := {}     # unit key -> UnitData
 static var _drawn := {}    # unit key -> the biome it was last drawn in
@@ -41,10 +42,14 @@ var _cam: Camera3D
 static func open(scene: Node, id: StringName) -> void:
 	if not enabled or scene == null or not scene.is_inside_tree():
 		return
-	if not is_instance_valid(_inst) or _inst.get_parent() != scene:
-		if is_instance_valid(_inst):
-			_inst.queue_free()
+	# A run can apply its biome more than once while its scene is being set up, before the studio has
+	# joined it (that add is deferred): reuse it then. Freeing a studio that is still waiting to be added
+	# crashed the game (the deferred add_child then got a freed node).
+	if not is_instance_valid(_inst) or not is_instance_valid(_inst_scene) or _inst_scene != scene:
+		if is_instance_valid(_inst) and _inst.is_inside_tree():
+			_inst.queue_free()   # a studio from an earlier run still in the tree
 		_inst = PortraitStudio.new()
+		_inst_scene = scene
 		_drawn.clear()
 		scene.add_child.call_deferred(_inst)   # the run applies its biome while its scene is still being set up
 	_inst.set_look(id)
