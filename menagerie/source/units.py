@@ -144,6 +144,8 @@ def back_wings(m, feather='#f7f7fb', shade='#d8dcea', z=8, y=5, span=7):
 
 def finish(m, tier):
     m.style['tier'] = tier
+    m.close_grip('l')
+    m.close_grip('r')
     if tier == 4:
         m.grow(4, 4, 6)
         m.astral()

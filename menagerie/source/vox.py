@@ -110,6 +110,28 @@ class Model:
         self.pal, self._idx = pal, idx
         assert len(pal) <= 256, f'{self.name}: too many colors ({len(pal)})'
 
+    def close_grip(self, side):
+        """Slide a hand's weapon voxels sideways until they touch the hand (arm voxels below the elbow).
+        Bows, guns and shields are drawn at a fixed column near the grid's edge, which left them a voxel
+        or two beside the hand: floating next to the unit in every pose. Overlapping voxels (a pauldron
+        behind a shield) give way to the weapon."""
+        w = (self.p == PID['weapon_' + side]) & (self.g > 0)
+        hand = (self.p == PID['arm_' + side]) & (self.g > 0)
+        hand[:, :, 9:] = False   # the hand is at z 4-8, the elbow above
+        if not w.any() or not hand.any():
+            return
+        xw = np.nonzero(w.any(axis=(1, 2)))[0]
+        xh = np.nonzero(hand.any(axis=(1, 2)))[0]
+        gap = xw.min() - xh.max() - 1 if side == 'l' else xh.min() - xw.max() - 1
+        if gap <= 0:
+            return
+        d = -gap if side == 'l' else gap
+        idx = np.argwhere(w)
+        g, p = self.g[w], self.p[w]
+        self.g[w] = 0
+        self.g[idx[:, 0] + d, idx[:, 1], idx[:, 2]] = g
+        self.p[idx[:, 0] + d, idx[:, 1], idx[:, 2]] = p
+
     # ---------- primitives ----------
     def _put(self, mask, col, only=None, keep=False):
         """Apply color to mask. only: restrict to filled voxels (a paint). keep: don't overwrite filled."""
