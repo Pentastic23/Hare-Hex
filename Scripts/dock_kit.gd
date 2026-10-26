@@ -217,7 +217,8 @@ static func chip(label: String, bg: Color, fg: Color, size := 11, outline := Col
 
 # --- portraits and item icons ---------------------------------------------------------------------
 
-# The 96 px portrait for a unit, found by its .tres file name; null when it has none.
+# The 96 px portrait for a unit, found by its .tres file name; null when it has none. In a run it is
+# redrawn from the unit's model in the board's light (PortraitStudio); outside one, the baked image.
 static func portrait(d: UnitData) -> Texture2D:
 	if d == null or d.resource_path == "":
 		return null
@@ -225,7 +226,7 @@ static func portrait(d: UnitData) -> Texture2D:
 	if not _portraits.has(key):
 		var p := PORTRAIT_DIR + key + ".png"
 		_portraits[key] = load(p) if ResourceLoader.exists(p) else null
-	return _portraits[key]
+	return PortraitStudio.texture_for(d, key, _portraits[key])
 
 static func item_icon(item: ItemData) -> Texture2D:
 	if item == null:

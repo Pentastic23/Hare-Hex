@@ -184,6 +184,7 @@ func apply_theme(id: StringName, seed := 0) -> void:
 	if main != null:   # the run's sun, ambient light, haze and glow (main.tscn's WorldEnvironment and light)
 		var we := main.get_node_or_null("WorldEnvironment") as WorldEnvironment
 		BoardThemes.apply_look(id, we.environment if we != null else null, main.get_node_or_null("DirectionalLight3D") as DirectionalLight3D)
+		PortraitStudio.open(main, id)   # the unit portraits drawn in the same light
 
 func _skin(node: Node3D, part: String) -> void:
 	var mi := node.get_node_or_null("MeshInstance3D") as MeshInstance3D
