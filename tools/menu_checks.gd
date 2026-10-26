@@ -240,6 +240,26 @@ class Driver extends Node:
 		scene().confirm.confirmed.emit()
 		chk("reset progress clears completed levels", not SaveGame.is_level_complete(&"ch1_l1"))
 
+		print("--- the launch screen (Splash)")
+		chk("the game launches into the splash screen, with the logo on the boot splash too", ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/splash.tscn" and ProjectSettings.get_setting("application/boot_splash/image") == "res://icon.png")
+		get_tree().change_scene_to_file("res://scenes/splash.tscn")
+		await wait(0.5)
+		chk("the splash hands over to the main menu (straight away headless)", scene().scene_file_path == "res://scenes/menu.tscn" and find_button(scene(), "Free Play") != null, scene().scene_file_path)
+		var cat := (load("res://tres/assassin.tres") as UnitData).model.instantiate() as UnitModel
+		add_child(cat)
+		cat.set_star(2)
+		var player: AnimationPlayer = cat._anim
+		var idle_arm: Quaternion = player.get_animation("idle").rotation_track_interpolate(UnitModel._rotation_track(player.get_animation("idle"), "arm_r"), 0.0) if UnitModel._rotation_track(player.get_animation("idle"), "arm_r") >= 0 else Quaternion.IDENTITY
+		cat.wave()
+		var w: Animation = player.get_animation("extra/wave") if player.has_animation("extra/wave") else null
+		var arm := UnitModel._rotation_track(w, "arm_r") if w != null else -1
+		var swing := w.rotation_track_interpolate(arm, 0.0).angle_to(w.rotation_track_interpolate(arm, UnitModel.WAVE_BEAT)) if arm >= 0 else 0.0
+		chk("the Assassin's wave: the arm raised over the idle pose and swinging, on loop", w != null and arm >= 0 and w.loop_mode == Animation.LOOP_LINEAR and w.rotation_track_interpolate(arm, 0.0).angle_to(idle_arm) > 1.5 and swing > 0.5 and cat.rest_clip == "extra/wave", "swing %.2f" % swing)
+		cat.set_star(1)
+		chk("it keeps waving after a star change", cat.rest_clip == "extra/wave" and cat._anim.has_animation("extra/wave"))
+		cat.queue_free()
+		await to_menu()
+
 		print("--- the moving background (MenuBackdrop)")
 		chk("headless: the menu builds no moving background", scene().backdrop == null)
 		var bd := MenuBackdrop.new()

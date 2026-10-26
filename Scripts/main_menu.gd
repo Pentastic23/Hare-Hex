@@ -149,6 +149,10 @@ Best: %d trophies." % SaveGame.async_best() if SaveGame.async_best() > 0 else ""
 		_reopen_settings = ""
 		_fill_settings()
 		_show_panel(settings_panel)
+	if Splash.fade_menu_in:   # straight from the launch screen, which faded to this same background
+		Splash.fade_menu_in = false
+		main_box.modulate.a = 0.0
+		create_tween().tween_property(main_box, "modulate:a", 1.0, 0.4)
 	_warm_up.call_deferred()
 
 func _ready_overlay() -> void:

@@ -24,6 +24,7 @@ var _star := 0
 var _one_shot := ""           # attack / skill / hit / death while it plays; walk and idle wait for it
 var _hit_wait := 0.0
 var _victory_left := 0.0
+var rest_clip := "idle"       # the clip it loops when not walking or busy ("extra/wave" after wave())
 
 func set_star(s: int) -> void:
 	s = clampi(s, 1, star_scenes.size())
@@ -52,7 +53,9 @@ func set_star(s: int) -> void:
 			if _anim.has_animation(a):
 				_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	_one_shot = ""
-	_play("death" if unit != null and unit.dead else "idle")
+	if rest_clip != "idle":
+		wave()   # a new star's model: make its wave again
+	_play("death" if unit != null and unit.dead else rest_clip)
 	if unit != null and unit.dead and _anim != null:
 		_anim.seek(_anim.current_animation_length, true)   # already lying down
 
@@ -93,7 +96,7 @@ func on_death() -> void:
 func on_fight_over(celebrate: bool) -> void:
 	_one_shot = ""
 	_victory_left = VICTORY_TIME if celebrate else 0.0
-	_play("victory" if celebrate else "idle")
+	_play("victory" if celebrate else rest_clip)
 
 # Seconds of the death animation still to play (0 when not dying).
 func death_left() -> float:
@@ -115,6 +118,51 @@ func _process(delta: float) -> void:
 		_victory_left -= delta
 		if _victory_left > 0.0:
 			return
-	var want := "walk" if unit != null and unit.moving else "idle"
+	var want := "walk" if unit != null and unit.moving else rest_clip
 	if _anim.current_animation != want:
 		_play(want)
+
+# A friendly wave (the splash screen): the idle clip with the right arm raised as at the top of the
+# victory clip, swinging side to side from the shoulder, its weapon held upright. Built from the model's
+# own clips (every biped has the same rig), added as "extra/wave" and looped in place of idle.
+const WAVE_SWING := [0.85, 0.1]   # radians the raised arm swings out and back (about the body's forward axis)
+const WAVE_BEAT := 0.2             # seconds per swing
+func wave() -> void:
+	if _anim == null or not _anim.has_animation("idle") or not _anim.has_animation("victory"):
+		return
+	var victory := _anim.get_animation("victory")
+	var arm := _rotation_track(victory, "arm_r")
+	if arm < 0:
+		return
+	var clip := _anim.get_animation("idle").duplicate() as Animation
+	for bone in ["arm_r", "weapon_r"]:
+		var old := _rotation_track(clip, bone)
+		if old >= 0:
+			clip.remove_track(old)
+	var up: Quaternion = victory.rotation_track_interpolate(arm, 0.25)   # the arm at the top of the victory clip
+	var t := clip.add_track(Animation.TYPE_ROTATION_3D)
+	clip.track_set_path(t, victory.track_get_path(arm))
+	var beats := roundi(clip.length / WAVE_BEAT)
+	for k in beats + 1:
+		var a: float = WAVE_SWING[k % 2] if k < beats else WAVE_SWING[0]
+		clip.rotation_track_insert_key(t, minf(k * WAVE_BEAT, clip.length), Quaternion(Vector3.BACK, a) * up)
+	var weapon := _rotation_track(victory, "weapon_r")
+	if weapon >= 0:
+		var w := clip.add_track(Animation.TYPE_ROTATION_3D)
+		clip.track_set_path(w, victory.track_get_path(weapon))
+		clip.rotation_track_insert_key(w, 0.0, victory.rotation_track_interpolate(weapon, 0.25))
+	clip.loop_mode = Animation.LOOP_LINEAR
+	var lib := AnimationLibrary.new()
+	lib.add_animation("wave", clip)
+	if _anim.has_animation_library("extra"):
+		_anim.remove_animation_library("extra")
+	_anim.add_animation_library("extra", lib)
+	rest_clip = "extra/wave"
+	if _one_shot == "":
+		_play(rest_clip)
+
+static func _rotation_track(a: Animation, bone: String) -> int:
+	for i in a.get_track_count():
+		if a.track_get_type(i) == Animation.TYPE_ROTATION_3D and String(a.track_get_path(i).get_concatenated_subnames()) == bone:
+			return i
+	return -1
