@@ -240,6 +240,48 @@ class Driver extends Node:
 		scene().confirm.confirmed.emit()
 		chk("reset progress clears completed levels", not SaveGame.is_level_complete(&"ch1_l1"))
 
+		print("--- the moving background (MenuBackdrop)")
+		chk("headless: the menu builds no moving background", scene().backdrop == null)
+		var bd := MenuBackdrop.new()
+		add_child(bd)
+		var t0 := Time.get_ticks_msec()
+		bd.build_all()
+		chk("it builds the whole strip of land", bd.ready_to_run and bd.tiles_made > 2500, "%d tiles in %d ms" % [bd.tiles_made, Time.get_ticks_msec() - t0])
+		var seen: Array = []
+		for i in 200:
+			var b: StringName = bd.biome_at(i * bd.loop_len / 200.0)
+			if not seen.has(b):
+				seen.append(b)
+		chk("one loop passes over every biome in turn and ends at the volcano", seen == Array(MenuBackdrop.BIOMES), str(seen))
+		chk("the camera glides on, then stops for the dragon", bd._camera_x(1.0) < bd._camera_x(10.0) and is_equal_approx(bd._camera_x(bd.stop), bd._camera_x(bd.loop_len - 0.1)))
+		chk("the loop is slow enough to take in (about 3 s a biome)", bd.loop_len > 35.0 and bd.loop_len < 55.0, "%.1f s" % bd.loop_len)
+		var curtain := ColorRect.new()
+		add_child(curtain)
+		bd.curtain = curtain
+		var fades: Array[float] = []
+		for t in [10.0, bd.loop_len - 0.05, 0.05]:
+			bd._apply(t)
+			fades.append(curtain.modulate.a)
+		chk("the picture fades out at the end of the loop and back in at the start", fades[0] == 0.0 and fades[1] > 0.9 and fades[2] > 0.8, str(fades))
+		var lm_units := 0
+		for i in 900:   # the unit models load in the background
+			bd._poll_models()
+			lm_units = 0
+			for lm in bd._landmarks:
+				lm_units += lm.models.size()
+			if bd.dragon != null and lm_units == 22:
+				break
+			await get_tree().process_frame
+		chk("a giant dragon stands in the volcano", bd.dragon != null and bd.dragon.scale.x >= 4.0 and MenuBackdrop.biome_index(bd.dragon.position.x) == MenuBackdrop.BIOMES.size() - 1)
+		chk("every other biome's landmark has its two units", lm_units == 22, str(lm_units))
+		Settings.reduce_motion = true
+		bd.time = 7.0
+		bd._process(0.1)
+		chk("Reduce motion holds one still view", bd.time == MenuBackdrop.STILL_TIME)
+		Settings.reduce_motion = false
+		bd.queue_free()
+		curtain.queue_free()
+
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 		# Debug Level is ignored once the menu has chosen a run

@@ -60,6 +60,7 @@ var _confirm_action: Callable
 # before adding it to the tree; Back (or Esc) on Settings closes it and emits `closed`.
 var overlay := false
 signal closed
+var backdrop: MenuBackdrop   # the moving world behind the menu (not in the overlay, nor headless)
 
 func _ready():
 	if overlay:
@@ -73,7 +74,13 @@ func _ready():
 		campaign = load(CAMPAIGN_PATH)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
-	add_child(_background())
+	var bg := _background()
+	add_child(bg)
+	if MenuBackdrop.enabled:   # the voxel fly-over behind the menu; the dark background covers it until it is built
+		backdrop = MenuBackdrop.new()
+		backdrop.curtain = bg
+		add_child(backdrop)
+		add_child(MenuBackdrop.vignette())
 
 	main_box = _centered_box(self, 8)
 	var title := HudStyle.number(104, GOLD)   # the pixel font, with a hard dark shadow like the HUD plates' lip
