@@ -15,7 +15,7 @@ const COOLDOWN := {&"hit": 0.05, &"crit": 0.08, &"swing": 0.09, &"death": 0.12, 
 # Per-sound loudness trim in dB (the pack is normalised, so the busy ones are turned down).
 const GAIN := {&"hit": -7.0, &"swing": -13.0, &"crit": -4.0, &"death": -5.0, &"cast": -6.0, &"heal": -8.0, &"click": -8.0, &"place": -5.0, &"pickup": -9.0}
 # Sounds that keep one pitch (jingles with melodies); the rest vary a little.
-const FIXED_PITCH := [&"buy", &"sell", &"xp", &"merge", &"levelup", &"win", &"lose", &"round", &"equip", &"heal", &"lock", &"unlock", &"error"]
+const FIXED_PITCH := [&"buy", &"sell", &"xp", &"merge", &"levelup", &"win", &"lose", &"round", &"equip", &"resonance", &"heal", &"lock", &"unlock", &"error"]
 
 var muted := 0                 # > 0: nothing plays
 var played := {}               # sound -> times it played (for tests)

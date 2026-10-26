@@ -110,6 +110,7 @@ func place_bought(d: UnitData, before: Array) -> void:
 func _on_item_drag_started(index: int):
 	if index >= 0 and index < GameState.me.items.size():
 		dragging_item = GameState.me.items[index]
+		Sfx.play(&"pickup")
 
 func _end_item_drag():
 	if dragging_item == null:
@@ -156,14 +157,30 @@ func unit_for_item(at: Vector2) -> Unit:
 	return best
 
 func equip_item_on(u: Unit, item: ItemData) -> bool:
+	var had: Array = u.items.duplicate() if u != null else []
 	var lobby: LobbyGame = get_node("../Game Manager").lobby
+	var ok: bool
 	if lobby != null:
-		return lobby.equip(u, item)
-	if u == null or not _rules().equip(u, item, in_prep, not in_prep and u.coord.x >= 0):
+		ok = lobby.equip(u, item)   # sent to the server: sound and look now, the server has the say
+	else:
+		ok = u != null and _rules().equip(u, item, in_prep, not in_prep and u.coord.x >= 0)
+	if not ok:
+		if u != null:
+			Sfx.play(&"error")   # a full unit, a second bound item, Tongs mid-fight...
 		return false
-	if item.kind != &"remover":
-		Sfx.play(&"equip")
+	item_landed(u, item, had)
 	return true
+
+# The sound and look of an item going onto a unit (or Tinker's Tongs taking them off). `had` is what
+# the unit carried before; an item that wakes a new resonance gets the resonance chime.
+static func item_landed(u: Unit, item: ItemData, had: Array) -> void:
+	if item.kind == &"remover":
+		Sfx.play(&"tongs")
+		Vfx.burst(u, Vfx._chest(u), Color("c8ccd8"), 8, 0.8)
+		return
+	var woke := Resonance.would_add(item, had).size()
+	Sfx.play(&"resonance" if woke > 0 else &"equip")
+	Vfx.equip(u, item.color, woke)
 
 func _sell_with_key():
 	if dragging_item != null:

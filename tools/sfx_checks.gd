@@ -6,7 +6,7 @@
 
 extends Node
 
-const ALL := [&"click", &"buy", &"sell", &"reroll", &"xp", &"lock", &"unlock", &"error", &"pickup", &"place", &"equip",
+const ALL := [&"click", &"buy", &"sell", &"reroll", &"xp", &"lock", &"unlock", &"error", &"pickup", &"place", &"equip", &"resonance", &"tongs",
 	&"merge", &"levelup", &"win", &"lose", &"round", &"swing", &"hit", &"crit", &"death", &"cast", &"heal"]
 
 var fails := 0
@@ -147,6 +147,24 @@ func _run():
 	clear()
 	board.merge_all()
 	chk("three of a kind merge with a sound", count(&"merge") == 1)
+
+	print("--- items going onto units")
+	var dc := main.get_node("DragController")
+	var holder: Unit = board.bench.filter(func(b): return b != null)[0]
+	var I := func(id: String) -> ItemData: return load("res://tres/items/%s.tres" % id)
+	me.items.assign([I.call("longsword"), I.call("quick_bow"), I.call("iron_belt"), I.call("chain_vest"), I.call("tinkers_tongs")])
+	clear()
+	Events.item_drag_started.emit(0)
+	chk("picking an item up", count(&"pickup") == 1)
+	dc._end_item_drag()
+	chk("an item onto a unit: the equip clink", dc.equip_item_on(holder, me.items[0]) and count(&"equip") == 1 and count(&"resonance") == 0)
+	chk("a second element wakes a resonance: its chime instead", dc.equip_item_on(holder, me.items[0]) and count(&"resonance") == 1 and count(&"equip") == 1)
+	Sfx._last_ms.clear()
+	dc.equip_item_on(holder, me.items[0])
+	Sfx._last_ms.clear()
+	chk("a fourth item won't fit: the error sound", not dc.equip_item_on(holder, me.items[0]) and count(&"error") == 1)
+	dc.in_prep = true
+	chk("Tinker's Tongs pulling the items off", dc.equip_item_on(holder, I.call("tinkers_tongs")) and count(&"tongs") == 1 and holder.items.is_empty())
 
 	print("--- a fight")
 	GameState.me.level = 5

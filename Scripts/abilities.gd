@@ -146,28 +146,37 @@ static func amt(u: Unit, key: String) -> float:
 # Runs u's ability on its target t. Returns how long the cast locks u (CAST_TIME, longer for channels).
 static func cast(u: Unit, t: Unit) -> float:
 	var lock := CAST_TIME
+	var fx := Vfx.color_of(u)   # the look of each cast is visual only (vfx.gd): nothing reads it back
 	match u.data.display_name:
 		"Cleric":
 			for a in lowest_hp_allies(u, 2):
+				Vfx.sky_beam(u, a.global_position, Color("fff2b0"))
 				mend(a, amt(u, "a"))
 		"Archer":
 			for e in nearest_enemies(u, u.coord, 3):
-				hit(u, e, amt(u, "a"))
+				Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(e), fx, 0.8)
+				hit(u, e, amt(u, "a"), false)
 		"Knight":
+			Vfx.slash(u, t.global_position, fx)
+			Vfx.rings(u, u.global_position, fx, 2, 1.4)
 			hit(u, t, amt(u, "a"))
 			t.apply_stun(1.0)
 		"Militia":
-			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
+			Vfx.wall(u, fx, 0.8)
+			Vfx.shockwave(u, u.board, u.coord, 1, fx, 0.35, 2)
 			u.add_timed_shield(amt(u, "a"), 4.0)
 			for e in enemies_within(u, u.coord, 1):
 				e.apply_taunt(u, 2.0)
 		"Acolyte":
 			for a in lowest_hp_allies(u, 1):
+				Vfx.sky_beam(u, a.global_position, fx, 0.4, 0.5)
+				Vfx.wall(a, Color("cfe8ff"), 0.6)
 				a.add_timed_shield(amt(u, "a"), 4.0, true)
 		"Apprentice":
 			var dmg := amt(u, "a")
 			var hit_list: Array[Unit] = [t]
-			hit(u, t, dmg)
+			var chain: Array = [Vfx._chest(u), Vfx._chest(t)]
+			hit(u, t, dmg, false)
 			var last := t
 			for i in 2:
 				var next: Unit = null
@@ -178,74 +187,111 @@ static func cast(u: Unit, t: Unit) -> float:
 				if next == null:
 					break
 				dmg *= 0.7
-				hit(u, next, dmg)
+				hit(u, next, dmg, false)
 				hit_list.append(next)
+				chain.append(Vfx._chest(next))
 				last = next
+			Vfx.lightning(u, chain, fx)
 		"Skeleton":
+			Vfx.slash(u, t.global_position, Color("e8e2c8"))
+			Vfx.stream(t, u, Vfx.HEAL, 4)
 			mend(u, hit(u, t, amt(u, "a")) * 0.5)
 		"Imp":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.rings(u, u.global_position, fx, 4, 3.2)
+			Vfx.shockwave(u, u.board, u.coord, 2, fx, 0.3, 2)
 			for e in enemies_within(u, u.coord, 2):
 				hit(u, e, amt(u, "a"))
 				e.apply_chill(0.3, 3.0)
 		"Sprite":
-			hit(u, t, amt(u, "a"))
+			Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(t), Color("b07a3a"), 1.2, 1.0, 0.2)
+			hit(u, t, amt(u, "a"), false)
 			t.apply_silence(amt(u, "b"))
 		"Firebrand":
-			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
+			Vfx.slash(u, t.global_position, fx, TAU, 1.0, 0.0)
+			Vfx.shockwave(u, u.board, u.coord, 1, fx, 0.35, 2)
 			for e in enemies_within(u, u.coord, 1):
 				hit(u, e, amt(u, "a"))
 				e.apply_burn(0.03 * e.max_hp(), u)
 		"Frostling":
-			Vfx.area(u, u.board, t.coord, 1, Vfx.color_of(u))
+			var tc := t.coord
+			Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(t), Color("eefaff"), 1.0, 1.0, 0.26)
+			Vfx._later(u, 0.25, func(): Vfx.shockwave(u, u.board, tc, 1, fx, 0.3, 2))
 			var around := enemies_within(u, t.coord, 1)
-			hit(u, t, amt(u, "a"))
+			hit(u, t, amt(u, "a"), false)
 			for e in around:
 				e.apply_chill(0.3, 3.0)
 		"Miner":
+			Vfx.slash(u, t.global_position, fx, PI * 0.5, 0.8, 1.2)
+			Vfx.spikes(u, u.board, [t.coord], fx, 0.6, 0.3)
+			Vfx.mark(t, Color("ff6b5a"), 4.0)
 			hit(u, t, amt(u, "a"))
 			t.apply_curse(0.15, 4.0)
 		"Initiate":
 			var d := amt(u, "a")
 			for i in 5:
-				u.queue_action(0.1 * i, func(): _strike(u, d))
+				u.queue_action(0.1 * i, func():
+					var e := u.target if is_instance_valid(u.target) and not u.target.dead else u.board.nearest_enemy(u)
+					if e != null:
+						Vfx.slash(u, e.global_position, fx, PI * 0.5, 0.8, 0.6 if i % 2 else -0.6)
+					_strike(u, d))
 		"Guardian":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.wall(u, fx, 2.5, 0.9)
+			Vfx.shockwave(u, u.board, u.coord, 2, fx, 0.3, 2)
 			u.add_buff("Shell Up", "dr", 0.5, 3.0)
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_taunt(u, 2.0)
 		"Bard":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.notes(u, fx, 4)
+			Vfx.rings(u, u.global_position, fx, 2, 3.0)
 			for a in allies_within(u, u.coord, 2):
+				if a != u:
+					Vfx.notes(a, fx, 1)
 				a.add_buff("Dawn Chorus", "as", amt(u, "b") / 100.0, 4.0)
 		"Alchemist":
 			for a in lowest_hp_allies(u, 1):
+				Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(a), Color("7fdc5a"), 1.6, 1.0, 0.22)
+				Vfx.rise(a, Color("ffe066"), 6)
 				mend(a, amt(u, "a"))
 				a.add_buff("Tonic Flask", "as", 0.2, 3.0)
 		"Ghoul":
+			Vfx.slash(u, t.global_position, fx)
 			hit(u, t, amt(u, "a"))
 			if t.dead or t.health < t.max_hp() * 0.3:
+				Vfx.stream(t, u, Vfx.HEAL, 5)
 				mend(u, amt(u, "b"))
 		"Sparkcaller":
-			Vfx.beam(u, Vfx._chest(u), Vfx._chest(t), Vfx.color_of(u), 0.35, 0.22)
+			var bolt: Array = [Vfx._chest(u)]
 			for e in enemies_in_line(u, t, 3):
-				hit(u, e, amt(u, "a"))
+				bolt.append(Vfx._chest(e))
+				hit(u, e, amt(u, "a"), false)
+			if bolt.size() == 1:
+				bolt.append(Vfx._chest(t))
+			Vfx.lightning(u, bolt, fx)
 		"Frost Archer":
 			var far := farthest_enemy(u)
 			if far != null:
-				hit(u, far, amt(u, "a"))
+				Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(far), Color("cfefff"), 0.25, 3.5, 0.18)
+				Vfx.spikes(u, u.board, [far.coord], fx, 0.9, 0.4)
+				hit(u, far, amt(u, "a"), false)
 				far.apply_chill(0.4, 3.0)
 		"Ironbeard":
+			Vfx.shockwave(u, u.board, t.coord, 0, fx, 0.7)
+			Vfx.wall(u, fx, 0.6)
 			hit(u, t, amt(u, "a"))
 			t.apply_stun(1.5)
 			u.add_timed_shield(amt(u, "b"), 4.0)
 		"Monk":
 			lock = 1.0
+			Vfx.rise(u, fx, 12, 1.0)
+			Vfx.orbit(u, Color("ffe066"), 1.0, 3, 0.5, 0.4)
 			u.next_attack_stun = 1.0
 			u.queue_action(1.0, func(): mend(u, u.max_hp() * 0.25))
 		"Cultist":
+			Vfx.burst(u, Vfx._chest(u), Color("c0203a"), 8, 0.6)
 			u.health = maxf(1.0, u.health * 0.9)
 			for e in nearest_enemies(u, u.coord, 2):
+				Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(e), Color("c0203a"), 1.3, 1.0, 0.18)
+				Vfx.mark(e, Color("c0203a"), 4.0)
 				e.apply_curse(0.25, 4.0)
 				e.apply_burn(0.03 * e.max_hp(), u)
 		"Mage":
@@ -254,33 +300,41 @@ static func cast(u: Unit, t: Unit) -> float:
 				u.queue_action(0.15 * i, func():
 					var e := lowest_hp_enemy(u)
 					if e != null:
-						hit(u, e, d))
+						Vfx.arc_shot(u, Vfx._chest(u) + Vector3(0, 0.6, 0), Vfx._chest(e), fx, 0.6, 1.0, 0.2)
+						hit(u, e, d, false))
 		"Pyromancer":
 			var c := cluster(u)
 			if c != null:
-				Vfx.area(u, u.board, c.coord, 1, Vfx.color_of(u))
+				Vfx.pillar(u, c.global_position, fx, 2.7)
+				Vfx.shockwave(u, u.board, c.coord, 1, fx, 0.4, 2)
 				for e in enemies_within(u, c.coord, 1):
-					hit(u, e, amt(u, "a"))
+					hit(u, e, amt(u, "a"), false)
 					e.apply_burn(0.06 * e.max_hp(), u, 4.0)
 		"Ice Mage":
 			var c := cluster(u)
 			if c != null:
-				Vfx.area(u, u.board, c.coord, 1, Vfx.color_of(u))
+				var cells := _cells_near(u, c.coord, 0, 1)
+				Vfx.meteor(u, c.global_position, fx, 0.8)
+				Vfx._later(u, 0.22, func(): Vfx.spikes(u, u.board, cells, fx, 0.9, 0.9))
 				for e in enemies_within(u, c.coord, 1):
-					hit(u, e, amt(u, "a"))
+					hit(u, e, amt(u, "a"), false)
 					e.apply_stun(1.25)
 		"Dryad":
-			Vfx.area(u, u.board, u.coord, 3, Vfx.color_of(u))
+			Vfx.shockwave(u, u.board, u.coord, 3, fx, 0.25, 1)
 			for a in allies(u):
+				Vfx.rise(a, Vfx.HEAL, 6, 0.6)
 				mend(a, amt(u, "a"))
 				a.add_buff("Eucalyptus Bloom", "regen", 0.01, 4.0)
 		"Skald":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.notes(u, Color("ff6b5a"), 3)
+			Vfx.rings(u, u.global_position, Color("ff6b5a"), 3, 3.2)
+			Vfx.wall(u, fx, 0.8)
 			for a in allies_within(u, u.coord, 2):
 				a.add_buff("War Chant", "dmg", amt(u, "b") / 100.0, 4.0)
 			u.add_timed_shield(amt(u, "c"), 4.0)
 		"Shadowfist":
-			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
+			Vfx.cloud(u, u.global_position, Color("8a9a5a"), 1.5, 1.4)
+			Vfx.shockwave(u, u.board, u.coord, 1, Color("8a9a5a"), 0.25, 1)
 			for e in enemies_within(u, u.coord, 1):
 				hit(u, e, amt(u, "a"))
 				e.apply_blind(2)
@@ -291,73 +345,96 @@ static func cast(u: Unit, t: Unit) -> float:
 				u.queue_action(0.2 * i, func():
 					var e := u.target if is_instance_valid(u.target) and not u.target.dead else u.board.nearest_enemy(u)
 					if e != null:
+						Vfx.slash(u, e.global_position, Color("ffe066"), PI * 0.5, 0.8, 0.5 if i % 2 else -0.5)
 						hit(u, e, d)
 						if last and not e.dead:
+							Vfx.sky_beam(u, e.global_position, Color("ffe066"), 0.3, 0.5)
 							e.apply_stun(1.0))
 		"Winter Knight":
-			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
+			Vfx.spikes(u, u.board, _cells_near(u, u.coord, 1, 1), fx, 0.8, 0.8)
+			Vfx.wall(u, Color("cfefff"), 1.0)
 			for e in enemies_within(u, u.coord, 1):
 				e.apply_chill(0.5, 3.0)
 			u.add_buff("Frozen Bulwark", "dr", 0.25, 4.0)
 		"Berserker":
+			Vfx.rise(u, Color("ff3b3b"), 10, 0.6)
+			Vfx.orbit(u, Color("d0304a"), 5.0, 5, 0.7, 1.0)
 			u.add_buff("Bloodrage", "as", amt(u, "b") / 100.0, 5.0)
 			u.add_buff("Bloodrage vamp", "vamp", 0.3, 5.0)
 		"Hunter":
 			var e := lowest_hp_enemy(u)
 			if e != null:
-				hit(u, e, amt(u, "a"))
+				Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(e), fx, 0.5, 2.8)
+				Vfx.mark(e, Color("ff4a3a"), 5.0)
+				hit(u, e, amt(u, "a"), false)
 				e.apply_curse(0.3, 5.0)
 		"Lich":
 			lock = 1.5
+			Vfx.orbit(t, fx, 1.5, 6, 0.6, 1.0)
+			Vfx.mark(t, fx, 1.5)
 			t.apply_stun(1.5)
 			var d := amt(u, "a") / 6.0
 			for i in 6:
 				u.queue_action(0.25 * (i + 1), func():
 					if not t.dead:
-						mend(u, hit(u, t, d) * 0.3))
+						Vfx.stream(t, u, fx, 2, 0.3)
+						mend(u, hit(u, t, d, false) * 0.3))
 		"Frost Giant":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.shockwave(u, u.board, u.coord, 2, fx, 0.9, 3)
+			Vfx.spikes(u, u.board, _cells_near(u, u.coord, 1, 1), fx, 0.7, 0.5)
 			for e in enemies_within(u, u.coord, 2):
 				hit(u, e, amt(u, "a"))
 				e.apply_stun(1.5)
 		"Dwarf Gunner":
-			Vfx.area(u, u.board, t.coord, 1, Vfx.color_of(u))
+			var tc := t.coord
+			Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(t), Color("e0a85a"), 0.3, 2.0)
+			Vfx._later(u, 0.2, func(): Vfx.shockwave(u, u.board, tc, 1, fx, 0.4, 2))
 			for e in enemies_within(u, t.coord, 1):
-				hit(u, e, amt(u, "a"))
+				hit(u, e, amt(u, "a"), false)
 				e.apply_curse(0.1, 4.0)
 		"Archmage":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.shockwave(u, u.board, u.coord, 2, Color("fff2b0"), 0.5, 2)
+			Vfx.rings(u, u.global_position, fx, 3, 2.6)
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_stun(1.0)
 			for e in nearest_enemies(u, u.coord, 3):
-				hit(u, e, amt(u, "a"))
+				Vfx.lightning(u, [Vfx._chest(u) + Vector3(0, 0.8, 0), Vfx._chest(e)], fx)
+				hit(u, e, amt(u, "a"), false)
 		"Herald":
-			Vfx.area(u, u.board, u.coord, 3, Vfx.color_of(u))
+			Vfx.sky_beam(u, u.global_position, fx, 0.6, 0.9)
+			Vfx.rings(u, u.global_position, fx, 3, 2.5)
 			for a in allies(u):
+				Vfx.rise(a, fx, 5, 0.6)
 				a.add_buff("Rallying Cry", "dr", 0.2, 4.0)
 				a.add_buff("Rallying Cry speed", "as", 0.15, 4.0)
 				if a.data.tags.has(&"Order"):
 					mend(a, amt(u, "a"))
 		"Hellknight":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.pillar(u, u.global_position, fx, 1.8, 0.25)
+			Vfx.shockwave(u, u.board, u.coord, 2, fx, 0.4, 2)
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_taunt(u, 2.0)
 			u.add_buff("Red Fury", "vamp", 0.3, 4.0)
 			u.add_buff("Red Fury guard", "dr", 0.2, 4.0)
 		"Dragon":
-			Vfx.beam(u, Vfx._chest(u), Vfx._chest(t), Color("ff7a2e"), 0.5, 0.6)
+			Vfx.breath(u, Vfx._chest(u) + Vector3(0, 0.4, 0), Vfx._chest(t), Color("ff7a2e"), 0.6, 1.0)
+			Vfx.orbit(u, Color("fff2b0"), 1.2, 4, 0.9, 1.2)
 			for e in enemies_in_cone(u, t):
-				hit(u, e, amt(u, "a"))
+				hit(u, e, amt(u, "a"), false)
 				e.apply_burn(0.03 * e.max_hp(), u)
 			u.add_timed_shield(amt(u, "b"), 4.0)
 		"Titan":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.shockwave(u, u.board, u.coord, 2, fx, 1.0, 3)
+			Vfx.shockwave(u, u.board, u.coord, 7, fx.darkened(0.2), 0.25, 1)
 			for e in enemies(u):
 				e.apply_stun(1.0)
 				if Board.hex_distance(u.coord, e.coord) <= 2:
 					hit(u, e, amt(u, "a"))
 		"Scout":
 			var spot := safest_tile(u, 2)
+			if spot != u.coord:
+				Vfx.blink(u, u.global_position, fx, true)
+			Vfx.orbit(u, fx, 2.0, 3, 0.55, 0.8)
 			u.leap_to(spot)
 			u.empower_hits = 3
 			u.empower_dmg = amt(u, "a") * u.damage_bonus()
@@ -377,6 +454,8 @@ static func cast(u: Unit, t: Unit) -> float:
 			_pounce(u, t, prey, false)
 		"Warlord":
 			var goal := farthest_enemy(u)
+			Vfx.rings(u, u.global_position, fx, 2, 1.6)   # it paws the ground
+			Vfx.shockwave(u, u.board, u.coord, 0, fx, 0.4, 3)
 			if goal != null:
 				var path: Array[Vector2i] = []
 				var cur := u.coord
@@ -394,11 +473,15 @@ static func cast(u: Unit, t: Unit) -> float:
 							hit(u, e, amt(u, "a"))
 							e.apply_stun(1.0)
 							break
-				Vfx.trail(u, u.board, path, Vfx.color_of(u))
+				for i in path.size():
+					var cell := path[i]
+					Vfx._later(u, 0.1 * i, func(): Vfx.shockwave(u, u.board, cell, 0, fx, 0.5, 3))
 				if not path.is_empty():
 					u.leap_to(path[-1], 0.1 * path.size())
 		"Nightstalker":
 			Vfx.ring(u, u.global_position + Vector3(0, 0.08, 0), 1.2, 0.3, Color("2a1f3d"), 0.5)
+			Vfx.blink(u, u.global_position, fx, true)
+			Vfx.cloud(u, u.global_position, Color("2a1f3d"), 1.8, 0.7)
 			u.untargetable_left = 2.0
 			u.empower_hits = 1
 			u.empower_dmg = amt(u, "a") * u.damage_bonus()
@@ -406,48 +489,64 @@ static func cast(u: Unit, t: Unit) -> float:
 			u.empower_after_stealth = true
 		"Seraph":
 			var low := lowest_hp_allies(u, 1)
+			Vfx.rise(u, fx, 10)
 			for a in allies(u):
+				Vfx.sky_beam(u, a.global_position, Color("fff2b0"), 0.45, 0.6)
 				mend(a, amt(u, "a"))
 			for a in low:
+				Vfx.wall(a, Color("fff2b0"), 1.2)
 				a.untargetable_left = maxf(a.untargetable_left, 1.5)
 		"Necromancer":
 			var alive := living_summons(u)
 			if alive.is_empty():
+				Vfx.spikes(u, u.board, _cells_near(u, u.coord, 1, 1), Color("e8e2c8"), 0.5, 0.4)
 				summon(u, "Bone Thrall", "a", "b")
 			else:
+				Vfx.stream(u, alive[0], fx, 6)
 				mend(alive[0], alive[0].max_hp())
 		"Demonologist":
 			var alive := living_summons(u)
 			if alive.size() < 2:
 				var demon := summon(u, "Pact Demon", "a", "b")
 				if demon != null:
+					Vfx.pillar(u, demon.global_position, fx, 1.6, 0.2)
 					var burst := amt(u, "c")
 					demon.on_death = func():
+						Vfx.shockwave(demon, demon.board, demon.coord, 1, Color("ff3b3b"), 0.6)
 						for e in enemies_within(demon, demon.coord, 1):
 							hit(demon, e, burst)
 			else:
 				for s in alive:
+					Vfx.stream(u, s, fx, 5)
 					mend(s, s.max_hp())
 		"Beastmaster":
+			Vfx.rings(u, u.global_position, fx, 3, 2.0)
 			for i in 2 - living_summons(u).size():
 				summon(u, "Jungle Beast", "a", "b")
 		"Plague Doctor":
 			var c := cluster(u)
 			var gm = _gm(u)
 			if c != null and gm != null:
+				var spot := u.board.display_pos(c.coord)
+				Vfx.arc_shot(u, Vfx._chest(u), spot + Vector3(0, 0.5, 0), Color("8fd14f"), 1.6, 1.0, 0.22)
+				Vfx.cloud(u, spot, Color("6f8f2f"), 4.0, 1.4)
 				gm.add_zone("miasma", c.coord, 1, 4.0, u.team, amt(u, "a") * u.damage_bonus(), u)
 		"Druid":
-			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
+			Vfx.spikes(u, u.board, _cells_near(u, u.coord, 1, 1), Color("4f9a3a"), 1.1, 3.5)
+			Vfx.rise(u, Vfx.HEAL, 8)
 			var gm = _gm(u)
 			if gm != null:
 				gm.add_zone("grove", u.coord, 1, 4.0, u.team, amt(u, "b") / 100.0, u)
 		"Runesmith":
 			for a in lowest_hp_allies(u, 2):
+				Vfx.stream(u, a, fx, 4)
+				Vfx.wall(a, Color("7a9cff"), 0.8)
 				a.add_timed_shield(amt(u, "a"), 4.0)
 				a.thorns = amt(u, "b")
 				a.thorns_left = 4.0
 		"Thief":
 			var was_alive := not t.dead
+			Vfx.slash(u, t.global_position, fx, PI * 0.6, 0.9, -0.5)
 			hit(u, t, amt(u, "a"))
 			if was_alive and t.dead and not u.summoned:
 				var fight = _gm(u)
@@ -455,6 +554,7 @@ static func cast(u: Unit, t: Unit) -> float:
 					fight.credit_gold(u.team, 1)   # 1 gold per Pickpocket kill (user decision: no cap), to the thief's owner
 					if u.team == 0 or fight.board.runner_credits_both:
 						u._popup("+1 GOLD", Color(1.0, 0.85, 0.3))
+						Vfx.coins(u)
 		"Minstrel":
 			var fans: Array[Unit] = []
 			for a in allies(u):
@@ -464,22 +564,34 @@ static func cast(u: Unit, t: Unit) -> float:
 				var ra: float = a.mana / a.data.max_mana
 				var rb: float = b.mana / b.data.max_mana
 				return ra > rb or (ra == rb and Board.tile_order(a.coord) < Board.tile_order(b.coord)))
+			Vfx.notes(u, fx, 3)
 			for a in _first(fans, 2):
-				Vfx.beam(u, Vfx._chest(u), Vfx._chest(a), Vfx.color_of(u), 0.5)
+				Vfx.beam(u, Vfx._chest(u), Vfx._chest(a), fx, 0.5)
+				Vfx.stream(u, a, Color("7a9cff"), 5)
 				a.gain_mana(amt(u, "b"))
 		"Paladin":
 			for a in lowest_hp_allies(u, 1):
+				Vfx.sky_beam(u, a.global_position, fx, 0.5, 0.6)
 				mend(a, amt(u, "a"))
 				if a != u:
+					Vfx.stream(u, a, fx, 4)
 					a.link_to = u
 					a.link_left = 4.0
 		"Duelist":
+			Vfx.slash(u, t.global_position, fx, PI * 0.6, 0.9, 0.6)
+			Vfx.slash(u, t.global_position, fx, PI * 0.6, 0.9, -0.6)
+			Vfx.orbit(u, Color("fff0b0"), 2.0, 2, 0.6, 1.0)
 			u.parry_left = 2.0
 			u.parry_dmg = amt(u, "a")
 		"Magma Guard":
+			Vfx.wall(u, fx, 1.0)
+			Vfx.orbit(u, Color("ff6a1f"), 5.0, 4, 0.8, 0.5)
 			u.add_timed_shield(amt(u, "a"), 5.0)
 			u.erupt_dmg = amt(u, "a")
 		"Zen Master":
+			Vfx.slash(u, t.global_position, Color("fff2b0"), PI * 0.3, 0.8, 0.0)
+			Vfx.shockwave(u, u.board, t.coord, 0, fx, 0.5)
+			Vfx.rise(t, Color("6cb4ff"), 8, 0.6)   # its mana leaving it
 			hit(u, t, amt(u, "a"))
 			t.apply_stun(2.0)
 			t.mana = 0.0
@@ -491,15 +603,21 @@ static func cast(u: Unit, t: Unit) -> float:
 					if o != null and o.team == u.team and o.dead and not o.summoned and o.coord.x >= 0 and not o.is_queued_for_deletion():
 						fallen.append(o)
 			if fallen.is_empty():
+				Vfx.slash(u, t.global_position, fx)
+				Vfx.spikes(u, u.board, [t.coord], Color("2a1f3d"), 1.0, 0.4)
 				hit(u, t, amt(u, "b"))
 			else:
 				u.army_used = true
+				Vfx.shockwave(u, u.board, u.coord, 2, fx, 0.4, 2)
 				fallen.sort_custom(func(a, b): return Board.tile_order(a.coord) < Board.tile_order(b.coord))
 				for o in fallen:
 					_raise(u, o)
+					Vfx.sky_beam(u, u.board.display_pos(o.coord), Color("cfffe0"), 0.5, 0.6)
 		"Phoenix":
+			Vfx.pillar(u, u.global_position, fx, 3.0, 0.3)
+			Vfx.rings(u, u.global_position, fx, 3, 3.0)
 			for e in enemies(u):
-				Vfx.impact(u, e)
+				Vfx.arc_shot(u, Vfx._chest(u) + Vector3(0, 1.2, 0), Vfx._chest(e), fx, 1.8, 1.0, 0.2)
 				e.apply_burn(0.06 * e.max_hp(), u, 6.0)
 			u.nova_left = 6.0
 		"Archdemon":
@@ -512,7 +630,11 @@ static func cast(u: Unit, t: Unit) -> float:
 				big.doom_dmg = amt(u, "a") * u.damage_bonus()
 				big.doom_by = u
 				Vfx.beam(u, Vfx._chest(u), Vfx._chest(big), Color("b0306a"), 0.5)
+				Vfx.stream(u, big, Color("b0306a"), 6)
+				Vfx.mark(big, Color("e04a9a"), 4.0)
 		"Frost Queen":
+			Vfx.rise(u, fx, 12, 0.8)
+			Vfx.rings(u, u.global_position, fx, 3, 2.2)
 			var gm = _gm(u)
 			if gm != null:
 				gm.add_zone("winter", Vector2i.ZERO, 99, 4.0, u.team, amt(u, "a") * u.damage_bonus(), u)
@@ -526,9 +648,12 @@ static func cast(u: Unit, t: Unit) -> float:
 				return Board.tile_order(a.coord) < Board.tile_order(b.coord))
 			for e in _first(list, 2):
 				Vfx.beam(u, Vfx._chest(u), Vfx._chest(e), Unit.CHARM_COLOR, 0.5)
+				Vfx.stream(u, e, Unit.CHARM_COLOR, 6)
+				Vfx.rings(e, e.global_position, Unit.CHARM_COLOR, 2, 1.1)
 				e.apply_charm(u, amt(u, "b"))
 		"Reaper":
-			Vfx.area(u, u.board, u.coord, 1, Vfx.color_of(u))
+			Vfx.slash(u, t.global_position, Color("cfd8ff"), TAU, 1.2, 0.0)
+			Vfx.shockwave(u, u.board, u.coord, 1, fx, 0.3, 1)
 			var kills := 0
 			for e in enemies_within(u, u.coord, 1):
 				hit(u, e, amt(u, "a"))
@@ -539,7 +664,8 @@ static func cast(u: Unit, t: Unit) -> float:
 			if kills > 0:
 				u.mana = minf(u.mana + 40.0 * kills, u.data.max_mana)   # the one cast that refunds mana
 		"Treant":
-			Vfx.area(u, u.board, u.coord, 2, Vfx.color_of(u))
+			Vfx.spikes(u, u.board, _cells_near(u, u.coord, 1, 2), Color("6b4a2a"), 0.9, 1.6)
+			Vfx.rise(u, Vfx.HEAL, 8)
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_root(2.0)
 				hit(u, e, amt(u, "a"))
@@ -665,11 +791,28 @@ static func _pounce(u: Unit, t: Unit, prey: Array[Unit], near_side: bool) -> voi
 			if da != db:
 				return da < db if near_side else da > db
 			return Board.tile_order(a) < Board.tile_order(b))
+		var fx := Vfx.color_of(u)
+		if not near_side:   # a teleport: gone in a column of shadow, back out of one behind its prey
+			Vfx.blink(u, u.global_position, fx, true)
+			Vfx.blink(u, u.board.display_pos(spots[0]), fx, false)
 		u.leap_to(spots[0])
 		u.target = e
+		Vfx._later(u, 0.22, func():   # once it has landed
+			if is_instance_valid(e):
+				Vfx.slash(u, e.global_position, fx.lightened(0.2)))
 		hit(u, e, amt(u, "a"))
 		return
+	Vfx.slash(u, t.global_position, Vfx.color_of(u))
 	hit(u, t, amt(u, "a"))
+
+# The board's open hexes from r0 to r1 hexes away from c (effects that cover the ground).
+static func _cells_near(u: Unit, c: Vector2i, r0: int, r1: int) -> Array:
+	var out := []
+	for cell in u.board.tiles:
+		var d := Board.hex_distance(c, cell)
+		if d >= r0 and d <= r1 and u.board.is_unlocked(cell):
+			out.append(cell)
+	return out
 
 # A tile u can land on: on the board, unlocked, and empty (or u's own).
 static func open_tile(u: Unit, c: Vector2i) -> bool:
@@ -710,10 +853,14 @@ static func mend(a: Unit, amount: float) -> float:
 		Vfx.heal(a)
 	return healed
 
-static func hit(u: Unit, e: Unit, amount: float) -> float:
+# fx = false: the ability draws its own shot, so no generic bolt (a small burst on the target still shows).
+static func hit(u: Unit, e: Unit, amount: float, fx := true) -> float:
 	if e == null or e.dead:
 		return 0.0
-	Vfx.impact(u, e)
+	if fx:
+		Vfx.impact(u, e)
+	else:
+		Vfx.burst(e, Vfx._chest(e), Vfx.color_of(u), 5, 0.5)
 	var removed := e.take_damage(amount * u.damage_bonus(), u)
 	u.damage_dealt += removed
 	var steal := u.omnivamp()

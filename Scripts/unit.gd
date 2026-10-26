@@ -709,6 +709,7 @@ func _tick_effects(delta: float):
 			doom_left = 0.0
 			var dby: Unit = doom_by if is_instance_valid(doom_by) else null
 			Vfx.burst(self, global_position + Vector3(0, 1.0, 0), Color("b0306a"), 12, 1.0)
+			Vfx.pillar(self, global_position, Color("b0306a"), 2.7, 0.2)
 			var removed := take_damage(doom_dmg, dby)
 			if dby != null:
 				dby.damage_dealt += removed
@@ -811,7 +812,8 @@ func _fall():
 func _erupt():
 	var d := erupt_dmg
 	erupt_dmg = 0.0
-	Vfx.area(self, board, coord, 1, Color("ff6a1f"))
+	Vfx.pillar(self, global_position, Color("ff6a1f"), 2.1, 0.2)
+	Vfx.shockwave(self, board, coord, 1, Color("ff6a1f"), 0.6, 2)
 	for e in Abilities.enemies_within(self, coord, 1):
 		Abilities.hit(self, e, d)
 		e.apply_burn(0.03 * e.max_hp(), self)

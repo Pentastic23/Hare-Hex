@@ -593,6 +593,7 @@ func _run():
 	Vfx.enabled = true
 	var before := main.get_child_count()
 	var cast_errors := 0
+	var plain: Array[String] = []   # casts that drew little more than the cast flash
 	for d in roster:
 		var fx_caster := (load("res://scenes/unit.tscn").instantiate() as Unit)
 		board.get_node("Units").add_child(fx_caster)
@@ -603,9 +604,17 @@ func _run():
 		var foes2: Array[Unit] = [place("guardian", Vector2i(3, 4), 1), place("thief", Vector2i(4, 3), 1), place("archer", Vector2i(2, 1), 1)]
 		buddy2.health = 100.0
 		gm.combatants.assign([fx_caster, buddy2] + foes2)
+		var made_before := Vfx.made
 		fx_caster._cast(foes2[0])
 		for i in 30:
 			gm._tick_zones()
+		for i in 40:   # pieces that start a moment later (ripples, spikes, notes) and queued hits
+			fx_caster._tick_effects(1.0 / 60.0)
+			await get_tree().process_frame
+		if Vfx.made - made_before < 10:
+			plain.append("%s %d" % [d.display_name, Vfx.made - made_before])
+		if not is_instance_valid(fx_caster):
+			cast_errors += 1
 		await get_tree().process_frame
 		if not is_instance_valid(fx_caster):
 			cast_errors += 1
@@ -614,6 +623,7 @@ func _run():
 		gm.new_summons.clear()
 	await get_tree().process_frame
 	chk("every ability casts with its effects on, without errors", cast_errors == 0)
+	chk("every ability draws its own animated effect, not just the cast flash", plain.is_empty(), ", ".join(plain))
 	chk("the effects are made as nodes in the world", main.get_child_count() > before, "%d -> %d" % [before, main.get_child_count()])
 	var st := place("knight", Vector2i(3, 5))
 	st.apply_stun(1.0)
