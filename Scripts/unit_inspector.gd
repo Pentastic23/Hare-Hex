@@ -1,9 +1,12 @@
 # unit_inspector.gd
 extends HudPlate
 
-# Unit Inspector (right-click a unit): styled like the side boxes. A HUD plate whose top edge is the
+# Unit Inspector (right-click a unit): styled like the side boxes. A solid HUD plate whose top edge is the
 # team colour (blue ally, ember enemy), a portrait well with a cost-coloured edge, the name with gold
-# stars, the team and traits, items and the stats (with items and synergies folded in).
+# stars, the team, the traits as chips; then STATS as a grid of cells, each a pixel icon in the stat's
+# colour, the value in the pixel font (what items add in gold beside it) and a caption (with items and
+# synergies folded in), and the special rules (shields, crits...) as icon rows; the ability; the items.
+# StatsLabel keeps the same stats as plain text (hidden; the checks read it).
 
 @onready var name_label: Label = $VBoxContainer/NameLabel
 @onready var tags_label: Label = $VBoxContainer/TagsLabel
@@ -21,6 +24,24 @@ var res_row: HFlowContainer        # one hoverable chip per resonance
 var ability_head: Label            # "ABILITY · SHEPHERD'S LIGHT"
 var ability_text: Label            # what it does at the unit's star (abilities.gd)
 var _items_sig := ""
+var trait_row: HFlowContainer      # the traits as chips
+var stat_grid: GridContainer       # one cell per stat (STAT_ROWS)
+var cells := {}                    # stat key -> {"box", "value", "bonus", "caption"}
+var rules_box: VBoxContainer       # special rules from synergies and items, one icon row each
+var _rules_sig := ""
+
+# The stat cells: key, pixel icon, colour, caption.
+const STAT_ROWS := [
+	["hp", "heart", Color("6fd86a"), "HEALTH"],
+	["dmg", "sword", Color("ff8a4c"), "DAMAGE"],
+	["as", "bolt", Color("f2c14e"), "ATTACK SPD"],
+	["range", "target", Color("c58cff"), "RANGE"],
+	["mana", "drop", Color("5aa8ff"), "MANA"],
+	["dr", "shield", Color("b8c0dc"), "REDUCTION"],
+	["vamp", "fang", Color("ff6b8a"), "OMNIVAMP"],
+]
+const PLATE_FILL := Color(0.098, 0.110, 0.161, 0.98)   # nearly solid: the board doesn't show through the text
+const CELL_FILL := Color("141722")
 
 func _ready():
 	# Bottom right, just above the shop bar, growing up and left, so it stays clear of the HP standings
@@ -32,8 +53,8 @@ func _ready():
 	offset_left = -24
 	offset_bottom = -96
 	offset_top = -96
-	setup_plate(10, 12, 12, DockKit.PANEL_FILL)
-	custom_minimum_size = Vector2(236, 0)
+	setup_plate(10, 12, 12, PLATE_FILL)
+	custom_minimum_size = Vector2(264, 0)
 	_restyle()
 	visible = false
 	board = get_tree().get_first_node_in_group("board") as Board
@@ -111,10 +132,15 @@ func _fill():
 		_portrait_of = d
 		for c in portrait_slot.get_children():
 			c.queue_free()
-		var p := DockKit.portrait_well(d, 48)
+		var p := DockKit.portrait_well(d, 52)
 		(p.get_theme_stylebox("panel") as StyleBoxFlat).border_width_bottom = 3
 		(p.get_theme_stylebox("panel") as StyleBoxFlat).border_color = DockKit.COST_COLORS.get(d.cost, HudStyle.MUTED)
 		portrait_slot.add_child(p)
+		for c in trait_row.get_children():
+			c.queue_free()
+		for t in d.tags:   # origin first, then classes, as the unit lists them
+			var kind: String = Synergies.DEFS.get(String(t), {}).get("kind", "")
+			trait_row.add_child(DockKit.chip(String(t), DockKit.ROW, HudStyle.GOLD if kind == "unique" else HudStyle.INK, 11, DockKit.LINE))
 	team_label.text = ("ALLY" if u.team == 0 else "ENEMY") + ("  ·  SUMMONED" if u.summoned else "  ·  %d GOLD" % d.cost)
 	team_label.add_theme_color_override("font_color", HudStyle.YOU if u.team == 0 else HudStyle.ENEMY)
 
@@ -154,10 +180,108 @@ func _fill():
 	var steal: float = b.get("vamp", 0.0) + u.item_lifesteal
 	if steal > 0.0:
 		lines.append("Omnivamp: %d%%" % roundi(steal * 100.0))
-	lines.append_array(_mechanic_lines(b))
+	var rules := _mechanic_lines(b)
 	if u.charm_left > 0.0:
-		lines.append("Charmed: fighting for the other side (%.1f s)" % u.charm_left)
+		rules.append("Charmed: fighting for the other side (%.1f s)" % u.charm_left)
+	lines.append_array(rules)
 	stats_label.text = "\n".join(lines)
+	_cell("hp", str(roundi((d.max_health + u.item_hp) * hp_mult)), _bonus(u.item_hp, "+%d" % roundi(u.item_hp * hp_mult)))
+	_cell("dmg", str(roundi((d.attack_damage + u.item_dmg) * dmg_mult)), _bonus(u.item_dmg, "+%d" % roundi(u.item_dmg * dmg_mult)))
+	_cell("as", "%.2f" % (d.attacks_per_second * (1.0 + u.item_as + b.get("as", 0.0))), _bonus(u.item_as, "+%d%%" % roundi(u.item_as * 100.0)))
+	_cell("range", str(roundi(d.attack_range) + int(b.get("range", 0))), "")
+	_cell("mana", str(roundi(d.max_mana)), _bonus(u.item_mana, "+%d" % roundi(u.item_mana)), "MANA · START %d" % roundi(minf(d.start_mana + u.item_mana, d.max_mana)))
+	_cell("dr", "%d%%" % roundi(reduction * 100.0), "", "", reduction > 0.0)
+	_cell("vamp", "%d%%" % roundi(steal * 100.0), "", "", steal > 0.0)
+	var rules_sig := "|".join(rules)
+	if rules_sig != _rules_sig:
+		_rules_sig = rules_sig
+		for c in rules_box.get_children():
+			c.queue_free()
+		for r in rules:
+			rules_box.add_child(_rule_row(r))
+		rules_box.visible = not rules.is_empty()
+
+# Updates one stat cell: its value, what items add (gold, beside it), an optional caption, shown or not.
+func _cell(key: String, value: String, bonus: String, caption := "", on := true) -> void:
+	var c: Dictionary = cells[key]
+	c.box.visible = on
+	c.value.text = value
+	c.bonus.text = bonus
+	c.bonus.visible = bonus != ""
+	if caption != "":
+		c.caption.text = caption
+
+func _bonus(value: float, text: String) -> String:
+	return "" if is_zero_approx(value) else text
+
+# A stat cell: the icon in the stat's colour, the value and items' part, the caption under them.
+func _make_cell(row: Array) -> PanelContainer:
+	var box := PanelContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_PASS   # for the tooltip
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var st := DockKit.flat(CELL_FILL, 3, Vector4(4, 7, 4, 6))
+	st.border_width_left = 2
+	st.border_color = (row[2] as Color).darkened(0.35)
+	box.add_theme_stylebox_override("panel", st)
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_theme_constant_override("separation", 7)
+	box.add_child(h)
+	h.add_child(DockKit.PixelIcon.new(row[1], row[2], 16))
+	var col := VBoxContainer.new()
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_theme_constant_override("separation", -3)
+	h.add_child(col)
+	var vals := HBoxContainer.new()
+	vals.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vals.add_theme_constant_override("separation", 4)
+	col.add_child(vals)
+	var value := HudStyle.number(21, HudStyle.INK)
+	vals.add_child(value)
+	var bonus := HudStyle.number(15, HudStyle.GOLD)
+	bonus.size_flags_vertical = Control.SIZE_SHRINK_END
+	bonus.tooltip_text = ""
+	vals.add_child(bonus)
+	var caption := HudStyle.caps(9, HudStyle.MUTED)
+	caption.text = row[3]
+	col.add_child(caption)
+	box.tooltip_text = Tip.wrap({"hp": "Health, with items and synergies. Gold: what items add.", "dmg": "Damage per attack, with items and synergies. Gold: what items add.", "as": "Attacks per second. Gold: what items add.", "range": "How many hexes away it can attack from.", "mana": "Mana to cast its ability, and how much it starts a fight with. It gains 10 per attack and some when hit.", "dr": "Less damage taken (60% at most).", "vamp": "Heals for this share of the damage it deals."}[row[0]])
+	cells[row[0]] = {"box": box, "value": value, "bonus": bonus, "caption": caption}
+	return box
+
+# One special rule (a shield, crits, burns...): a small spark and the text.
+func _rule_row(text: String) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_theme_constant_override("separation", 6)
+	var icon := DockKit.PixelIcon.new("spark", HudStyle.GOLD, 10)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	h.add_child(icon)
+	var l := Label.new()
+	_font_style(l, 12, HudStyle.INK)
+	l.text = text
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.custom_minimum_size.x = 200
+	h.add_child(l)
+	return h
+
+# A section heading: small caps and a line running to the right edge.
+func _heading(text: String, colour := HudStyle.MUTED) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_theme_constant_override("separation", 6)
+	var l := HudStyle.caps(10, colour)
+	l.text = text
+	h.add_child(l)
+	var line := ColorRect.new()
+	line.color = DockKit.LINE
+	line.custom_minimum_size = Vector2(0, 1)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(line)
+	return h
 
 func _items_note(value: float, text: String) -> String:
 	return "" if is_zero_approx(value) else "  (%s items)" % text
@@ -217,7 +341,7 @@ func _restyle():
 	box.add_child(head)
 	box.move_child(head, 0)
 	portrait_slot = Control.new()
-	portrait_slot.custom_minimum_size = Vector2(48, 48)
+	portrait_slot.custom_minimum_size = Vector2(52, 52)
 	portrait_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(portrait_slot)
 	var col := VBoxContainer.new()
@@ -230,17 +354,39 @@ func _restyle():
 	name_row.add_theme_constant_override("separation", 6)
 	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(name_row)
-	_font_style(name_label, 16, HudStyle.INK)
+	_font_style(name_label, 17, HudStyle.INK)
 	name_label.reparent(name_row)
 	stars_label = DockKit.text(14, HudStyle.GOLD)
 	name_row.add_child(stars_label)
 	team_label = HudStyle.caps(10, HudStyle.YOU)
 	col.add_child(team_label)
 	_font_style(tags_label, 12, HudStyle.MUTED)
-	tags_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var line := ColorRect.new()
-	line.color = DockKit.LINE
-	line.custom_minimum_size = Vector2(0, 1)
+	tags_label.visible = false   # (kept for its text; the traits show as chips)
+	trait_row = HFlowContainer.new()
+	trait_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	trait_row.add_theme_constant_override("h_separation", 4)
+	trait_row.add_theme_constant_override("v_separation", 4)
+	box.add_child(trait_row)
+	box.move_child(trait_row, tags_label.get_index() + 1)
+	# STATS: the grid of cells and the special rules, right under the header.
+	var stats_head := _heading("STATS")
+	box.add_child(stats_head)
+	box.move_child(stats_head, trait_row.get_index() + 1)
+	stat_grid = GridContainer.new()
+	stat_grid.columns = 2
+	stat_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stat_grid.add_theme_constant_override("h_separation", 4)
+	stat_grid.add_theme_constant_override("v_separation", 4)
+	for row in STAT_ROWS:
+		stat_grid.add_child(_make_cell(row))
+	box.add_child(stat_grid)
+	box.move_child(stat_grid, stats_head.get_index() + 1)
+	rules_box = VBoxContainer.new()
+	rules_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rules_box.add_theme_constant_override("separation", 3)
+	box.add_child(rules_box)
+	box.move_child(rules_box, stat_grid.get_index() + 1)
+	var line := Control.new()   # (where the ability and items go: before ItemsLabel)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(line)
 	box.move_child(line, items_label.get_index())
@@ -248,7 +394,8 @@ func _restyle():
 	box.add_child(ability_head)
 	box.move_child(ability_head, line.get_index())
 	ability_text = Label.new()
-	_font_style(ability_text, 12, HudStyle.INK)
+	_font_style(ability_text, 13, HudStyle.INK)
+	ability_text.add_theme_constant_override("line_spacing", 1)
 	ability_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(ability_text)
 	box.move_child(ability_text, line.get_index())
@@ -265,7 +412,7 @@ func _restyle():
 	box.add_child(res_row)
 	box.move_child(res_row, item_row.get_index() + 1)
 	_font_style(stats_label, 12, HudStyle.INK)
-	stats_label.add_theme_constant_override("line_spacing", 2)
+	stats_label.visible = false   # the same stats as text (the checks read it); the grid shows them
 
 func _font_style(l: Label, size: int, color: Color):
 	l.add_theme_font_override("font", HudStyle.label_font())
