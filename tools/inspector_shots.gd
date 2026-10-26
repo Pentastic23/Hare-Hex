@@ -38,7 +38,7 @@ func _run():
 	knight.equip(load("res://tres/items/longsword.tres"))
 	knight.equip(load("res://tres/items/iron_belt.tres"))
 	knight.equip(load("res://tres/items/blood_fang.tres"))
-	var mage := _place(board, "mage", board.player_order[2], 0)
+	var mage := _place(board, "pyromancer", board.player_order[2], 0)
 	var foe := _place(board, "dragon", board.enemy_order[0], 1)
 	foe.set_star(2)
 	var insp = main.find_child("UnitInspector", true, false)

@@ -292,7 +292,7 @@ func _tile(d: UnitData, planned: bool, have: int) -> Button:
 	var tags: PackedStringArray = []
 	for t in d.tags:
 		tags.append(String(t))
-	b.tooltip_text = Tip.wrap("%s (%d gold)\n%s%s\nClick to %s the plan." % [d.display_name, d.cost, ", ".join(tags), Abilities.tooltip_line(d), "remove from" if planned else "add to"])
+	b.tooltip_text = Tip.wrap(Glossary.explain("%s (%d gold)\n%s%s\nClick to %s the plan." % [d.display_name, d.cost, ", ".join(tags), Abilities.tooltip_line(d), "remove from" if planned else "add to"]))
 	var s := DockKit.flat(DockKit.WELL)
 	s.set_border_width_all(2 if planned else 1)
 	s.border_color = HudStyle.GOLD if planned else DockKit.LINE

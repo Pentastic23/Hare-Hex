@@ -22,7 +22,7 @@ var _portrait_of: UnitData
 var item_row: HBoxContainer        # one hoverable chip per item (icon; tooltip with what it does)
 var res_row: HFlowContainer        # one hoverable chip per resonance
 var ability_head: Label            # "ABILITY · SHEPHERD'S LIGHT"
-var ability_text: Label            # what it does at the unit's star (abilities.gd)
+var ability_text: RichTextLabel    # what it does at the unit's star (abilities.gd); hover a mechanic word for what it means (Glossary)
 var _items_sig := ""
 var trait_row: HFlowContainer      # the traits as chips
 var stat_grid: GridContainer       # one cell per stat (STAT_ROWS)
@@ -153,7 +153,9 @@ func _fill():
 	ability_text.visible = has_ability
 	if has_ability:
 		ability_head.text = "ABILITY  ·  " + Abilities.name_of(d).to_upper()
-		ability_text.text = Abilities.text(d, u.star)
+		var said := Glossary.bbcode(Abilities.text(d, u.star))
+		if ability_text.text != said:   # (set only on a change: setting it ends a hover)
+			ability_text.text = said
 
 	# Items and resonances as chips you can hover (rebuilt only when they change).
 	var sig := str(u.items.map(func(i): return i.id)) + str(u.item_stacks)
@@ -257,14 +259,26 @@ func _rule_row(text: String) -> HBoxContainer:
 	var icon := DockKit.PixelIcon.new("spark", HudStyle.GOLD, 10)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	h.add_child(icon)
-	var l := Label.new()
-	_font_style(l, 12, HudStyle.INK)
-	l.text = text
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var l := _rich(12)
+	l.text = Glossary.bbcode(text)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.custom_minimum_size.x = 200
 	h.add_child(l)
 	return h
+
+# Text in the HUD's label font whose mechanic words (burn, stun, shield...) are gold links: hovering one
+# shows what it means (Glossary.hook).
+func _rich(size: int) -> RichTextLabel:
+	var l := RichTextLabel.new()
+	l.fit_content = true
+	l.scroll_active = false
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_override("normal_font", HudStyle.label_font())
+	l.add_theme_font_size_override("normal_font_size", size)
+	l.add_theme_color_override("default_color", Settings.text_color(HudStyle.INK))
+	l.add_theme_constant_override("line_separation", 1)
+	Glossary.hook(l)
+	return l
 
 # A section heading: small caps and a line running to the right edge.
 func _heading(text: String, colour := HudStyle.MUTED) -> HBoxContainer:
@@ -393,10 +407,7 @@ func _restyle():
 	ability_head = HudStyle.caps(10, HudStyle.GOLD)
 	box.add_child(ability_head)
 	box.move_child(ability_head, line.get_index())
-	ability_text = Label.new()
-	_font_style(ability_text, 13, HudStyle.INK)
-	ability_text.add_theme_constant_override("line_spacing", 1)
-	ability_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ability_text = _rich(13)
 	box.add_child(ability_text)
 	box.move_child(ability_text, line.get_index())
 	_font_style(items_label, 12, HudStyle.GOLD)
@@ -429,7 +440,7 @@ func _fill_item_chips(u: Unit) -> void:
 	for it in u.items:
 		var chip := DockKit.well(Vector2(34, 34), it.color, 3)
 		chip.mouse_filter = Control.MOUSE_FILTER_STOP   # for the tooltip
-		chip.tooltip_text = Tip.wrap(item_tip(it, u.stacks_of(it)))
+		chip.tooltip_text = Tip.wrap(Glossary.explain(item_tip(it, u.stacks_of(it))))
 		var tex := DockKit.item_icon(it)
 		if tex != null:
 			var r := TextureRect.new()
@@ -450,7 +461,7 @@ func _fill_item_chips(u: Unit) -> void:
 	for k in Resonance.keys_for(u.items):
 		var c := DockKit.chip(str(Resonance.def(k).get("name", k)) + ("  x2" if doubled else ""), DockKit.CHIP_ACTIVE, HudStyle.GOLD, 11)
 		c.mouse_filter = Control.MOUSE_FILTER_STOP
-		c.tooltip_text = Tip.wrap(resonance_tip(k, doubled))
+		c.tooltip_text = Tip.wrap(Glossary.explain(resonance_tip(k, doubled)))
 		res_row.add_child(c)
 	res_row.visible = res_row.get_child_count() > 0
 

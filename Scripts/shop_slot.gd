@@ -133,7 +133,7 @@ func _update_text():
 		portrait.texture = DockKit.portrait(offer)
 		portrait.modulate = Color.WHITE
 		well.add_theme_stylebox_override("panel", DockKit.well_box(DockKit.COST_COLORS.get(offer.cost, HudStyle.NEUTRAL), 3))
-		tooltip_text = Tip.wrap("%s (%d gold)\n%s%s%s\nClick to buy, or drag it onto the board." % [offer.display_name, price, ", ".join(tags), Abilities.tooltip_line(offer), "\nIn your team plan." if planned else ""])
+		tooltip_text = Tip.wrap(Glossary.explain("%s (%d gold)\n%s%s%s\nClick to buy, or drag it onto the board." % [offer.display_name, price, ", ".join(tags), Abilities.tooltip_line(offer), "\nIn your team plan." if planned else ""]))
 		refresh_owned()
 	else:
 		var p := SILHOUETTE_DIR % (index % 5 + 1)

@@ -70,6 +70,27 @@ func _run():
 	insp.show_unit(k)   # what a right-click on a unit does
 	chk("an open inspector is the HUD's last child (drawn and hovered over every panel)", insp.get_index() == ui.get_child_count() - 1)
 
+	print("--- mechanic words explained (Glossary)")
+	var burn_text := Abilities.text(U("pyromancer"), 1)
+	chk("a text mentioning burn gets a 'Burn:' line explaining it", Glossary.explain(burn_text).contains("\n\nBurn: "), Glossary.explain(burn_text).right(120))
+	chk("each term once, whatever its ending (stuns, stunned)", Glossary.explain("Stuns it. Stunned units wait.").count("Stun: ") == 1)
+	chk("item names aren't mistaken for mechanics (Mana Charm is not a charm)", not Glossary.terms_in("Mana Charm: +15 start mana").has("Charm") and not Glossary.terms_in("Hex Ward").has("Hex"))
+	chk("plain text gets nothing added", Glossary.explain("Click to buy.") == "Click to buy.")
+	var bb := Glossary.bbcode("Burns [it] for 3 s.")
+	chk("in rich text a mechanic word becomes a gold link, and brackets are kept as text", bb.begins_with("[url=Burn][color=#") and bb.contains("[lb]it]"), bb)
+	var pyro := board.make_unit(U("pyromancer"), gm.unit_scene)
+	board.put_on_tile(pyro, board.player_order[1])
+	insp.show_unit(pyro)
+	await frames(2)
+	chk("the inspector's ability text has its mechanic words as hoverable links", insp.ability_text is RichTextLabel and insp.ability_text.text.contains("[url=Burn]"))
+	insp.ability_text.meta_hover_started.emit("Burn")
+	chk("hovering one shows what it means as a tooltip", insp.ability_text.tooltip_text.begins_with("Burn: "))
+	insp.ability_text.meta_hover_ended.emit("Burn")
+	chk("... and it goes when the mouse leaves the word", insp.ability_text.tooltip_text == "")
+	insp.show_unit(k)
+	pyro.queue_free()
+	await frames(1)
+
 	print("--- shop")
 	var shop = ui.get_node("ShopPanel")
 	var slot: ShopSlot = shop.slots[0]

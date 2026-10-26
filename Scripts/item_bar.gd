@@ -88,7 +88,7 @@ func _row(item: ItemData, n: int, index: int) -> Control:
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.mouse_default_cursor_shape = Control.CURSOR_DRAG
 	row.add_theme_stylebox_override("panel", DockKit.flat(DockKit.ROW, 3, Vector4(4, 4, 4, 6)))
-	row.tooltip_text = Tip.wrap(item_tip(item))
+	row.tooltip_text = Tip.wrap(Glossary.explain(item_tip(item), item.description))   # (its resonance list is long enough)
 	row.set_meta("item", item)
 	row.gui_input.connect(func(e):
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
@@ -220,7 +220,7 @@ func _fill_resonances() -> void:
 				tips.append(Resonance.describe(k))
 			if Resonance.has_crystal(u.items):
 				tips.append("Resonance Crystal: twice as strong")
-			l.tooltip_text = Tip.wrap("\n".join(tips))
+			l.tooltip_text = Tip.wrap(Glossary.explain("\n".join(tips)))
 			resonance_list.add_child(l)
 	if not any:
 		var none := DockKit.wrapping(11, DockKit.DIM_TEXT, 180)

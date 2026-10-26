@@ -97,7 +97,7 @@ func _row(tag: String, n: int, tier: int) -> Control:
 	var row := PanelContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_PASS   # for the tooltip; clicks pass through
 	row.add_theme_stylebox_override("panel", DockKit.flat(DockKit.ROW_ACTIVE if active else Color.TRANSPARENT, 3, Vector4(4, 4, 4, 6)))
-	row.tooltip_text = Tip.wrap(Synergies.tooltip(tag, n))
+	row.tooltip_text = Tip.wrap(Glossary.explain(Synergies.tooltip(tag, n)))
 	row.set_meta("tag", tag)
 	row.mouse_entered.connect(highlight.bind(tag))
 	row.mouse_exited.connect(highlight.bind(""))
