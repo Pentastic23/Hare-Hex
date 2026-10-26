@@ -1232,10 +1232,8 @@ func _ability() -> Ability:
 func _cast(target_unit: Unit):
 	mana = 0.0
 	_last_mana_ratio = -1.0
-	var shown := "CAST"
-	if Abilities.has(data):
+	if Abilities.has(data):   # no name popup: each ability's own effect shows the cast (vfx.gd)
 		if Abilities.enabled:
-			shown = Abilities.name_of(data)
 			cast_lock = Abilities.cast(self, target_unit)   # locked while casting (longer for channels)
 			Vfx.cast_flash(self)
 	else:
@@ -1243,7 +1241,6 @@ func _cast(target_unit: Unit):
 	if model_view != null:
 		model_view.on_cast()
 	Sfx.play(&"cast")
-	_popup(shown, Color(0.55, 0.85, 1.0))
 
 # A word that floats up from the unit and fades ("CAST", "MISS", "REVIVE"). Visual only.
 func _popup(text: String, color: Color):
