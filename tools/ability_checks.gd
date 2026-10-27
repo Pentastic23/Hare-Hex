@@ -623,7 +623,7 @@ func _run():
 		gm.new_summons.clear()
 	await get_tree().process_frame
 	chk("every ability casts with its effects on, without errors", cast_errors == 0)
-	chk("every ability draws its own animated effect, not just the cast flash", plain.is_empty(), ", ".join(plain))
+	chk("every ability draws its own animated effect", plain.is_empty(), ", ".join(plain))
 	chk("the effects are made as nodes in the world", main.get_child_count() > before, "%d -> %d" % [before, main.get_child_count()])
 	var st := place("knight", Vector2i(3, 5))
 	st.apply_stun(1.0)
@@ -631,7 +631,7 @@ func _run():
 	st.add_timed_shield(100.0, 2.0)
 	st.doom_left = 3.0
 	await get_tree().process_frame
-	chk("status marks follow the unit's state (stun, buff, shield, doom)", st._status != null and st._status.get_node("stun").visible and st._status.get_node("buff").visible and st._status.get_node("shield").visible and (st._status.get_node("doom") as Label3D).text == "DOOM 3")
+	chk("status marks follow the unit's state (stun, shield, doom; no ring for buffs)", st._status != null and st._status.get_node("stun").visible and not st._status.has_node("buff") and st._status.get_node("shield").visible and (st._status.get_node("doom") as Label3D).text == "DOOM 3")
 	st.stun_left = 0.0
 	st.buffs.clear()
 	st.ab_shield = 0.0

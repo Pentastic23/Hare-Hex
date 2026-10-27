@@ -263,16 +263,14 @@ A charmed unit must be obvious at a glance for the whole time it is charmed:
 
 All visual only (`Scripts/vfx.gd`, class Vfx, plus the status marks in `unit.gd`); nothing in combat reads them, so fights stay deterministic. They are built from small glowing cubes, to match the voxel units and tiles. Each unit's spells take the colour of its origin (Order gold, Ember orange, Frost ice blue, Shadow violet and so on: `Vfx.color_of`).
 
-- **On every cast:** a ring of light at the caster's feet (`cast_flash`) and the ability's name popup.
+- **On every cast:** the ability's own animated effect (`Abilities.cast`); the old ring at the caster's feet and the name popup are gone.
 - **Hits** (`Abilities.hit`): a glowing bolt flies from the caster when the target is more than a hex away, otherwise a burst on the target (`impact`).
 - **Heals from abilities** (`Abilities.mend`): green motes rise from the healed unit. Regen and omnivamp heal quietly.
-- **Areas:** a hex-sized ring over the area and a burst in its middle (`area`).
-- **Lines and charges:** a beam (Arc Lash), bursts along the Warlord's path (`trail`).
 - **Breath:** a wide beam (Dragon).
 - **Beams:** links to allies and targets (Encore, Doom, Moonlit Charm).
 - **Leaps:** a burst where the unit takes off and a ring where it lands.
 - **Summons and raised units:** a puff.
-- **Zones:** a translucent hex disc that pulses for the zone's time (Miasma green, Antler Grove light green). Eternal Winter frosts every hex of the frozen side and snows on it.
+- **Zones:** shown by their casters' own effects (the Plague Doctor's cloud, the Druid's antler spikes); Eternal Winter snows on the frozen side.
 - **Molten Shell and Doom:** a fiery burst when the shell erupts, a magenta burst when the Doom goes off.
 - **Status marks** (read from the unit's state each frame, gone when it ends):
   - stun: three yellow cubes circling the head
@@ -286,7 +284,6 @@ All visual only (`Scripts/vfx.gd`, class Vfx, plus the status marks in `unit.gd`
   - thorns: a spiked ring
   - hidden: a dark ring
   - raised: a pale ring
-  - buffs: a ring in the buff's colour (attack speed yellow, damage red, reduction blue, omnivamp crimson, regen green)
   - ability shields: a bubble
   - The charm keeps its own hex sigil, ring and thread.
 - **Reduce motion:** fewer cubes, nothing flies or turns.

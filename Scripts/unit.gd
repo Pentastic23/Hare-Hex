@@ -989,18 +989,17 @@ func _show_charm(on: bool):
 # Status marks (visual only), read from the unit's state each frame:
 # stunned (stars circling the head), rooted (vines ring), silenced (a violet cross), taunted (a red
 # "!"), blinded (a grey cloud), doomed (a countdown), guarded by a Paladin (a gold thread), parrying
-# (crossed blades), thorns (a spiked ring), hidden (a dark ring), raised (a pale ring), buffed (a ring
-# in the buff's colour) and an ability shield (a bubble). Reduce motion: nothing turns.
+# (crossed blades), thorns (a spiked ring), hidden (a dark ring), raised (a pale ring) and an ability
+# shield (a bubble). Buffs have no mark: each ability's own cast effect shows them. Reduce motion: nothing turns.
 var _status: Node3D
 var _status_t := 0.0
-const BUFF_COLORS := {"as": Color("ffe066"), "dmg": Color("ff6b5a"), "dr": Color("6cb4ff"), "vamp": Color("d0304a"), "regen": Color("7dff9a")}
 
 func _update_status(delta: float):
 	if not Vfx.enabled:
 		return
 	var active := not dead and (stun_left > 0.0 or root_left > 0.0 or silence_left > 0.0 or taunt_left > 0.0 \
 		or blind_hits > 0 or doom_left > 0.0 or link_left > 0.0 or parry_left > 0.0 or thorns_left > 0.0 \
-		or untargetable_left > 0.0 or raised_left > 0.0 or not buffs.is_empty() or ab_shield > 0.0)
+		or untargetable_left > 0.0 or raised_left > 0.0 or ab_shield > 0.0)
 	if not active:
 		if _status != null:
 			_status.queue_free()
@@ -1075,12 +1074,6 @@ func _update_status(delta: float):
 		return [n, Vector3.ZERO, true])
 	_piece("hidden", untargetable_left > 0.0, func(): return [_flat_ring(Color(0.15, 0.1, 0.25, 0.85), 0.9), Vector3(0, 0.12, 0), false])
 	_piece("raised", raised_left > 0.0, func(): return [_flat_ring(Color("cfffe0"), 0.95), Vector3(0, 0.14, 0), false])
-	var buff_stat := ""
-	for b in buffs.values():
-		buff_stat = b[0]
-	_piece("buff", buff_stat != "", func(): return [_flat_ring(Color.WHITE, 0.65), Vector3(0, 0.16, 0), false])
-	if _status.has_node("buff") and buff_stat != "":
-		((_status.get_node("buff") as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = BUFF_COLORS.get(buff_stat, Color.WHITE)
 	_piece("shield", ab_shield > 0.0, func():
 		var m := MeshInstance3D.new()
 		var sph := SphereMesh.new()
@@ -1343,7 +1336,6 @@ func _cast(target_unit: Unit):
 	if Abilities.has(data):   # no name popup: each ability's own effect shows the cast (vfx.gd)
 		if Abilities.enabled:
 			cast_lock = Abilities.cast(self, target_unit)   # locked while casting (longer for channels)
-			Vfx.cast_flash(self)
 	else:
 		_ability().cast(self, target_unit)   # units whose ability isn't built yet: the placeholder
 	if model_view != null:

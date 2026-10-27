@@ -121,12 +121,6 @@ static func _chest(u: Unit) -> Vector3:
 
 # --- one-shot effects ------------------------------------------------------------------------------
 
-# A ring of light at the caster's feet when it casts.
-static func cast_flash(u: Unit) -> void:
-	if not enabled or u == null:
-		return
-	ring(u, u.global_position + Vector3(0, 0.08, 0), 0.5, 1.1, color_of(u), 0.45)
-
 # A flat ring that grows from r0 to r1 and fades.
 static func ring(ctx: Node3D, pos: Vector3, r0: float, r1: float, c: Color, secs := 0.5) -> void:
 	if not enabled:
@@ -206,15 +200,6 @@ static func heal(u: Unit) -> void:
 			t.tween_property(b, "global_position", start + Vector3(0, 1.0, 0), 0.6)
 		_fade_out(b, 0.6)
 
-# An area spell: a hex-sized ring over the area and a burst in the middle.
-static func area(ctx: Node3D, board: Board, center: Vector2i, radius: int, c: Color) -> void:
-	if not enabled or board == null:
-		return
-	var pos := board.display_pos(center) + Vector3(0, 0.1, 0)
-	var r := HEX_R * (1.0 + 1.75 * radius)
-	ring(ctx, pos, r * 0.3, r, c, 0.55)
-	burst(ctx, pos + Vector3(0, 0.4, 0), c, 10, 0.4 + 0.6 * radius)
-
 # A beam from a to b that fades (lines, links, tethers).
 static func beam(ctx: Node3D, a: Vector3, b: Vector3, c: Color, secs := 0.4, width := 0.16) -> void:
 	if not enabled or a.distance_to(b) < 0.01:
@@ -226,13 +211,6 @@ static func beam(ctx: Node3D, a: Vector3, b: Vector3, c: Color, secs := 0.4, wid
 	m.scale = Vector3(width, width, a.distance_to(b))
 	_fade_out(m, secs)
 
-# A path of bursts over hexes (lines, charges).
-static func trail(ctx: Node3D, board: Board, cells: Array, c: Color) -> void:
-	if not enabled or board == null:
-		return
-	for cell in cells:
-		burst(ctx, board.display_pos(cell) + Vector3(0, 0.4, 0), c, 5, 0.5)
-
 # A summon appears: a puff where it stands.
 static func puff(u: Unit) -> void:
 	if not enabled or u == null:
@@ -240,31 +218,6 @@ static func puff(u: Unit) -> void:
 	ring(u, u.global_position + Vector3(0, 0.08, 0), 0.3, 1.0, color_of(u).darkened(0.2), 0.5)
 	burst(u, u.global_position + Vector3(0, 0.5, 0), Color("d0d0d0"), 8, 0.5)
 	blink(u, u.global_position, color_of(u), false)
-
-# A ground zone that stays for secs: a translucent hex disc that pulses, then fades.
-static func zone(ctx: Node3D, board: Board, center: Vector2i, radius: int, c: Color, secs: float) -> void:
-	if not enabled or board == null:
-		return
-	var m := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	var r := HEX_R * (1.0 + 1.75 * radius)
-	cyl.top_radius = r
-	cyl.bottom_radius = r
-	cyl.height = 0.04
-	cyl.radial_segments = 6
-	m.mesh = cyl
-	m.material_override = _mat(Color(c, 0.35 * c.a))
-	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if not _add(ctx, m, board.display_pos(center) + Vector3(0, 0.08, 0)):
-		return
-	var t := m.create_tween()
-	if not Settings.reduce_motion:
-		t.set_loops(int(secs / 0.8))
-		t.tween_property(m, "scale", Vector3(1.06, 1, 1.06), 0.4)
-		t.tween_property(m, "scale", Vector3.ONE, 0.4)
-	m.get_tree().create_timer(secs).timeout.connect(func():
-		if is_instance_valid(m):
-			_fade_out(m, 0.3))
 
 # A blizzard over a whole side of the board: snow cubes falling for secs (Eternal Winter).
 static func blizzard(ctx: Node3D, board: Board, enemy_team: int, secs: float) -> void:
@@ -275,8 +228,6 @@ static func blizzard(ctx: Node3D, board: Board, enemy_team: int, secs: float) ->
 	for y in rows:
 		for x in Board.COLS:
 			cells.append(Vector2i(x, y))
-	for cell in cells:   # frost on every hex of that side
-		zone(ctx, board, cell, 0, Color(0.8, 0.95, 1.0, 0.6), secs)
 	var waves := 2 if Settings.reduce_motion else int(secs / 0.5)
 	for w in waves:
 		ctx.get_tree().create_timer(w * 0.5).timeout.connect(func():

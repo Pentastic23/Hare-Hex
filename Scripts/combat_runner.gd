@@ -140,13 +140,8 @@ func credit_gold(team: int, amount: int) -> void:
 # HP are frozen (stunned) for 1.5 s. It stays if its caster dies; `by` gets the damage credit while it lives.
 func add_zone(kind: String, center: Vector2i, radius: int, secs: float, team: int, amount: float, by: Unit) -> void:
 	zones.append({"kind": kind, "center": center, "radius": radius, "left": secs, "team": team, "amount": amount, "by": by})
-	match kind:   # the look (visual only)
-		"miasma":
-			Vfx.zone(board, board, center, radius, Color("8fd14f"), secs)
-		"grove":
-			Vfx.zone(board, board, center, radius, Color("7dff9a"), secs)
-		"winter":
-			Vfx.blizzard(board, board, 1 - team, secs)
+	if kind == "winter":   # the look (visual only); miasma and grove show by their casters' own effects
+		Vfx.blizzard(board, board, 1 - team, secs)
 
 func _tick_zones() -> void:
 	if zones.is_empty():
