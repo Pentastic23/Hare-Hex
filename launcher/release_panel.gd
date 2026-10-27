@@ -60,7 +60,7 @@ func build(launcher) -> void:
 	_full = _check_box("Full release (not pre-release)")
 	# On by default: GitHub's /releases/latest/download/HareHex-Launcher.exe link (the one pinned for
 	# testers) only follows full releases.
-	_full.button_pressed = true
+	_full.set_pressed_no_signal(true)
 	form.add_child(_full)
 	_dry = _check_box("Dry run (build only)")
 	form.add_child(_dry)
