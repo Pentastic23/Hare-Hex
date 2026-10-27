@@ -221,10 +221,10 @@ func _refresh_stats() -> void:
 	level_label.text = "LVL %d" % me.level
 	if GameState.XP_TABLE.has(me.level):
 		xp_label.text = "(%d/%d)" % [me.xp, me.xp_needed()]
-		xp_bar.set_ratio(float(me.xp) / maxf(1.0, me.xp_needed()))
+		xp_bar.set_steps(me.xp, me.xp_needed(), XP_PER_BUY)   # one segment per Buy XP (4 XP)
 	else:
 		xp_label.text = "MAX"
-		xp_bar.set_ratio(1.0)
+		xp_bar.set_steps(1.0, 1.0, 1.0)
 	gold_label.text = str(me.gold)
 	var next_round: int = GameState.round_number + 1
 	var base: int = GameState.base_income_for_round(next_round)

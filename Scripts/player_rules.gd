@@ -20,6 +20,8 @@ var unit_scene: PackedScene = preload("res://scenes/unit.tscn")
 var drop_rounds: Array = GameState.ITEM_DROP_ROUNDS   # rounds whose PREP start drops an item
 var tongs_rounds: Array = GameState.TONGS_ROUNDS      # ... and Tinker's Tongs ([] in a campaign)
 var drop_stage_fixed := 0   # campaign: the chapter decides the drop table (GameManager.drop_stage); 0 = by round
+var must_offer: Array[UnitData] = []   # units every shop includes (the tutorial's Knight and Militia; _guarantee)
+var equip_check := Callable()   # (unit, item) -> "" if allowed, else why not (the tutorial keeps its two items on one unit)
 
 const REROLL_COST := 2
 const BUY_XP_COST := 4
@@ -145,8 +147,36 @@ func roll_shop() -> void:
 		if d != null and pool.take(d):
 			offers.append(d)
 			player.shop_offers.append(d)
+	_guarantee(offers)
 	if player.is_local:
 		Events.shop_rolled.emit(offers)
+
+# must_offer (the tutorial: a Knight and a Militia) is in every shop: a missing one takes the place of the
+# last offer that isn't itself a must, which goes back to the pool. Deterministic (no RNG).
+func _guarantee(offers: Array) -> void:
+	for want in must_offer:
+		if offers.has(want) or pool.count(want) <= 0:
+			continue
+		var at := -1
+		for i in range(offers.size() - 1, -1, -1):
+			if not must_offer.has(offers[i]):
+				at = i
+				break
+		if at == -1:
+			if offers.size() >= 5:
+				continue
+			at = offers.size()
+			offers.append(null)
+			player.shop_offers.append(null)
+		elif offers[at] != null:
+			pool.give_back(offers[at])
+		if pool.take(want):
+			offers[at] = want
+			player.shop_offers[at] = want
+	for i in range(offers.size() - 1, -1, -1):   # (a slot left empty by a failed take)
+		if offers[i] == null:
+			offers.remove_at(i)
+			player.shop_offers.remove_at(i)
 
 func return_offers() -> void:
 	for d in player.shop_offers:
@@ -312,6 +342,12 @@ func equip(u: Unit, item: ItemData, in_prep: bool, fighting := false) -> bool:
 		return false
 	if item.kind == &"remover":
 		return use_tongs(u, item, in_prep)
+	if equip_check.is_valid():
+		var why: String = equip_check.call(u, item)
+		if why != "":
+			if player.is_local:
+				Events.notice.emit(why, HudStyle.GOLD)
+			return false
 	if not u.equip(item, fighting):
 		return false
 	player.items.remove_at(index)

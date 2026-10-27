@@ -8,28 +8,57 @@ extends VBoxContainer
 # reroll, the coming enemy, the drops, the hidden rules). Then the last few things it did.
 # Rebuilt (once a frame at most) when the king's state, gold, the shop or the phase changes.
 
+# Laid out like the unit inspector: a header (a crown in the king's colour, its name, YOUR KING), the
+# POWER heading with its text (mechanic words hoverable), the run state as stat cells and rule rows under
+# their own headings, and RECENTLY with the log.
+
 const WIDTH := 210.0
 
 var title: Label
-var power: Label
+var power_head: HBoxContainer
+var power: RichTextLabel
+var crown: DockKit.PixelIcon
+var crown_well: PanelContainer
+var kind_label: Label
 var body: VBoxContainer
 var log_box: VBoxContainer
+var _grid: GridContainer   # the stat cells of this rebuild (two to a row)
 var _dirty := false
 
 func _ready():
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_theme_constant_override("separation", 6)
-	title = DockKit.text(15, HudStyle.GOLD)
-	add_child(title)
-	power = DockKit.wrapping(11, HudStyle.MUTED, WIDTH)
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_theme_constant_override("separation", 10)
+	add_child(head)
+	crown_well = DockKit.well(Vector2(40, 40), HudStyle.GOLD, 3)
+	head.add_child(crown_well)
+	crown = DockKit.PixelIcon.new("crown", HudStyle.GOLD, 24)
+	crown.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	crown_well.add_child(crown)
+	var col := VBoxContainer.new()
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 1)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(col)
+	title = DockKit.text(16, HudStyle.GOLD)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(title)
+	kind_label = HudStyle.caps(10, HudStyle.YOU)
+	col.add_child(kind_label)
+	power_head = DockKit.heading("POWER", HudStyle.GOLD)
+	add_child(power_head)
+	power = DockKit.rich(12, HudStyle.INK, WIDTH)
 	add_child(power)
 	body = VBoxContainer.new()
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_theme_constant_override("separation", 4)
+	body.add_theme_constant_override("separation", 5)
 	add_child(body)
 	log_box = VBoxContainer.new()
 	log_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	log_box.add_theme_constant_override("separation", 2)
+	log_box.add_theme_constant_override("separation", 3)
 	add_child(log_box)
 	Events.king_changed.connect(refresh)
 	Events.gold_changed.connect(func(_g): refresh())
@@ -59,13 +88,19 @@ func _rebuild() -> void:
 	var p := GameState.me
 	var id := p.king if p.king != &"" else KingSkins.selected()
 	var def: Dictionary = KingSkins.DEFS.get(id, KingSkins.DEFS[KingSkins.DEFAULT])
+	var colour := KingSkins.colour(id)
 	title.text = def.name
-	title.add_theme_color_override("font_color", KingSkins.colour(id))
-	power.text = "%s: %s" % [def.power, def.text]
+	title.add_theme_color_override("font_color", colour)
+	crown.set_color(colour)
+	(crown_well.get_theme_stylebox("panel") as StyleBoxFlat).border_color = colour
+	kind_label.text = "YOUR KING  ·  " + ("RUN POWER" if KingSkins.is_run_power(id) else "EVERY FIGHT")
+	(power_head.get_child(0) as Label).text = "POWER  ·  " + str(def.power).to_upper()
+	DockKit.set_rich(power, str(def.text))
 	for c in body.get_children():
 		c.queue_free()
 	for c in log_box.get_children():
 		c.queue_free()
+	_grid = null
 	if not is_visible_in_tree():
 		return
 	if p.king == &"":
@@ -150,10 +185,11 @@ func _rebuild() -> void:
 				_line("Your prophecies are offered after the first round.", HudStyle.MUTED)
 		&"shadow":
 			_shadow()
-	for line in s.get("log", []):
-		var l := DockKit.wrapping(10, HudStyle.MUTED, WIDTH)
-		l.text = "› " + str(line)
-		log_box.add_child(l)
+	var log: Array = s.get("log", [])
+	if not log.is_empty():
+		log_box.add_child(DockKit.heading("RECENTLY"))
+	for line in log:
+		log_box.add_child(DockKit.rule_row(str(line), HudStyle.MUTED, "chev_right", HudStyle.MUTED, 11))
 
 func _choose(i: int) -> void:
 	var gm = get_tree().get_first_node_in_group("game_manager")
@@ -218,28 +254,29 @@ func _shadow() -> void:
 
 # --- small pieces ------------------------------------------------------------------------------------
 
-func _line(text: String, colour: Color) -> Label:
-	var l := DockKit.wrapping(11, colour, WIDTH)
-	l.text = text
-	body.add_child(l)
-	return l
+# A line of the run state: a spark and the text (mechanic words hoverable), in its colour.
+func _line(text: String, colour: Color) -> Control:
+	var row := DockKit.rule_row(text, colour, "spark", colour if colour != HudStyle.MUTED else DockKit.DIM_TEXT, 11)
+	body.add_child(row)
+	_grid = null
+	return row
 
 func _cap(text: String) -> void:
-	var l := HudStyle.caps(10, HudStyle.MUTED)
-	l.text = text
-	body.add_child(l)
+	body.add_child(DockKit.heading(text))
+	_grid = null
 
+# A stat cell (two to a row, like the inspector's), its icon from the label.
+const STAT_ICONS := {"Interest": "hex", "Souls": "drop", "Hoard": "hex", "Prophecy": "spark", "Proclaimed": "crown", "This round": "bolt"}
 func _stat(label: String, value: String, colour := HudStyle.INK) -> void:
-	var h := HBoxContainer.new()
-	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var a := DockKit.text(12, HudStyle.MUTED)
-	a.text = label
-	a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(a)
-	var b := HudStyle.number(18, colour)
-	b.text = value
-	h.add_child(b)
-	body.add_child(h)
+	if _grid == null:
+		_grid = GridContainer.new()
+		_grid.columns = 2
+		_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_grid.add_theme_constant_override("h_separation", 4)
+		_grid.add_theme_constant_override("v_separation", 4)
+		body.add_child(_grid)
+	var accent := colour if colour != HudStyle.INK else HudStyle.GOLD
+	_grid.add_child(DockKit.stat_cell(STAT_ICONS.get(label, "spark"), accent, value, label.to_upper(), colour))
 
 func _odds(odds: Array) -> void:
 	var row := HFlowContainer.new()
@@ -250,8 +287,6 @@ func _odds(odds: Array) -> void:
 	body.add_child(row)
 
 func summary() -> String:   # (tests)
-	var lines := [title.text, power.text]
-	for c in body.get_children():
-		if c is Label and not c.is_queued_for_deletion():
-			lines.append(c.text)
+	var lines := PackedStringArray([title.text, power.get_parsed_text()])
+	lines.append_array(DockKit.texts_in(body))
 	return "\n".join(lines)

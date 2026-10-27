@@ -21,6 +21,7 @@ const GHOST := 52.0      # its size in px
 func _ready():
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_theme_constant_override("separation", 6)
+	add_child(DockKit.heading("YOUR ITEMS"))
 	list = VBoxContainer.new()
 	list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	list.add_theme_constant_override("separation", 4)
@@ -28,14 +29,8 @@ func _ready():
 	hint = DockKit.wrapping(11, HudStyle.MUTED, 180)
 	add_child(hint)
 	# Resonance (items v2): what is active on your units, and the book with all 16.
-	var head := HBoxContainer.new()
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var head := DockKit.heading("RESONANCE")
 	add_child(head)
-	var cap := HudStyle.caps(10, HudStyle.MUTED)
-	cap.text = "RESONANCE"
-	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(cap)
 	book_button = DockKit.secondary_button("Book")
 	book_button.custom_minimum_size = Vector2(56, 24)
 	book_button.add_theme_font_size_override("font_size", 11)
@@ -83,11 +78,12 @@ func _rebuild():
 	hint.text = "Drag an item onto a unit to equip it. Up to 3 per unit." if not g.is_empty() else "No items yet. Some fights drop one."
 	_fill_resonances()
 
+# One item type, as an inspector cell edged in the item's colour: its icon in a well, the name with its
+# element chip, what it does (mechanic words hoverable), and "×2" for duplicates.
 func _row(item: ItemData, n: int, index: int) -> Control:
-	var row := PanelContainer.new()
+	var row := DockKit.cell(item.color, Vector4(4, 5, 4, 6))
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.mouse_default_cursor_shape = Control.CURSOR_DRAG
-	row.add_theme_stylebox_override("panel", DockKit.flat(DockKit.ROW, 3, Vector4(4, 4, 4, 6)))
 	row.tooltip_text = Tip.wrap(Glossary.explain(item_tip(item), item.description))   # (its resonance list is long enough)
 	row.set_meta("item", item)
 	row.gui_input.connect(func(e):
@@ -132,8 +128,8 @@ func _row(item: ItemData, n: int, index: int) -> Control:
 		var tag := DockKit.chip(String(item.element).to_upper(), DockKit.WELL, Resonance.ELEMENT_COLORS.get(item.element, HudStyle.MUTED), 9)
 		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		name_row.add_child(tag)
-	var desc := DockKit.wrapping(11, HudStyle.MUTED, 110)
-	desc.text = item.description
+	var desc := DockKit.rich(11, HudStyle.MUTED, 110)
+	DockKit.set_rich(desc, item.description)
 	mid.add_child(desc)
 	if n > 1:
 		var x := HudStyle.number(20, HudStyle.INK)
@@ -209,23 +205,30 @@ func _fill_resonances() -> void:
 			if keys.is_empty():
 				continue
 			any = true
-			var names: PackedStringArray = []
-			for k in keys:
-				names.append(Resonance.def(k).get("name", k))
-			var l := DockKit.wrapping(11, HudStyle.INK, 180)
-			l.text = "%s%s: %s" % [u.data.display_name, " (bench)" if u.coord.x < 0 else "", ", ".join(names)]
-			l.mouse_filter = Control.MOUSE_FILTER_PASS
+			# A gold-edged cell: the unit (and where it is), then each resonance as a gold chip.
+			var c := DockKit.cell(HudStyle.GOLD, Vector4(4, 6, 4, 6))
+			var v := VBoxContainer.new()
+			v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			v.add_theme_constant_override("separation", 3)
+			c.add_child(v)
+			var who := DockKit.text(12)
+			who.text = u.data.display_name + ("  (bench)" if u.coord.x < 0 else "")
+			v.add_child(who)
+			var chips := HFlowContainer.new()
+			chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			chips.add_theme_constant_override("h_separation", 4)
+			chips.add_theme_constant_override("v_separation", 4)
+			v.add_child(chips)
 			var tips: PackedStringArray = []
 			for k in keys:
+				chips.add_child(DockKit.chip(str(Resonance.def(k).get("name", k)) + ("  x2" if Resonance.has_crystal(u.items) else ""), DockKit.CHIP_ACTIVE, HudStyle.GOLD, 10))
 				tips.append(Resonance.describe(k))
 			if Resonance.has_crystal(u.items):
 				tips.append("Resonance Crystal: twice as strong")
-			l.tooltip_text = Tip.wrap(Glossary.explain("\n".join(tips)))
-			resonance_list.add_child(l)
+			c.tooltip_text = Tip.wrap(Glossary.explain("\n".join(tips)))
+			resonance_list.add_child(c)
 	if not any:
-		var none := DockKit.wrapping(11, DockKit.DIM_TEXT, 180)
-		none.text = "None yet. Two items with different elements on one unit make one."
-		resonance_list.add_child(none)
+		resonance_list.add_child(DockKit.rule_row("None yet. Two items with different elements on one unit make one.", DockKit.DIM_TEXT, "spark", DockKit.DIM_TEXT, 11))
 	if book != null and book.visible:
 		_fill_book()
 
@@ -276,8 +279,7 @@ func _fill_book() -> void:
 	box.add_child(grid)
 	for k in keys:
 		var known := SaveGame.has_unlock(StringName("resonance:" + k))
-		var cell := PanelContainer.new()
-		cell.add_theme_stylebox_override("panel", DockKit.flat(DockKit.ROW_ACTIVE if known else DockKit.ROW, 3, Vector4(4, 8, 5, 8)))
+		var cell := DockKit.cell(HudStyle.GOLD if known else DockKit.DIM_TEXT, Vector4(4, 8, 5, 8))
 		cell.custom_minimum_size = Vector2(330, 0)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 1)
@@ -292,8 +294,8 @@ func _fill_book() -> void:
 		var elems: Array = ["3 elements"] if k == "Prism" else k.split("+")
 		for e in elems:
 			top.add_child(DockKit.chip(String(e).to_upper(), DockKit.WELL, Resonance.ELEMENT_COLORS.get(StringName(e), HudStyle.MUTED), 9))
-		var d := DockKit.text(11, HudStyle.MUTED)
-		d.text = str(Resonance.def(k).get("text", ""))
+		var d := DockKit.rich(11, HudStyle.MUTED)
+		DockKit.set_rich(d, str(Resonance.def(k).get("text", "")))
 		v.add_child(d)
 		grid.add_child(cell)
 	var close := DockKit.secondary_button("Close")

@@ -237,6 +237,8 @@ func _begin_run():
 	rules.drop_rounds = GameState.item_drop_rounds() if lvl == null or lvl.id != &"tutorial" else []   # the tutorial hands out its two items itself
 	rules.tongs_rounds = GameState.TONGS_ROUNDS if lvl == null else ([GameState.CAMPAIGN_TONGS_ROUND] if _in_chapter(lvl) else [])   # Tongs: none in the tutorial
 	rules.drop_stage_fixed = drop_stage() if lvl != null else 0
+	if lvl != null and lvl.id == &"tutorial":
+		rules.must_offer.assign(roster)   # every tutorial shop offers a Knight and a Militia (the steps need both)
 	manual_start = GameState.ghost_mode or _in_chapter(lvl)   # async PvP and chapter levels: no prep timer, the top bar's Start fight
 	Settings.ensure_loaded()
 	fight_speed = clampi(Settings.fight_speed, 1, MAX_FIGHT_SPEED) if can_fast_forward() else 1

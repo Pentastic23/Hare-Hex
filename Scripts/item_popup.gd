@@ -9,7 +9,8 @@ class_name ItemPopup extends Control
 # GameManager adds it to the UI.
 
 const CARD := 76.0          # the well's side
-const GAP := 18.0           # between cards
+const SLOT := 150.0         # from one card to the next: room for its name (NAME_W) and a gap
+const NAME_W := 136.0       # a name wraps to two lines past this
 const HOLD := 2.4           # seconds the cards stay up, pulsing
 const STAGGER := 0.12       # between one card popping in and the next
 const ROW_Y := 0.42         # the cards' centre, as a share of the screen height
@@ -24,7 +25,8 @@ func _ready() -> void:
 	name = "ItemPopup"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	z_index = 10   # over the other panels (it never takes the mouse)
+	z_index = 32   # over the other panels and the tutorial's dim (it never takes the mouse)
+	process_mode = Node.PROCESS_MODE_ALWAYS   # it plays on while a tutorial card pauses the game
 	_header =HudStyle.number(30, HudStyle.GOLD)
 	_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_header.add_theme_color_override("font_shadow_color", HudStyle.LIP)
@@ -54,7 +56,7 @@ func _next() -> void:
 	var view := get_viewport_rect().size
 	var n := list.size()
 	var cy := view.y * ROW_Y
-	var width := n * CARD + (n - 1) * GAP
+	var width := n * SLOT - (SLOT - CARD)   # cards SLOT apart, so their names never meet
 	_header.text = "NEW ITEM" if n == 1 else "NEW ITEMS"
 	_header.size = Vector2(view.x, 0)
 	_header.position = Vector2(0, cy - CARD * 0.5 - 52)
@@ -67,7 +69,7 @@ func _next() -> void:
 	var end := HOLD + STAGGER * n + 0.9   # the last card has flown off by then
 	for i in n:
 		var card := _card(list[i])
-		card.position = Vector2(view.x * 0.5 - width * 0.5 + i * (CARD + GAP), cy - CARD * 0.5)
+		card.position = Vector2(view.x * 0.5 - width * 0.5 + i * SLOT, cy - CARD * 0.5)
 		add_child(card)
 		_cards.append(card)
 		_animate(card, i * STAGGER, HOLD + (n - 1 - i) * STAGGER)
@@ -117,8 +119,10 @@ func _card(item: ItemData) -> Control:
 	var label := HudStyle.caps(11, HudStyle.INK)
 	label.text = item.display_name.to_upper()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.size = Vector2(CARD + GAP + 40, 0)
-	label.position = Vector2(-(GAP + 40) * 0.5, CARD + 6)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(NAME_W, 0)
+	label.size = Vector2(NAME_W, 0)
+	label.position = Vector2(-(NAME_W - CARD) * 0.5, CARD + 6)
 	label.add_theme_color_override("font_shadow_color", HudStyle.LIP)
 	label.add_theme_constant_override("shadow_offset_y", 2)
 	card.add_child(label)

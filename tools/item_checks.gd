@@ -210,6 +210,9 @@ func _run():
 	gm.rules.drop_item(9)   # a drop round and a Tongs round: two items at once
 	await get_tree().process_frame
 	chk("a drop pops up its items side by side", popup != null and popup.shown == shown_before + 1 and GameState.me.items.size() == got_before + 2 and popup._cards.size() == 2, "popup %s, %d cards" % [popup != null, popup._cards.size() if popup != null else 0])
+	if popup != null and popup._cards.size() == 2:
+		var gap: float = popup._cards[1].position.x - popup._cards[0].position.x
+		chk("the cards stand far enough apart that their names don't overlap", gap >= ItemPopup.NAME_W + 8.0, str(gap))
 	GameState.me.items.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
@@ -364,7 +367,7 @@ func _run():
 	GameState.me.items.append(I("blood_fang"))
 	Events.items_changed.emit()
 	await get_tree().process_frame
-	chk("the Items tab lists the resonances on your units", bar.resonance_list.get_children().any(func(l): return l is Label and l.text.begins_with("Knight") and l.text.contains("Flurry")))
+	chk("the Items tab lists the resonances on your units", bar.resonance_list.get_children().any(func(l): var said := "|".join(DockKit.texts_in(l)); return said.begins_with("Knight") and said.contains("Flurry")))
 	chk("an item's tooltip lists what it resonates with", bar.item_tip(I("blood_fang")).contains("Hemorrhage") and bar.item_tip(I("tinkers_tongs")).contains("use it"))
 	gm.start_combat()
 	chk("bringing a resonance into a fight marks it found in the book", SaveGame.has_unlock(&"resonance:Might+Swift"))

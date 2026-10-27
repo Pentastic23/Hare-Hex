@@ -47,6 +47,7 @@ func _ready():
 	add_to_group("team_planner")
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_theme_constant_override("separation", 8)
+	add_child(DockKit.heading("UNITS BY COST"))   # (headings and chips in the unit inspector's style)
 	var tabs := HBoxContainer.new()
 	tabs.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tabs.add_theme_constant_override("separation", 3)
@@ -83,8 +84,9 @@ func _ready():
 	grid.add_theme_constant_override("h_separation", GAP)
 	grid.add_theme_constant_override("v_separation", GAP)
 	add_child(grid)
-	summary_label = DockKit.text(12)
+	summary_label = DockKit.text(11, HudStyle.MUTED)
 	add_child(summary_label)
+	add_child(DockKit.heading("COMPS"))
 	var comps_row := HBoxContainer.new()
 	comps_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	comps_row.add_theme_constant_override("separation", 4)
@@ -124,19 +126,9 @@ func _ready():
 	name_edit.focus_exited.connect(rename_comp)
 	add_child(name_edit)
 	_fill_comps()
-	var div := ColorRect.new()
-	div.color = DockKit.LINE
-	div.custom_minimum_size = Vector2(0, 1)
-	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(div)
-	var head := HBoxContainer.new()
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var head := DockKit.heading("PLANNED SYNERGIES")
 	add_child(head)
-	var caps := HudStyle.caps(10, HudStyle.MUTED)
-	caps.text = "PLANNED SYNERGIES"
-	caps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(caps)
-	planned_label = DockKit.text(10, HudStyle.MUTED)
+	planned_label = HudStyle.caps(9, HudStyle.MUTED)
 	head.add_child(planned_label)
 	chips = HFlowContainer.new()
 	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -337,8 +329,8 @@ func _rebuild():
 		var active: bool = e[2]
 		chips.add_child(DockKit.chip(e[0] + " " + e[1], DockKit.CHIP_ACTIVE if active else DockKit.WELL, HudStyle.GOLD if active else HudStyle.MUTED, 11, DockKit.GOLD_EDGE if active else Color.TRANSPARENT))
 	if planned_data.is_empty():
-		var l := DockKit.wrapping(11, HudStyle.MUTED, 180)
-		l.text = "Click units to plan a team. Planned units get a star in the shop."
+		var l := DockKit.rule_row("Click units to plan a team. Planned units get a star in the shop.", HudStyle.MUTED, "spark", DockKit.DIM_TEXT, 11)
+		l.custom_minimum_size.x = 200
 		chips.add_child(l)
 
 # [tag, "count/threshold", active] for the planned team, most units first. The threshold is the next

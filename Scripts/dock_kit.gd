@@ -49,6 +49,117 @@ static func wrapping(size: int, color: Color, min_width: float) -> Label:
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return l
 
+# --- the unit inspector's look, shared (the King, Items and Planner tabs and the tutorial use it too) ---
+
+const CELL_FILL := Color("141722")
+
+# A section heading: small caps and a line running to the right edge.
+static func heading(label: String, colour := HudStyle.MUTED) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_theme_constant_override("separation", 6)
+	var l := HudStyle.caps(10, colour)
+	l.text = label
+	h.add_child(l)
+	var line := ColorRect.new()
+	line.color = LINE
+	line.custom_minimum_size = Vector2(0, 1)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(line)
+	return h
+
+# Wrapping text in the label font whose mechanic words (burn, stun, shield...) are gold links: hovering
+# one shows what it means (Glossary.hook). Give it text through Glossary.bbcode, or set_rich below.
+static func rich(size: int, colour := HudStyle.INK, min_width := 0.0) -> RichTextLabel:
+	var l := RichTextLabel.new()
+	l.bbcode_enabled = true
+	l.fit_content = true
+	l.scroll_active = false
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.custom_minimum_size.x = min_width
+	l.add_theme_font_override("normal_font", HudStyle.label_font())
+	l.add_theme_font_override("bold_font", HudStyle.label_font())
+	l.add_theme_font_size_override("normal_font_size", size)
+	l.add_theme_font_size_override("bold_font_size", size)
+	l.add_theme_color_override("default_color", Settings.text_color(colour))
+	l.add_theme_constant_override("line_separation", 1)
+	Glossary.hook(l)
+	return l
+
+# Sets plain text on a rich label with its mechanic words linked (only on a change: setting it ends a hover).
+# `game`: the game's own words too (gold, bench, interest...; Glossary.GAME_TERMS), as the tutorial does.
+static func set_rich(l: RichTextLabel, plain: String, game := false) -> void:
+	var said := Glossary.bbcode(plain, game)
+	if l.text != said:
+		l.text = said
+
+# A dark cell with a coloured edge on its left (the inspector's stat cells), padded; put content in it.
+static func cell(accent: Color, pad := Vector4(5, 7, 5, 6)) -> PanelContainer:
+	var box := PanelContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_PASS   # for a tooltip
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var st := flat(CELL_FILL, 3, pad)
+	st.border_width_left = 2
+	st.border_color = accent.darkened(0.35)
+	box.add_theme_stylebox_override("panel", st)
+	return box
+
+# A stat cell: a pixel icon in the accent colour, the value in the pixel font, a caption under it.
+static func stat_cell(icon: String, accent: Color, value: String, caption: String, value_colour := HudStyle.INK) -> PanelContainer:
+	var box := cell(accent)
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_theme_constant_override("separation", 7)
+	box.add_child(h)
+	h.add_child(PixelIcon.new(icon, accent, 16))
+	var col := VBoxContainer.new()
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_theme_constant_override("separation", -3)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(col)
+	var v := HudStyle.number(19, value_colour)
+	v.name = "Value"
+	v.text = value
+	v.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(v)
+	var c := HudStyle.caps(9, HudStyle.MUTED)
+	c.name = "Caption"
+	c.text = caption
+	col.add_child(c)
+	return box
+
+# A rule row: a small spark (or another pixel icon) and linked text beside it.
+static func rule_row(plain: String, colour := HudStyle.INK, icon := "spark", icon_colour := HudStyle.GOLD, size := 12) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_theme_constant_override("separation", 6)
+	var i := PixelIcon.new(icon, icon_colour, 10)
+	i.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	h.add_child(i)
+	var l := rich(size, colour)
+	l.name = "Text"
+	set_rich(l, plain)
+	h.add_child(l)
+	return h
+
+# All the text a built panel shows, one line per label (tests read panels with it).
+static func texts_in(root: Node) -> PackedStringArray:
+	var out: PackedStringArray = []
+	for c in root.get_children():
+		if c.is_queued_for_deletion():
+			continue
+		if c is Label and (c as Label).text != "":
+			out.append((c as Label).text)
+		elif c is RichTextLabel:
+			out.append((c as RichTextLabel).get_parsed_text())
+		elif c is Button and (c as Button).text != "":
+			out.append((c as Button).text)
+		out.append_array(texts_in(c))
+	return out
+
 # --- style boxes ----------------------------------------------------------------------------------
 
 static func flat(bg: Color, radius := 3, pad := Vector4(0, 0, 0, 0)) -> StyleBoxFlat:
@@ -511,20 +622,34 @@ class SegBar extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
+	var step := 0.0    # > 0: each segment stands for `step` of `total` (the XP bar: 4 XP, one Buy XP)
+	var total := 0.0
+
 	func set_ratio(r: float) -> void:
 		ratio = clampf(r, 0.0, 1.0)
 		queue_redraw()
 
+	# Segments of a fixed size: `amount` of `whole`, one segment per `per` (the last one shorter when
+	# `whole` isn't a multiple: 6 XP is one and a half segments of 4).
+	func set_steps(amount: float, whole: float, per: float) -> void:
+		step = per
+		total = maxf(whole, 0.001)
+		segments = maxi(ceili(total / per), 1)
+		set_ratio(amount / total)
+
 	func _draw() -> void:
-		var gap := 2.0
-		var w := (size.x - gap * (segments - 1)) / segments
-		var lit := ratio * segments
+		var gap := 2.0 if segments <= 12 else 1.0
+		var units := float(segments) if step <= 0.0 else total / step   # segment widths in "whole segments"
+		var w := (size.x - gap * (segments - 1)) / units
+		var lit := ratio * units
+		var x := 0.0
 		for i in segments:
-			var x := i * (w + gap)
-			draw_rect(Rect2(x, 0, w, size.y), HudStyle.TRACK)
-			var part := clampf(lit - i, 0.0, 1.0)
+			var span := minf(1.0, units - i)   # the last one may be a part segment
+			draw_rect(Rect2(x, 0, w * span, size.y), HudStyle.TRACK)
+			var part := clampf(lit - i, 0.0, span)
 			if part > 0.0:
 				draw_rect(Rect2(x, 0, w * part, size.y), color)
+			x += w * span + gap
 
 # A small padlock as a texture (the shop's Lock button uses it as its icon).
 static func padlock(color: Color, px := 2) -> ImageTexture:

@@ -17,7 +17,6 @@ const DIM := Color(0.039, 0.043, 0.067, 0.5)   # #0a0b11 at 50%
 const STANDINGS_TOP := 129.0   # where the HP standings sit when no panel is open (hp_standings.gd TOP)
 const STANDINGS_GAP := 8.0
 const STANDINGS_MAX_TOP := 300.0   # never pushed further down: the bench, the sell zone and the inspector are below
-const TUTORIAL_MAX_BOTTOM := 436.0   # the tutorial panel stays above the bench and the SELL tile (default camera)
 
 const DamagePanel := preload("res://Scripts/damage_meter.gd")
 const PlannerPanel := preload("res://Scripts/team_planner.gd")
@@ -161,29 +160,11 @@ func _shrink() -> void:
 	offset_top = MARGIN
 	custom_minimum_size.x = WIDTH
 	var y := MARGIN + get_combined_minimum_size().y + 3.0 + STANDINGS_GAP   # just under the box and its lip
-	var tut := get_parent().get_node_or_null("TutorialPanel") as Control
-	if tut != null and tut.visible:
-		if not tut.minimum_size_changed.is_connected(_on_tutorial_resized):
-			tut.minimum_size_changed.connect(_on_tutorial_resized)   # step text changes its height
-		var h := tut.get_combined_minimum_size().y
-		var top := minf(y, TUTORIAL_MAX_BOTTOM - h)
-		tut.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		tut.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		tut.offset_right = -MARGIN
-		tut.offset_left = -MARGIN - tut.get_combined_minimum_size().x
-		tut.offset_top = top
-		tut.offset_bottom = top + h
-		y = top + h + 3.0 + STANDINGS_GAP
 	var standings := get_parent().get_node_or_null("Standings") as Control
 	if standings != null:
 		var max_top := STANDINGS_MAX_TOP
-		if tut != null and tut.visible:   # under the tutorial panel they may go lower, still ending above the bench
-			max_top = maxf(max_top, TUTORIAL_MAX_BOTTOM - standings.get_combined_minimum_size().y)
 		standings.offset_top = clampf(y, STANDINGS_TOP, max_top)
 		standings.visible = y <= max_top   # under a tall panel they'd only peek out at the edge
-
-func _on_tutorial_resized() -> void:
-	_shrink.call_deferred()
 
 func _input(event):
 	if BugReporter.is_open or get_tree().get_first_node_in_group("settings_overlay") != null:

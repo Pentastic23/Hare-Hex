@@ -219,11 +219,16 @@ func _skin(node: Node3D, part: String, biome: StringName = &"") -> void:
 	var mi := node.get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if mi == null:
 		return
-	var m := BoardThemes.tile(biome if biome != &"" else theme, part)
+	var id := biome if biome != &"" else theme
+	var m := BoardThemes.tile(id, part)
 	mi.mesh = m if m != null else hex_block()   # not baked yet: the plain block
 	mi.material_override = null
+	# The playable hexes (and the kings' and the interest hex) are brightened in dark biomes, so they
+	# never sink into the scenery round them (BoardThemes.board_lift); glowing voxels keep their own look.
+	var lifted: Material = BoardThemes.board_material(id) if part in VoxelTiles.BASES and m != null else null
 	for i in mi.get_surface_override_material_count():
-		mi.set_surface_override_material(i, null)
+		var own := m.surface_get_material(i) if m != null and i < m.get_surface_count() else null
+		mi.set_surface_override_material(i, lifted if lifted != null and own == VoxelTiles.SOLID else null)
 
 # --- the world around the board (scenery, never played on) --------------------------------------
 
@@ -244,7 +249,8 @@ const SCENERY_SHADE := Color(0.85, 0.85, 0.88)   # the board stays at full brigh
 const UNDERLAY_SHADE := Color(0.6, 0.6, 0.64)    # board hexes not unlocked yet
 var backdrop_cells := {}      # hex -> part, the scenery laid out by the last apply_theme (tests read it)
 var backdrop_biomes := {}     # hex -> biome of that scenery (two of them when the halves differ)
-const BLEND_ROWS := 3.0       # how many hex rows the two halves' scenery mixes over, across the middle
+const BLEND_ROWS := 5.0       # how many hex rows the two halves' scenery mixes over, across the middle
+const PATCH_SCALE := 3.5      # how small the patches of one land inside the other are (the edge noise, zoomed in)
 const EDGE_WAVE := 3.0        # how far (in rows) the line between them wanders, so it never runs straight
 var _flip_spots: Array[Node3D] = []
 
@@ -365,10 +371,16 @@ func _pick_part(g: float, d: int, rng: RandomNumberGenerator) -> String:
 # Which half's biome a scenery hex takes when the two differ: yours towards the camera, the opponent's
 # beyond the middle of the board, mixed across a band a few rows wide whose middle wanders with the noise,
 # so the two lands run into each other like neighbouring countryside rather than meeting at a straight line.
-func _half_biome(c: Vector2i, edge: FastNoiseLite, scatter: RandomNumberGenerator) -> StringName:
+# Which side of the line a hex falls is decided by a second, finer noise rather than a coin toss per hex,
+# so the crossing-over comes in small patches (a copse of one land reaching into the other) and the band
+# reads as a gradual change instead of a speckle.
+func _half_biome(c: Vector2i, edge: FastNoiseLite, _scatter: RandomNumberGenerator) -> StringName:
 	var rows := c.y - (ROWS - 1) / 2.0 + edge.get_noise_2d(c.x, c.y) * EDGE_WAVE   # + towards you
 	var near := smoothstep(0.0, 1.0, clampf(0.5 + rows / BLEND_ROWS, 0.0, 1.0))
-	return theme if scatter.randf() < near else foe_theme
+	if near >= 1.0 or near <= 0.0:   # outside the band: one land only
+		return theme if near >= 1.0 else foe_theme
+	var patch := clampf(edge.get_noise_2d(c.x * PATCH_SCALE + 91.0, c.y * PATCH_SCALE - 37.0) * 0.9 + 0.5, 0.0, 1.0)
+	return theme if patch < near else foe_theme
 
 # A scenery group's key: the part for your half's biome (as before there were two), "<biome>/<part>" else.
 func _key(biome: StringName, part: String) -> String:
@@ -462,13 +474,19 @@ static func hex_block() -> ArrayMesh:
 	st.commit(_prism)
 	return _prism
 
+# The line between the two halves of the board (only where both sides have open tiles): a row of small
+# voxel studs set into the ground in the biome's accent colour (BoardThemes.border_colour), glowing
+# faintly so it reads in the dark biomes too.
+const STUD := 0.075        # a stud's size
+const STUD_STEP := 0.13    # from one stud to the next along the line
 func _build_border():
+	var accent := BoardThemes.border_colour(theme)
 	if _border_mat == null:
 		_border_mat = StandardMaterial3D.new()
-		_border_mat.albedo_color = Color(1.0, 0.85, 0.3)
 		_border_mat.emission_enabled = true
-		_border_mat.emission = Color(1.0, 0.75, 0.2)
-		_border_mat.emission_energy_multiplier = 1.5
+		_border_mat.emission_energy_multiplier = 0.45
+	_border_mat.albedo_color = accent
+	_border_mat.emission = accent
 
 	var holder: Node3D = get_node_or_null("Border")
 	if holder:
@@ -480,8 +498,9 @@ func _build_border():
 		set_view_flipped(true)
 
 	var r := BORDER_R
-	var y := 0.12
+	var y := 0.02
 	var hw := sqrt(3.0) * r / 2.0
+	var studs: Array[Vector3] = []
 	for key in tiles:
 		var c: Vector2i = key
 		if not is_player_side(c) or not is_unlocked(c):
@@ -496,22 +515,30 @@ func _build_border():
 		var top_right := Vector3(p.x + hw, y, p.z - r * 0.5)
 
 		if tiles.has(up_left) and not is_player_side(up_left) and is_unlocked(up_left):
-			_border_segment(holder, top_left, top)
+			_border_segment(studs, top_left, top)
 		if tiles.has(up_right) and not is_player_side(up_right) and is_unlocked(up_right):
-			_border_segment(holder, top, top_right)
-
-
-func _border_segment(parent: Node3D, a: Vector3, b: Vector3):
-	var d := b - a
-	var len := Vector2(d.x, d.z).length()
-	var m := MeshInstance3D.new()
+			_border_segment(studs, top, top_right)
+	if studs.is_empty():
+		return
 	var box := BoxMesh.new()
-	box.size = Vector3(len + 0.08, 0.03, 0.07)   # +0.08 closes the joints between segments
-	m.mesh = box
-	m.material_override = _border_mat
-	m.position = (a + b) / 2.0
-	m.rotation.y = atan2(-d.z, d.x)
-	parent.add_child(m)
+	box.size = Vector3.ONE * STUD
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = box
+	mm.instance_count = studs.size()
+	for i in studs.size():
+		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, PI / 4.0), studs[i]))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Studs"
+	mmi.multimesh = mm
+	mmi.material_override = _border_mat
+	holder.add_child(mmi)
+
+# Studs along one side of a hex, evenly spaced (the corners are shared, so each segment skips its end).
+func _border_segment(studs: Array[Vector3], a: Vector3, b: Vector3):
+	var n := maxi(int(round(Vector2(b.x - a.x, b.z - a.z).length() / STUD_STEP)), 1)
+	for i in n:
+		studs.append(a.lerp(b, float(i) / n))
 
 
 func bench_slot_near(p: Vector3) -> int:
@@ -828,17 +855,7 @@ func _build_sell_zone():
 		s.collision_mask = 0
 	$Bench.add_child(s)
 	s.position = sell_zone_pos()
-	_sell_tile = s   # its look comes from the theme (apply_theme)
-	var l := Label3D.new()
-	l.text = "SELL" if OS.has_feature("mobile") else "SELL\n(F)"   # no F key on a phone: drag a unit here
-	l.font_size = 64
-	l.pixel_size = 0.01
-	l.outline_size = 16
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
-	l.shaded = false
-	l.position = Vector3(0, 0.5, 0)
-	s.add_child(l)
+	_sell_tile = s   # its look comes from the theme (apply_theme): the biome's sell hex with its gold coin
 
 func is_unlocked(c: Vector2i) -> bool:
 	return unlocked.has(c)
@@ -885,6 +902,8 @@ func _build_interest() -> void:
 	interest.position = grid_to_world(INTEREST_CELL)
 	interest.setup(self)
 
+const WATERFALL_ROW := 0.12   # seconds between one enemy row's tiles rising and the next row's
+const WATERFALL_COL := 0.04   # and along a row, left to right
 func refresh_unlocks(level: int, animate := true):
 	var n: int = tiles_open_for_level(level)
 	unlocked.clear()
@@ -898,7 +917,11 @@ func refresh_unlocks(level: int, animate := true):
 		for c in open_player_tiles(foe_level):
 			unlocked[BoardSnapshot.mirror(c)] = true
 	for c in tiles:
-		tiles[c].set_unlocked(unlocked.has(c), animate)
+		var cc: Vector2i = c
+		if is_player_side(cc):
+			tiles[c].set_unlocked(unlocked.has(c), animate)
+		else:   # the enemy half's new tiles rise out of the ground in a waterfall, far row first
+			tiles[c].set_unlocked(unlocked.has(c), animate, cc.y * WATERFALL_ROW + cc.x * WATERFALL_COL, true)
 	if visual:
 		_build_border()
 	_place_kings(animate)

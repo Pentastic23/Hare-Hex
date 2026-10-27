@@ -258,33 +258,13 @@ func _rule_row(text: String) -> HBoxContainer:
 # Text in the HUD's label font whose mechanic words (burn, stun, shield...) are gold links: hovering one
 # shows what it means (Glossary.hook).
 func _rich(size: int) -> RichTextLabel:
-	var l := RichTextLabel.new()
-	l.fit_content = true
-	l.scroll_active = false
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.add_theme_font_override("normal_font", HudStyle.label_font())
-	l.add_theme_font_size_override("normal_font_size", size)
-	l.add_theme_color_override("default_color", Settings.text_color(HudStyle.INK))
-	l.add_theme_constant_override("line_separation", 1)
-	Glossary.hook(l)
+	var l := DockKit.rich(size)
+	l.size_flags_horizontal = Control.SIZE_FILL
 	return l
 
 # A section heading: small caps and a line running to the right edge.
 func _heading(text: String, colour := HudStyle.MUTED) -> HBoxContainer:
-	var h := HBoxContainer.new()
-	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_theme_constant_override("separation", 6)
-	var l := HudStyle.caps(10, colour)
-	l.text = text
-	h.add_child(l)
-	var line := ColorRect.new()
-	line.color = DockKit.LINE
-	line.custom_minimum_size = Vector2(0, 1)
-	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(line)
-	return h
+	return DockKit.heading(text, colour)
 
 func _items_note(value: float, text: String) -> String:
 	return "" if is_zero_approx(value) else "  (%s items)" % text

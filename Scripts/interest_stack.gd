@@ -13,7 +13,7 @@ const FALL := 1.2         # it falls from this high above its place
 
 var coins: Array[MeshInstance3D] = []   # bottom first (tests read coins.size())
 var _board: Board
-static var _mesh: CylinderMesh
+static var _mesh: ArrayMesh
 static var _mat: StandardMaterial3D
 
 func setup(board: Board) -> void:
@@ -48,7 +48,8 @@ func _add_coin(animate: bool) -> void:
 	c.material_override = _coin_mat()
 	# a slightly untidy pile: each coin a little off centre (fixed per height, so it never jitters)
 	var off := Vector2(0.05, 0.0).rotated(i * 2.4)
-	var at := Vector3(off.x, 0.01 + COIN_H * (i + 0.5), off.y)
+	var at := Vector3(off.x, 0.01 + COIN_H * i, off.y)   # (the voxel coin stands on its base)
+	c.rotation.y = i * 0.9   # its slot bar turned a little each coin, so the pile looks hand-stacked
 	add_child(c)
 	coins.append(c)
 	if not animate:
@@ -92,23 +93,28 @@ func _outline() -> void:
 		seg.rotation.y = atan2(-d.z, d.x)
 		add_child(seg)
 
-static func _coin_mesh() -> CylinderMesh:
+# A voxel coin like the one on the sell hex (VoxelTiles._sell), at the same voxel size: a gold disc one
+# voxel thick with a darker rim and a raised slot bar across its face (only the top coin's shows).
+const COIN_GOLD := Color("f2c14e")
+static func _coin_mesh() -> ArrayMesh:
 	if _mesh == null:
-		_mesh = CylinderMesh.new()
-		_mesh.top_radius = COIN_R
-		_mesh.bottom_radius = COIN_R
-		_mesh.height = COIN_H
-		_mesh.radial_segments = 12   # a little faceted, to sit with the voxel art
-		_mesh.rings = 1
+		var g := VoxelTiles.Grid.new()
+		var r := COIN_R / VoxelTiles.V   # about 3.2 voxels
+		var n := ceili(r)
+		for i in range(-n, n + 1):
+			for k in range(-n, n + 1):
+				var d := Vector2(i + 0.5, k + 0.5).length()
+				if d <= r:
+					g.put(i, 0, k, COIN_GOLD if d < r - 1.0 else COIN_GOLD.darkened(0.25))
+		for k in range(-1, 2):
+			g.put(0, 1, k, COIN_GOLD.darkened(0.3))
+		_mesh = VoxelTiles.build(g, VoxelTiles.V, true)
 	return _mesh
 
 static func _coin_mat() -> StandardMaterial3D:
 	if _mat == null:
-		_mat = StandardMaterial3D.new()
-		_mat.albedo_color = HudStyle.GOLD
-		_mat.metallic = 0.55
-		_mat.roughness = 0.35
+		_mat = (VoxelTiles.SOLID as StandardMaterial3D).duplicate()
 		_mat.emission_enabled = true   # a faint glow, so the pile reads in the darker biomes
-		_mat.emission = HudStyle.GOLD
-		_mat.emission_energy_multiplier = 0.25
+		_mat.emission = COIN_GOLD
+		_mat.emission_energy_multiplier = 0.2
 	return _mat

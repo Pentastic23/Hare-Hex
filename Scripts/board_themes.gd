@@ -106,6 +106,45 @@ static func _blend_light(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
 static func backdrop_between(id: StringName, other: StringName, mix: float) -> Color:
 	return backdrop(id).lerp(backdrop(other), mix) if has(other) else backdrop(id)
 
+# How much the playable board is brightened over its biome's own ground colours, so open hexes stand
+# out from the scenery and the sunken locked hexes even in the darkest biomes (volcano, the caves):
+# ground darker than BOARD_LUMA is lifted towards it, at most BOARD_LIFT_MAX. 1.0 = left as it is.
+const BOARD_LUMA := 0.34
+const BOARD_LIFT_MAX := 2.0
+static func board_lift(id: StringName) -> float:
+	if not has(id):
+		return 1.0
+	var tops: Array = VoxelTiles.BIOMES[String(id)].top
+	var l := 0.0
+	for h in tops:
+		l += Color(str(h)).get_luminance()
+	l /= maxf(tops.size(), 1)
+	return clampf(BOARD_LUMA / maxf(l, 0.01), 1.0, BOARD_LIFT_MAX)
+
+# The colour of the studs along the line between the two halves (Board._build_border): the biome's
+# accent ("ring", the colour of its standing-stone and shrine trim), or its crystal colour where that
+# accent is too dark to see on the ground.
+static func border_colour(id: StringName) -> Color:
+	if not has(id):
+		return Color("c8a26a")
+	var c: Dictionary = VoxelTiles.BIOMES[String(id)].c
+	var accent := Color(str(c.get("ring", "c8a26a")))
+	if accent.get_luminance() < 0.35 and c.has("crystal"):
+		accent = Color(str(c.crystal[0]))
+	return accent
+
+# The solid voxel material brightened by board_lift (null when the biome needs none). Cached per biome.
+static var _lifted := {}
+static func board_material(id: StringName) -> Material:
+	var lift := board_lift(id)
+	if lift <= 1.001:
+		return null
+	if not _lifted.has(id):
+		var m := (VoxelTiles.SOLID as StandardMaterial3D).duplicate() as StandardMaterial3D
+		m.albedo_color = Color(lift, lift, lift)
+		_lifted[id] = m
+	return _lifted[id]
+
 # A baked tile of a biome (VoxelTiles.PARTS: base_1..3, bench, sell, flowers, stone, roots, standing,
 # shrine, tree_1, tree_2).
 static func tile(id: StringName, part: String) -> Mesh:

@@ -440,6 +440,25 @@ Wave 1/6: Scouts"), tip2.replace("
 	board.set_foe_theme(&"snow")
 	chk("set_foe_theme back to yours gives one arena again", board.foe_theme == &"snow" and board.backdrop_biomes.values().all(func(b): return b == &"snow"))
 
+	print("--- the board stands out, its studs, the waterfall")
+	chk("dark biomes brighten the playable board, light ones don't", BoardThemes.board_lift(&"volcano") > 1.5 and BoardThemes.board_lift(&"mushroom_cave") > 1.0 and is_equal_approx(BoardThemes.board_lift(&"forest"), 1.0) and is_equal_approx(BoardThemes.board_lift(&"snow"), 1.0))
+	board.apply_theme(&"volcano", GameState.run_seed)
+	var vt: Tile = board.tiles.values()[0]
+	var vmi := vt.get_node("MeshInstance3D") as MeshInstance3D
+	chk("a volcano board hex wears the brightened material", vmi.get_surface_override_material(0) == BoardThemes.board_material(&"volcano"))
+	chk("the line between the halves is in the biome's accent (volcano: its lava, not its dark trim)", board._border_mat.albedo_color.is_equal_approx(BoardThemes.border_colour(&"volcano")) and BoardThemes.border_colour(&"volcano").get_luminance() > 0.35)
+	chk("the sell hex has no SELL text over it (its coin says it)", board._sell_tile.find_children("*", "Label3D", true, false).is_empty())
+	board.apply_theme(&"forest", GameState.run_seed)
+	var far: Vector2i = board.enemy_order[board.enemy_order.size() - 1]
+	board.foe_level = 1
+	board.refresh_unlocks(GameState.me.level, false)
+	board.foe_level = 8
+	board.refresh_unlocks(GameState.me.level, true)
+	var far_tile: Tile = board.tiles[far]
+	chk("a newly opened enemy hex rises out of the ground (the waterfall)", far_tile.visible and far_tile.position.y < 0.0, str(far_tile.position.y))
+	board.foe_level = -1
+	board.refresh_unlocks(GameState.me.level, false)
+
 	print("--- the arena pick in a run")
 	SaveGame.set_arena("swamp")
 	await start(null)

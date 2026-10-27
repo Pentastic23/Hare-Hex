@@ -64,15 +64,34 @@ func _run():
 	Settings._loaded = true
 
 	await start_tutorial()
-	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 17")
+	chk("tutorial panel shows in the tutorial", tut.visible and tut.title_label.text == "Welcome!" and tut.progress_label.text == "1 / 19", tut.progress_label.text)
 	for k in 3:
 		await get_tree().process_frame
+	var view: Vector2 = tut.get_viewport_rect().size
 	var tut_rect: Rect2 = tut.get_global_rect()
-	chk("the step panel sits under the right box and ends above the bench and the SELL tile (y 451 at the default camera); damage panel closed", main.get_node("UI/RightDock").current == "" and tut_rect.end.y <= 440.0 and main.get_node("UI/Standings").visible, str(tut_rect))
+	chk("a step opens as a card in the middle, the game paused and the screen dimmed", tut.explaining and get_tree().paused and tut.spot.visible and tut.spot.dim and absf(tut_rect.get_center().x - view.x / 2.0) < 2.0 and absf(tut_rect.get_center().y - view.y / 2.0) < 2.0, "%s in %s" % [tut_rect, view])
+	chk("the card draws (and takes clicks) over the dim, which is over the rest of the HUD", tut.get_index() > tut.spot.get_index() and tut.spot.get_index() > main.get_node("UI/ShopPanel").get_index())
+	chk("the words are linked to their meanings (gold, HP...)", tut.body_label.text.contains("[url=HP]") and Glossary.meaning("Gold") != "")
 	chk("tutorial settings: Knights and Militia only, 5 waves", gm.roster.size() == 2 and GameState.total_rounds() == 5)
+	var both := true
+	for i in 12:
+		gm.rules.roll_shop()
+		var names: Array = GameState.me.shop_offers.map(func(d): return d.display_name)
+		both = both and names.has("Knight") and names.has("Militia")
+	chk("every shop offers at least one Knight and one Militia", both)
 	tut.next_button.pressed.emit()
 	chk("Next moves to 'Buy a unit'", tut.title_label.text == "Buy a unit")
+	await get_tree().process_frame
+	var hole: Rect2 = tut.spot.hole
+	chk("its box goes round the shop", hole.has_area() and hole.encloses(main.get_node("UI/ShopPanel").slots[0].get_global_rect()), str(hole))
+	chk("the card moves clear of the box", not tut.get_global_rect().intersects(hole))
 	chk("Start fight is hidden before a unit is placed", not tut.fight_button.visible)
+	chk("an action step has Got it, and no Next", tut.go_button.visible and not tut.next_button.visible)
+	tut.go_button.pressed.emit()
+	await get_tree().process_frame
+	chk("Got it: the game goes on, the dim lifts and the card becomes a strip at the top with the task", not tut.explaining and not get_tree().paused and not tut.spot.dim and tut.get_global_rect().position.y < 80.0 and tut.task_label.visible and tut.help_button.visible and tut.spot.hole.has_area())
+	tut.help_button.pressed.emit()
+	chk("? opens the explanation again", tut.explaining and get_tree().paused)
 
 	Events.unit_bought.emit(U("knight"))
 	await poll()
@@ -97,7 +116,7 @@ func _run():
 	main.get_node("UI/UnitInspector").show_unit(board.all_player_units()[0])
 	await poll()
 	chk("opening the inspector on a unit moves to 'Merge three into a star'", tut.title_label.text == "Merge three into a star", tut.title_label.text)
-	chk("the merge step explains 3-star units too", tut.body_label.text.contains("3-star"))
+	chk("the merge step explains 3-star units too", tut.body_text().contains("3-star"))
 
 	GameState.me.gold = 30
 	Events.unit_bought.emit(U("knight"))
@@ -117,7 +136,9 @@ func _run():
 	chk("Knight + Militia on the board activates Order: 'Plan your team'", tut.title_label.text == "Plan your team", tut.title_label.text)
 	var dock = main.get_node("UI/RightDock")
 	await poll()
-	chk("'Plan your team' opens the planner, and that alone doesn't finish the step", dock.current == "planner" and tut.title_label.text == "Plan your team" and tut.body_label.text.contains("Click a unit's portrait in it"))
+	chk("'Plan your team' opens the planner, and that alone doesn't finish the step", dock.current == "planner" and tut.title_label.text == "Plan your team" and tut.body_text().contains("Click a unit's portrait in it"))
+	await get_tree().process_frame
+	chk("the planner is in the box and the card stays clear of it", tut.spot.hole.encloses(dock.get_global_rect()) and not tut.get_global_rect().intersects(dock.get_global_rect()), "%s / %s" % [tut.get_global_rect(), dock.get_global_rect()])
 	dock.planner.tile_for("Knight").pressed.emit()
 	await poll()
 	chk("planning a unit with the planner still open waits (the planner would cover the next step)", tut.title_label.text == "Plan your team" and SaveGame.team_plan().has("Knight"))
@@ -129,9 +150,15 @@ func _run():
 	main.get_node("DragController").equip_item_on(knights[0], GameState.me.items[0])
 	await poll()
 	chk("equipping it moves to 'Resonance', which hands out a Quick Bow", tut.title_label.text == "Resonance" and GameState.me.items.has(load("res://tres/items/quick_bow.tres")), tut.title_label.text)
-	main.get_node("DragController").equip_item_on(knights[0], load("res://tres/items/quick_bow.tres"))
+	var bow: ItemData = load("res://tres/items/quick_bow.tres")
+	main.get_node("DragController").equip_item_on(cleric, bow)
+	chk("the Quick Bow won't go on another unit than the Longsword's (no soft lock)", cleric.items.is_empty() and GameState.me.items.has(bow))
+	main.get_node("DragController").equip_item_on(knights[0], bow)
 	await poll()
-	chk("Longsword + Quick Bow on one unit (Flurry) moves to 'Sell a unit'", tut.title_label.text == "Sell a unit" and Resonance.keys_for(knights[0].items) == ["Might+Swift"], tut.title_label.text)
+	chk("Longsword + Quick Bow on one unit (Flurry) moves to 'Your king'", tut.title_label.text == "Your king" and Resonance.keys_for(knights[0].items) == ["Might+Swift"], tut.title_label.text)
+	chk("'Your king' opens the King tab and waits for Next", left.tab == "king" and tut.next_button.visible)
+	tut.next_button.pressed.emit()
+	chk("Next moves to 'Sell a unit'", tut.title_label.text == "Sell a unit", tut.title_label.text)
 
 	Events.unit_bought.emit(U("cleric"))
 	var spare: Unit = board.bench.filter(func(u): return u != null)[0]
@@ -146,17 +173,20 @@ func _run():
 	chk("locking alone doesn't finish the step (unlock it too)", tut.title_label.text == "Lock the shop" and GameState.me.shop_locked)
 	shop.lock_button.button_pressed = false
 	await poll()
-	chk("lock then unlock moves to 'Interest', shop left unlocked", tut.title_label.text == "Interest" and not GameState.me.shop_locked and tut.next_button.visible and not tut.next_button.disabled, tut.title_label.text)
+	chk("lock then unlock moves to 'Income and interest', shop left unlocked", tut.title_label.text == "Income and interest" and not GameState.me.shop_locked and tut.next_button.visible and not tut.next_button.disabled, tut.title_label.text)
 	tut.next_button.pressed.emit()
 	await poll()
-	chk("Next after Interest moves to 'Level up'", tut.title_label.text == "Level up", tut.title_label.text)
+	chk("Next moves to 'Level up'", tut.title_label.text == "Level up", tut.title_label.text)
 	Events.buy_xp_pressed.emit()
 	Events.buy_xp_pressed.emit()
 	await poll()
-	chk("buying XP to the next level moves to 'Shop odds' (Next), with the odds strip open", tut.title_label.text == "Shop odds" and tut.next_button.visible and Settings.show_odds, tut.title_label.text)
+	chk("buying XP to the next level moves to 'The board grows' (Next)", tut.title_label.text == "The board grows" and tut.next_button.visible, tut.title_label.text)
 	tut.next_button.pressed.emit()
 	await poll()
-	chk("then the last step", tut.title_label.text == "Win the last wave" and not tut.next_button.visible)
+	chk("then 'Shop odds' (Next), with the odds strip open", tut.title_label.text == "Shop odds" and tut.next_button.visible and Settings.show_odds, tut.title_label.text)
+	tut.next_button.pressed.emit()
+	await poll()
+	chk("then the last step, which doesn't pause the game", tut.title_label.text == "Win the last wave" and not tut.next_button.visible and not get_tree().paused)
 
 	# Play the rest with Start fight. Make the team strong enough that the test is about the flow.
 	GameState.me.gold = 60
