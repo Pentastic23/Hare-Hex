@@ -335,7 +335,7 @@ func reconcile(entries: Array, bench_only: bool) -> void:
 			board.get_node("Units").add_child(u)
 			u.uid = uid
 			u.setup(d, 0)
-		var star := clampi(int(e.get("star", 1)), 1, 3)
+		var star := clampi(int(e.get("star", 1)), 1, Unit.MAX_STAR)
 		if u.star != star:
 			u.set_star(star)
 		var ids: Array = e.get("items", [])
@@ -378,7 +378,7 @@ func _show_foe_bench(entries: Array) -> void:
 		var u := gm.unit_scene.instantiate() as Unit
 		holder.add_child(u)
 		u.setup(d, 1 - Unit.viewer_team)   # the other side's colours, whichever side you watch from
-		u.set_star(clampi(int(e.get("star", 1)), 1, 3))
+		u.set_star(clampi(int(e.get("star", 1)), 1, Unit.MAX_STAR))
 		u.position = board.enemy_bench_to_world(clampi(int(e.get("bench", 0)), 0, Board.BENCH_SLOTS - 1))
 		u.rotation = Vector3(0.0, PI, 0.0)   # facing the camera, like your own bench
 
@@ -426,7 +426,7 @@ func _on_board(msg: Dictionary) -> void:
 		var u := gm.unit_scene.instantiate() as Unit
 		view.add_child(u)
 		u.setup(d, 0)
-		u.set_star(clampi(int(e.get("star", 1)), 1, 3))
+		u.set_star(clampi(int(e.get("star", 1)), 1, Unit.MAX_STAR))
 		var its: Array[ItemData] = []
 		for id in e.get("items", []):
 			var it := EnemyBoard.lookup_item(gm.item_roster, StringName(str(id)))

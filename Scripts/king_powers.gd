@@ -535,7 +535,7 @@ static func _give(r: PlayerRules, what: String, round_number := -1) -> bool:
 
 static func _special(r: PlayerRules) -> ItemData:
 	var p := r.player
-	var choices := r.item_roster.filter(func(i): return i != null and i.is_special() and i.drop_weight > 0.0 and not (i.kind == &"bender" and p.dropped.has(i.id)))
+	var choices := r.item_roster.filter(func(i): return i != null and i.is_special() and i.drop_weight > 0.0 and not (i.once_a_run() and p.dropped.has(i.id)))
 	if choices.is_empty():
 		return null
 	var total := 0.0

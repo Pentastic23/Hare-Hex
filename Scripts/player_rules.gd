@@ -116,7 +116,7 @@ func drop_item(round_number: int) -> bool:
 # once a run). Tinker's Tongs never drop at random. Uses the player's seeded RNG.
 func pick_drop(stage: int, rng: RandomNumberGenerator, dropped: Dictionary) -> ItemData:
 	var basic: Array = item_roster.filter(func(i): return i != null and i.kind == &"basic" and i.min_stage <= stage)
-	var special: Array = item_roster.filter(func(i): return i != null and i.is_special() and i.drop_weight > 0.0 and i.min_stage <= stage and not (i.kind == &"bender" and dropped.has(i.id)))
+	var special: Array = item_roster.filter(func(i): return i != null and i.is_special() and i.drop_weight > 0.0 and i.min_stage <= stage and not (i.once_a_run() and dropped.has(i.id)))
 	var choices := basic
 	if stage >= 3 and not special.is_empty() and rng.randf() < GameState.SPECIAL_DROP_CHANCE:
 		choices = special

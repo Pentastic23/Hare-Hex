@@ -4,7 +4,8 @@
 [ext_resource type="PackedScene" path="res://models/units/frostling_penguin_1star.glb" id="2_s1"]
 [ext_resource type="PackedScene" path="res://models/units/frostling_penguin_2star.glb" id="3_s2"]
 [ext_resource type="PackedScene" path="res://models/units/frostling_penguin_3star.glb" id="4_s3"]
+[ext_resource type="PackedScene" path="res://models/units/frostling_penguin_4star.glb" id="5_s4"]
 
 [node name="FrostlingModel" type="Node3D"]
 script = ExtResource("1_um")
-star_scenes = Array[PackedScene]([ExtResource("2_s1"), ExtResource("3_s2"), ExtResource("4_s3")])
+star_scenes = Array[PackedScene]([ExtResource("2_s1"), ExtResource("3_s2"), ExtResource("4_s3"), ExtResource("5_s4")])

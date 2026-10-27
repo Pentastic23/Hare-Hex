@@ -13,6 +13,7 @@ signal reroll_pressed
 signal buy_xp_pressed
 signal board_limit_hit
 signal unit_sold(data: UnitData, star: int, refund: int)
+signal unit_ascended(unit: Unit)   # a 3-star unit reached 4 stars (the Ancient Sigil)
 signal round_changed(stage: int, round_in_stage: int)
 signal streak_changed(wins: int, losses: int)
 signal hp_changed(hp: int)

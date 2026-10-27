@@ -35,6 +35,7 @@ const TERMS := [
 	["Summon", "summon\\w*", "A unit that fights for this fight only: no traits, items or selling, and gone when the fight ends."],
 	["Leap", "leap\\w*|charge\\w*|dash\\w*", "Jumps to another hex; enemies attacking it have to pick a new target."],
 	["Mana", "mana(?! charm)", "Fills by 10 per attack and a little when hit. Full mana: the unit casts its ability."],
+	["Ascend", "ascen\\w*|4-star\\w*|4 stars", "A 3-star unit carrying the Ancient Sigil that survives 8 wins becomes 4-star, its astral form: x5 HP and damage (5-costs x7.5). Merging never makes one."],
 	["Hex", "hexes|hex(?! ward)", "One tile of the board. Ranges and areas are counted in hexes."],
 ]
 

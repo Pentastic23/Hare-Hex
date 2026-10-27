@@ -127,6 +127,7 @@ func _fill():
 
 	name_label.text = d.display_name
 	stars_label.text = "★".repeat(u.star)
+	stars_label.add_theme_color_override("font_color", Unit.STAR_MARK_COLORS[4] if u.star >= 4 else HudStyle.GOLD)   # ascended: astral violet
 	set_edge(HudStyle.YOU_EDGE if u.team == 0 else HudStyle.ENEMY_EDGE)
 	if _portrait_of != d:
 		_portrait_of = d
@@ -440,7 +441,7 @@ func _fill_item_chips(u: Unit) -> void:
 	for it in u.items:
 		var chip := DockKit.well(Vector2(34, 34), it.color, 3)
 		chip.mouse_filter = Control.MOUSE_FILTER_STOP   # for the tooltip
-		chip.tooltip_text = Tip.wrap(Glossary.explain(item_tip(it, u.stacks_of(it))))
+		chip.tooltip_text = Tip.wrap(Glossary.explain(item_tip(it, u.stacks_of(it), u.star)))
 		var tex := DockKit.item_icon(it)
 		if tex != null:
 			var r := TextureRect.new()
@@ -450,7 +451,7 @@ func _fill_item_chips(u: Unit) -> void:
 			r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			chip.add_child(r)
-		if it.kind == &"bound":
+		if it.counts():
 			var s := HudStyle.number(14, HudStyle.GOLD)
 			s.text = str(u.stacks_of(it))
 			s.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -466,7 +467,7 @@ func _fill_item_chips(u: Unit) -> void:
 	res_row.visible = res_row.get_child_count() > 0
 
 # An item's tooltip in the inspector: name and element, what it does, and what its stacks add now.
-func item_tip(it: ItemData, stacks: int) -> String:
+func item_tip(it: ItemData, stacks: int, u_star := 3) -> String:
 	var lines: PackedStringArray = [it.display_name + ("  (%s)" % String(it.element) if it.element != &"" else ""), it.description]
 	if it.kind == &"bound":
 		var now: PackedStringArray = []
@@ -475,6 +476,8 @@ func item_tip(it: ItemData, stacks: int) -> String:
 		if it.stack_hp > 0.0:
 			now.append("+%d HP" % roundi(it.hp + it.stack_hp * stacks))
 		lines.append("%d / %d stacks: %s now" % [stacks, it.max_stacks, ", ".join(now)])
+	if it.kind == &"ascension":
+		lines.append("%d / %d marks%s" % [stacks, it.max_stacks, "" if u_star == 3 else ": marks only count on a 3-star unit"])
 	if it.best_on() != "":
 		lines.append("Best on " + it.best_on() + ".")
 	return "\n".join(lines)

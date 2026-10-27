@@ -167,7 +167,7 @@ func check(s: Dictionary) -> String:
 		if not e is Dictionary or not _units.has(str(e.get("unit", ""))):
 			return "unknown unit"
 		var star := int(e.get("star", 1))
-		if star < 1 or star > 3:
+		if star < 1 or star > Unit.MAX_STAR:
 			return "bad star"
 		var c = e.get("coord", [])
 		if not c is Array or c.size() != 2 or int(c[0]) < 0 or int(c[0]) >= Board.COLS or int(c[1]) < 0 or int(c[1]) >= ENEMY_ROWS:

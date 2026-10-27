@@ -756,3 +756,16 @@ static func equip(u: Unit, c: Color, resonances := 0) -> void:
 		if resonances > 0:
 			rings(u, u.global_position, Color("ffe9a0"), 3, 1.3)
 			burst(u, _chest(u), Color("ffe9a0"), 10, 0.9))
+
+# A unit ascending to 4 stars (the Ancient Sigil): a pillar of starlight, violet rings, motes rising
+# round it and a burst at the chest.
+const ASTRAL := Color("c9a4ff")
+static func ascend(u: Unit) -> void:
+	if not enabled or u == null or not u.is_inside_tree():
+		return
+	sky_beam(u, u.global_position, ASTRAL, 0.9, 1.0)
+	rings(u, u.global_position, ASTRAL, 4, 1.6)
+	rise(u, Color("f2e6ff"), 14, 1.2, 0.8)
+	_later(u, 0.25, func():
+		burst(u, _chest(u), ASTRAL, 14, 1.1)
+		orbit(u, Color("ffe9a0"), 1.6, 5, 0.85, 1.2))

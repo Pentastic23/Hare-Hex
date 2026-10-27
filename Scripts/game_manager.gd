@@ -321,7 +321,7 @@ func _restore_carry(carry: Dictionary) -> void:
 			push_warning("Carried unit '%s' is not in the roster; skipped" % e.get("unit", ""))
 			continue
 		var u := board.make_unit(d, unit_scene)
-		var star := clampi(int(e.get("star", 1)), 1, 3)
+		var star := clampi(int(e.get("star", 1)), 1, Unit.MAX_STAR)
 		if star > 1:
 			u.set_star(star)
 		var its: Array[ItemData] = []

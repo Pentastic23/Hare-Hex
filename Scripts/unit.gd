@@ -137,15 +137,17 @@ const ICON_STEP := 0.52    # spacing between item icons
 const ICON_HEIGHT := -0.4  # where the row's middle sits from the bars' line: under the bar plate, over the head
 const ITEM_ROOM := 0.6     # the bars sit this much higher than before, so the item row fits under them
 
-const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2}
+const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2, 4: 5.0}
 const FIVE_COST_3STAR := 5.0   # a 3-star 5-cost is meant to win fights on its own: x5 instead of x3.2
+const FIVE_COST_4STAR := 7.5   # and its ascended (4-star) form
+const MAX_STAR := 4            # 4 stars only by ascension (the Ancient Sigil), never by merging
 
-# HP and damage multiplier for a star level (and cost: 3-star 5-costs get FIVE_COST_3STAR).
+# HP and damage multiplier for a star level (and cost: 3- and 4-star 5-costs get more).
 static func star_mult(star: int, cost: int) -> float:
 	if star >= 3 and cost >= 5:
-		return FIVE_COST_3STAR
-	return STAR_MULT[clampi(star, 1, 3)]
-const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45}
+		return FIVE_COST_4STAR if star >= 4 else FIVE_COST_3STAR
+	return STAR_MULT[clampi(star, 1, MAX_STAR)]
+const STAR_SIZE := {1: 1.0, 2: 1.2, 3: 1.45, 4: 1.6}
 @onready var board: Board = get_parent().get_parent()
 const BAR_PX_W := 100
 const BAR_PX_H := 10
@@ -210,7 +212,7 @@ func _make_letter():
 	add_child(letter_label)
 
 func set_star(s: int):
-	star = clampi(s, 1, 3)
+	star = clampi(s, 1, MAX_STAR)
 	health = max_hp()
 	_last_ratio = -1.0
 	$ModelHolder.scale = Vector3.ONE * STAR_SIZE[star]
@@ -321,7 +323,7 @@ func _update_ticks() -> void:
 
 # The star level as little stars at the left end of the health bar (silver, silver, gold), so a unit's
 # star reads on the board at a glance. A child of Bars, so it hides with them.
-const STAR_MARK_COLORS := {1: Color("aab3c8"), 2: Color("dfe6f2"), 3: Color("f2c14e")}
+const STAR_MARK_COLORS := {1: Color("aab3c8"), 2: Color("dfe6f2"), 3: Color("f2c14e"), 4: Color("c9a4ff")}   # 4: astral violet
 var star_mark: Label3D
 
 func _update_star_mark() -> void:
@@ -553,6 +555,8 @@ func end_combat(won := false):
 	var celebrate := won and not dead and team == 0
 	if not dead and team == 0:
 		grow_bound_items()   # survived the fight
+		if won:
+			count_sigil_win()
 	moving = false
 	dead = false
 	visible = true
@@ -1219,6 +1223,8 @@ func can_take(item: ItemData) -> bool:
 		return false
 	if item.kind == &"bound" and items.any(func(i): return i.id == item.id):
 		return false
+	if item.kind == &"ascension" and (star >= MAX_STAR or items.any(func(i): return i.kind == &"ascension")):
+		return false   # one Ancient Sigil a unit, and an ascended unit has no use for one
 	if item.kind == &"bender" and items.any(func(i): return i.kind == &"bender"):
 		return false
 	return true
@@ -1306,9 +1312,9 @@ func _update_item_icons() -> void:
 		s.render_priority = 2
 		s.position = pos
 		item_icons.add_child(s)
-		if it.kind == &"bound":
+		if it.counts():
 			var l := Label3D.new()
-			l.text = str(stacks_of(it))
+			l.text = str(stacks_of(it)) if it.kind == &"bound" else "%d/%d" % [stacks_of(it), it.max_stacks]
 			l.font_size = 48
 			l.pixel_size = 0.006
 			l.outline_size = 12
@@ -1375,6 +1381,39 @@ func grow_bound_items() -> void:
 				grew = true
 	if grew:
 		_recalc_items()
+
+# The Ancient Sigil (kind "ascension"): a win this 3-star unit survives adds a mark; at the sigil's
+# max_stacks (8) the unit ascends to 4 stars and the sigil is used up. Returns true when it ascended.
+# Called for survivors of a won fight (Unit.end_combat; the lobby server's _apply_result).
+func count_sigil_win() -> bool:
+	if star != 3:
+		return false   # marks only count on a 3-star unit
+	for it in items:
+		if it.kind == &"ascension":
+			var s := int(item_stacks.get(it.id, 0)) + 1
+			item_stacks[it.id] = s
+			if s >= it.max_stacks:
+				ascend(it)
+				return true
+			_recalc_items()
+			return false
+	return false
+
+# 3 stars to 4: the astral form, its stats x5 (5-costs x7.5); the sigil is spent.
+func ascend(sigil: ItemData = null) -> void:
+	if sigil != null:
+		items.erase(sigil)
+		item_stacks.erase(sigil.id)
+	set_star(MAX_STAR)
+	_recalc_items()
+	health = max_hp()
+	if not is_inside_tree():
+		return   # (the lobby server: no board to show it on)
+	Events.unit_ascended.emit(self)
+	if Vfx.enabled:
+		Vfx.ascend(self)
+	if mine():
+		Sfx.play(&"ascend")
 
 func stacks_of(item: ItemData) -> int:
 	return int(item_stacks.get(item.id, 0))

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"ancient_sigil"
+display_name = "Ancient Sigil"
+description = "Put it on a 3-star unit. Each win that unit survives adds a mark; at 8 marks it ascends to 4 stars and the sigil is used up. Very rare."
+color = Color(0.79, 0.64, 1, 1)
+kind = &"ascension"
+min_stage = 4
+drop_weight = 0.35
+max_stacks = 8

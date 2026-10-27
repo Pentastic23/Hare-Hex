@@ -53,7 +53,7 @@ static func from_dict(d: Dictionary, unit_roster: Array, item_roster: Array) -> 
 			continue
 		var bu := BoardUnit.new()
 		bu.unit = ud
-		bu.star = clampi(int(e.get("star", 1)), 1, 3)
+		bu.star = clampi(int(e.get("star", 1)), 1, Unit.MAX_STAR)
 		var c = e.get("coord", [-1, -1])
 		if c is Array and c.size() == 2:
 			bu.coord = Vector2i(int(c[0]), int(c[1]))

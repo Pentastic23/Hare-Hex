@@ -3,7 +3,8 @@ class_name ItemData extends Resource
 
 # One item type (items v2: docs/items-v2.md). Basic items have stats and an element (resonance);
 # special kinds add a rule: bound items grow, economy items pay gold, benders count their holder
-# twice for a trait, the Resonance Crystal doubles resonances, Tinker's Tongs remove items.
+# twice for a trait, the Resonance Crystal doubles resonances, Tinker's Tongs remove items, and the
+# Ancient Sigil (ascension) takes a 3-star unit to 4 stars after 8 wins it survives (Unit.count_sigil_win).
 
 @export var id: StringName            # stable, unique; used by saves and snapshots. Never rename.
 @export var display_name: String
@@ -22,10 +23,10 @@ class_name ItemData extends Resource
 
 # Items v2
 @export var element: StringName = &""   # Might, Vigor, Swift, Guard, Blood, Arcane ("" = none): resonance
-@export var kind: StringName = &"basic" # basic, bound, economy, bender, crystal, remover
+@export var kind: StringName = &"basic" # basic, bound, economy, bender, crystal, remover, ascension
 @export var min_stage := 1              # first stage it can drop in
 @export var drop_weight := 1.0          # weight in its drop pool (0 = never drops at random)
-# bound: grows by a stack each fight its holder survives
+# bound: grows by a stack each fight its holder survives (ascension: a mark per won fight; max_stacks marks ascend)
 @export var stack_hp := 0.0
 @export var stack_dmg := 0.0
 @export var max_stacks := 0
@@ -52,6 +53,7 @@ const BEST_ON := {
 	&"merchants_ledger": "any unit that stays on your board",
 	&"twin_sigil": "a unit whose origin is one short of its next tier",
 	&"twin_crest": "a unit whose class is one short of its next tier",
+	&"ancient_sigil": "your best 3-star unit, one that keeps surviving fights",
 }
 
 func best_on() -> String:
@@ -61,5 +63,13 @@ func is_special() -> bool:
 	return kind != &"basic"
 
 # Takes an item slot on a unit (Tinker's Tongs don't: they are used up).
+# Rare enough to drop at most once a run (benders, the Ancient Sigil).
+func once_a_run() -> bool:
+	return kind == &"bender" or kind == &"ascension"
+
+# Counts something on the unit it is on (bound stacks, the Ancient Sigil's marks).
+func counts() -> bool:
+	return kind == &"bound" or kind == &"ascension"
+
 func takes_slot() -> bool:
 	return kind != &"remover"

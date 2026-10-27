@@ -96,7 +96,7 @@ static func setup(b: Board, fight: Dictionary, unit_roster: Array, item_roster: 
 			u.stat_scale = scale
 			u.source_uid = int(e.get("uid", -1))
 			u.source_seat = (home_seat if team == 0 else away_seat) if not (team == 1 and bool(fight.get("ghost", false))) else -1
-			var star := clampi(int(e.get("star", 1)), 1, 3)
+			var star := clampi(int(e.get("star", 1)), 1, Unit.MAX_STAR)
 			if star > 1:
 				u.set_star(star)
 			var its: Array[ItemData] = []

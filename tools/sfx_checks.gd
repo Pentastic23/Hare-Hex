@@ -6,7 +6,7 @@
 
 extends Node
 
-const ALL := [&"click", &"buy", &"sell", &"reroll", &"xp", &"lock", &"unlock", &"error", &"pickup", &"place", &"equip", &"resonance", &"tongs",
+const ALL := [&"click", &"buy", &"sell", &"reroll", &"xp", &"lock", &"unlock", &"error", &"pickup", &"place", &"equip", &"resonance", &"tongs", &"ascend",
 	&"merge", &"levelup", &"win", &"lose", &"round", &"swing", &"hit", &"crit", &"death", &"cast", &"heal"]
 
 var fails := 0

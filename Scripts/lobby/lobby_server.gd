@@ -472,13 +472,15 @@ func _end_round() -> void:
 	broadcast(public_info())
 	changed.emit()
 
-# Win: +1 gold; loss: damage. Streaks either way; survivors' bound items grow. Returns the damage taken.
+# Win: +1 gold; loss: damage. Streaks either way; survivors' bound items grow (and, on a win, their Ancient Sigil marks). Returns the damage taken.
 func _apply_result(s: Seat, won: bool, foe_alive: int, stage: int, survivors: Array) -> int:
 	s.player.record_result(won)
 	for uid in survivors:
 		var u := s.rules.unit_by_uid(int(uid))
 		if u != null:
 			u.grow_bound_items()
+			if won:
+				u.count_sigil_win()   # the Ancient Sigil: a 3-star that survives 8 wins ascends
 	if won:
 		s.player.gold += 1
 		return 0

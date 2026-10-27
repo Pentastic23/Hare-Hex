@@ -12,7 +12,7 @@ func _init(roster: Array[UnitData]):
 			remaining[d] = COPIES_PER_COST.get(d.cost, 0)
 
 static func copies_in(star: int) -> int:
-	return int(pow(3, star - 1))
+	return int(pow(3, mini(star, 3) - 1))   # a 4-star (ascended, not merged) is still the 9 copies of its 3-star
 
 func count(d: UnitData) -> int:
 	return remaining.get(d, 0)

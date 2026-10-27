@@ -61,6 +61,8 @@ save('resonance',add(seq([523,784,1046,1568],0.05,0.5,2.5,harm=(1,0.5,0.25)),0.5
 save('tongs',add(metal(900,0.18),at(np.zeros(1),metal(1250,0.22),0.09),0.3*hp(noise(0.18),3000)*np.sin(np.pi*t(0.18)/0.18)**2))
 # progression
 save('merge',seq([523,659,784,1046],0.07,0.28,3,harm=(1,0.5,0.25,0.15)))
+# ascension (Ancient Sigil): a rising swell under a high arpeggio and a shimmer
+save('ascend',add(0.5*sweep(130,520,1.1)*np.sin(np.pi*t(1.1)/1.1),seq([523,659,784,1046,1319,1568,2093],0.09,0.7,2.5,harm=(1,0.5,0.25)),0.1*hp(noise(1.3),6000)*np.sin(np.pi*t(1.3)/1.3)))
 save('levelup',seq([392,523,659,784,1046],0.09,0.4,3,harm=(1,0.5,0.3)))
 save('win',seq([523,659,784,659,784,1046],0.11,0.5,2.5,harm=(1,0.5,0.3,0.1)))
 save('lose',seq([392,370,330,262],0.2,0.5,2.5,harm=(1,0.6,0.3)))

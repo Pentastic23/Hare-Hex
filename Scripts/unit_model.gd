@@ -9,7 +9,7 @@ class_name UnitModel extends Node3D
 # The models (models/units/*.glb) face +Z with their feet at the origin; Unit.look_at points -Z
 # at the target, so each model is turned 180 degrees here.
 
-@export var star_scenes: Array[PackedScene] = []   # index 0 = 1 star, 1 = 2 stars, 2 = 3 stars
+@export var star_scenes: Array[PackedScene] = []   # index 0 = 1 star .. 3 = 4 stars (the astral form, by ascension)
 
 const LOOPING := ["idle", "walk", "victory"]
 const HIT_COOLDOWN := 0.6     # seconds between flinches, so a unit under fire doesn't jitter

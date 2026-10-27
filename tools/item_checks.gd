@@ -1,5 +1,5 @@
 # item_checks.gd
-# Dev tool, not part of the game: checks items v2 (docs/items-v2.md): the 14 item types, resonance
+# Dev tool, not part of the game: checks items v2 (docs/items-v2.md): the 15 item types (the Ancient Sigil and 4-star units too), resonance
 # (pairs, Prism, the Crystal), bound items growing (survive, cap, sell resets, merge keeps), the
 # equip rules, Tinker's Tongs, synergy benders, the economy items, the 14-drop table and saving
 # stacks in chapter runs and snapshots. Run from the project folder:
@@ -63,12 +63,12 @@ func _run():
 	LocalSnapshotStore.root = "user://item_test_snapshots"
 	await load_main(5)
 
-	print("--- the 14 items")
+	print("--- the 15 items")
 	var roster: Array = gm.item_roster
 	var kinds := {}
 	for it in roster:
 		kinds[String(it.kind)] = int(kinds.get(String(it.kind), 0)) + 1
-	chk("14 item types: 6 basic, 2 bound, 2 economy, 2 benders, the Crystal and the Tongs", roster.size() == 14 and kinds == {"basic": 6, "bound": 2, "economy": 2, "bender": 2, "crystal": 1, "remover": 1}, str(kinds))
+	chk("15 item types: 6 basic, 2 bound, 2 economy, 2 benders, the Crystal, the Tongs and the Ancient Sigil", roster.size() == 15 and kinds == {"basic": 6, "bound": 2, "economy": 2, "bender": 2, "crystal": 1, "remover": 1, "ascension": 1}, str(kinds))
 	chk("every basic item has its own element", roster.filter(func(i): return i.kind == &"basic").map(func(i): return i.element).all(func(e): return Resonance.ELEMENTS.has(e)) and Resonance.ELEMENTS.all(func(e): return roster.filter(func(i): return i.kind == &"basic" and i.element == e).size() == 1))
 	chk("Mana Charm now also gives +8% damage", is_equal_approx(float(I("mana_charm").effects.get("dmg", 0.0)), 0.08))
 
@@ -225,6 +225,72 @@ func _run():
 	var old_dict := {"units": [{"unit": "Knight", "star": 1, "coord": [3, 3], "items": ["longsword"]}]}
 	var old_eb := EnemyBoard.from_dict(old_dict, gm.unit_pool, gm.item_roster)
 	chk("an old board without stacks still loads", old_eb.units.size() == 1 and old_eb.units[0].stacks.is_empty() and old_eb.units[0].items.size() == 1)
+
+	print("--- the Ancient Sigil and 4 stars")
+	await load_main(12)
+	var sig := I("ancient_sigil")
+	chk("the Ancient Sigil is in the roster: very rare, from stage 4, 8 marks", gm.item_roster.has(sig) and sig.kind == &"ascension" and sig.min_stage == 4 and sig.max_stacks == 8 and sig.drop_weight < 0.5 and sig.once_a_run())
+	var low := place("knight", 0)
+	low.set_star(2)
+	var hero := place("archer", 1)
+	hero.set_star(3)
+	chk("a sigil goes on any unit, one a unit", low.can_take(sig) and hero.equip(sig) and not hero.can_take(sig))
+	low.equip(sig)
+	for i in 3:
+		low.count_sigil_win()
+	chk("marks only count on a 3-star unit", low.stacks_of(sig) == 0 and low.star == 2)
+	var base_hp: float = hero.max_hp()
+	for i in 7:
+		hero.count_sigil_win()
+	chk("7 wins: 7 marks, still 3 stars", hero.stacks_of(sig) == 7 and hero.star == 3 and hero.items.has(sig))
+	var ascended := []
+	Events.unit_ascended.connect(func(u): ascended.append(u), CONNECT_ONE_SHOT)
+	chk("the 8th win ascends it", hero.count_sigil_win() and hero.star == 4 and ascended == [hero])
+	chk("the sigil is used up (its slot and marks gone)", not hero.items.has(sig) and not hero.item_stacks.has(sig.id) and hero.can_equip())
+	chk("4 stars: x5 HP and damage (3 stars x3.2)", is_equal_approx(hero.max_hp(), base_hp / 3.2 * 5.0) and is_equal_approx(Unit.star_mult(4, 1), 5.0))
+	chk("a 5-cost at 4 stars: x7.5", is_equal_approx(Unit.star_mult(4, 5), 7.5) and is_equal_approx(Unit.star_mult(3, 5), 5.0))
+	chk("an ascended unit can't take another sigil", not hero.can_take(sig))
+	chk("its model is the astral form, bigger", hero.model_view == null or (hero.model_view.star_scenes.size() == 4 and hero.model_view._star == 4 and is_equal_approx(hero.get_node("ModelHolder").scale.x, Unit.STAR_SIZE[4])))
+	chk("its ability numbers scale with it", Abilities.value_at(100, 4, 1) == 500.0 and Abilities.value_at([1, 2, 3], 4, 1) == 3.0)
+	var ally := place("knight", 2)
+	ally.set_star(3)
+	ally.equip(sig)
+	ally.end_combat(false)
+	chk("a lost fight adds no mark", ally.stacks_of(sig) == 0)
+	ally.end_combat(true)
+	chk("a won fight it survives adds one", ally.stacks_of(sig) == 1)
+	ally.dead = true
+	ally.end_combat(true)
+	chk("not if it fell", ally.stacks_of(sig) == 1)
+	var five := place("knight", 3)
+	five.set_star(3)
+	board.merge_all()
+	chk("merging never makes a 4-star", board.all_player_units().all(func(u): return u.star <= 4) and hero.star == 4 and five.star == 3)
+	gm.shared_pool.take_copies(hero.data, 9)   # (placed by hand: take its copies out as buying would)
+	var gold_before: int = GameState.me.gold
+	var copies_before: int = gm.shared_pool.remaining.get(hero.data, 0)
+	board.sell_unit(hero)
+	chk("selling a 4-star is selling its 3-star: 9 copies back, 9x its cost", GameState.me.gold - gold_before == hero.data.cost * 9 and gm.shared_pool.remaining.get(hero.data, 0) - copies_before == 9)
+	var asc := place("archer", 4)
+	asc.set_star(4)
+	var carry4: Dictionary = gm.make_carry(load("res://tres/campaign/levels/ch1_l2.tres"))
+	var json4 = JSON.parse_string(JSON.stringify(carry4))
+	await load_main(13)
+	gm._restore_carry(json4)
+	chk("a chapter run keeps a 4-star", board.all_player_units().any(func(u): return u.data.display_name == "Archer" and u.star == 4))
+	var eb4 := EnemyBoard.from_dict({"units": [{"unit": "Archer", "star": 4, "coord": [3, 3], "items": []}]}, gm.unit_pool, gm.item_roster)
+	chk("waves and ghosts can field a 4-star", eb4.units.size() == 1 and eb4.units[0].star == 4)
+	var rng5 := RandomNumberGenerator.new()
+	rng5.seed = 3
+	var sigils := 0
+	var seen5 := {}
+	for i in 400:
+		var it: ItemData = gm.pick_drop(6, rng5, seen5)
+		if it.id == &"ancient_sigil":
+			sigils += 1
+			seen5[it.id] = 1
+	chk("the sigil drops at most once a run", sigils == 1, str(sigils))
+	chk("its tooltip counts the marks", main.get_node("UI/UnitInspector").item_tip(sig, 3, 3).contains("3 / 8 marks") and main.get_node("UI/UnitInspector").item_tip(sig, 0, 2).contains("only count on a 3-star"))
 
 	print("--- a fight with resonances is deterministic")
 	var sigs: PackedStringArray = []
