@@ -161,17 +161,20 @@ static func shadow_mat() -> StandardMaterial3D:
 
 # --- acting (visual only; what a king does is CombatRunner._kings_act) ---------------------------------
 
-const WIND_UP := 0.14   # lean back and crouch
-const LUNGE := 0.08     # throw itself at the target; the shot leaves here
-const RECOVER := 0.3    # back to rest
-const REACH := 0.32     # how far it lunges
+const WIND_UP := 0.3    # rear up, lean back and swell, power gathering at its feet
+const LUNGE := 0.1      # slam down at the target; the shot leaves here
+const RECOVER := 0.35   # back to rest
+const REACH := 0.42     # how far it lunges
+const RISE := 0.45      # how high it rears up in the wind-up
+const LAND := 0.32      # seconds from the shot to the heavy hit on the target (most shots have landed)
 const MUZZLE := Vector3(0, 1.2, -0.5)   # where its shots leave from, in the body's space (models face -z)
 
 var _anim: Tween
 
-# Its attack: it turns to the target, winds up (leaning back, crouched), lunges, and its skin's shot
-# (`attack` in KingSkins.DEFS) leaves at the lunge; then it springs back and turns home. Reduce motion:
-# the shot only.
+# Its attack: it turns to the target and rears up, swelling, its hex outline flaring and rings of its
+# colour gathering at its feet; it slams down and lunges, the ground ringing under it, and its skin's
+# shot (`attack` in KingSkins.DEFS) leaves at the lunge and lands with a heavy hit (_land); then it
+# springs back and turns home. Reduce motion: the shot and the hit only.
 func strike(target: Unit) -> void:
 	if not is_inside_tree() or target == null or not is_instance_valid(target):
 		return
@@ -179,6 +182,10 @@ func strike(target: Unit) -> void:
 	if Settings.reduce_motion:
 		_fire(target, at)
 		return
+	var c := KingSkins.colour(skin)
+	_flare(WIND_UP + LUNGE)
+	Vfx.ring(self, global_position + Vector3(0, 0.12, 0), 1.1, 0.3, c, WIND_UP)   # power drawn in to its feet
+	Vfx._later(self, WIND_UP * 0.4, func(): Vfx.ring(self, global_position + Vector3(0, 0.12, 0), 0.9, 0.2, c.lightened(0.3), WIND_UP * 0.6))
 	var d := to_local(at)
 	d.y = 0.0
 	var rest := rest_yaw()
@@ -190,12 +197,14 @@ func strike(target: Unit) -> void:
 	var home := Vector3(0, 0.01, 0)
 	_reset_anim()
 	_anim = create_tween()
-	_anim.tween_property(body, "rotation", Vector3(0.2, yaw, 0), WIND_UP).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_anim.parallel().tween_property(body, "scale", Vector3(1.08, 0.88, 1.08), WIND_UP)
-	_anim.parallel().tween_property(body, "position", home - dir * 0.08, WIND_UP)
-	_anim.tween_property(body, "rotation", Vector3(-0.3, yaw, 0), LUNGE).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_anim.parallel().tween_property(body, "scale", Vector3(0.94, 1.12, 0.94), LUNGE)
-	_anim.parallel().tween_property(body, "position", home + dir * REACH + Vector3(0, 0.12, 0), LUNGE)
+	_anim.tween_property(body, "rotation", Vector3(0.35, yaw, 0), WIND_UP).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_anim.parallel().tween_property(body, "scale", Vector3(1.18, 1.18, 1.18), WIND_UP).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_anim.parallel().tween_property(body, "position", home - dir * 0.12 + Vector3(0, RISE, 0), WIND_UP).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_anim.tween_property(body, "rotation", Vector3(-0.4, yaw, 0), LUNGE).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_anim.parallel().tween_property(body, "scale", Vector3(1.22, 0.8, 1.22), LUNGE)   # squashed by the slam
+	_anim.parallel().tween_property(body, "position", home + dir * REACH, LUNGE).set_ease(Tween.EASE_IN)
+	_anim.tween_callback(_slam)
+	_anim.tween_callback(Sfx.play.bind(&"swing"))
 	_anim.tween_callback(_fire.bind(target, at))
 	_anim.tween_property(body, "rotation", Vector3(0, yaw, 0), RECOVER).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_anim.parallel().tween_property(body, "scale", Vector3.ONE, RECOVER).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
@@ -205,6 +214,47 @@ func strike(target: Unit) -> void:
 
 func animating() -> bool:
 	return _anim != null and _anim.is_running()
+
+# The slam as it lunges: the ground rings and cracks under it.
+func _slam() -> void:
+	var c := KingSkins.colour(skin)
+	var feet := global_position + Vector3(0, 0.1, 0)
+	Vfx.ring(self, feet, 0.3, 1.5, c, 0.4)
+	Vfx.ring(self, feet, 0.2, 1.0, Color.WHITE.lerp(c, 0.4), 0.3)
+	Vfx.burst(self, feet + Vector3(0, 0.2, 0), c.darkened(0.2), 10, 1.0)
+
+# The hex outline flares bright, then settles back over `secs`.
+var _flare_tw: Tween
+func _flare(secs: float) -> void:
+	if _mats.is_empty():
+		return
+	var m := _mats[0]
+	if _flare_tw != null:
+		_flare_tw.kill()
+	_flare_tw = create_tween()
+	_flare_tw.tween_property(m, "emission_energy_multiplier", 5.0, secs).set_ease(Tween.EASE_IN)
+	_flare_tw.tween_property(m, "emission_energy_multiplier", 1.2, 0.5).set_ease(Tween.EASE_OUT)
+
+# The heavy hit when the king's shot lands: a flash and a shaft of its colour on the target, rings and
+# a burst, and the hexes round it ripple.
+func _land(u: Unit, at: Vector3) -> void:
+	if not is_inside_tree():
+		return
+	var c := KingSkins.colour(skin)
+	var ctx: Node3D = u if u != null and is_instance_valid(u) and u.is_inside_tree() else self
+	if ctx == u:
+		at = u.global_position + Vector3(0, 1.0, 0)
+	var ground := Vector3(at.x, at.y - 0.9, at.z)
+	Sfx.play(&"crit")
+	Vfx.burst(ctx, at, Color.WHITE, 6, 0.6)
+	Vfx.burst(ctx, at, c, 12, 1.2)
+	Vfx.ring(ctx, ground + Vector3(0, 0.08, 0), 0.3, 1.6, c, 0.45)
+	if Settings.reduce_motion:
+		return
+	Vfx.sky_beam(ctx, ground, c.lightened(0.2), 0.4, 0.5)
+	var b := get_parent().get_parent() as Board if get_parent() != null else null
+	if b != null and ctx == u and u.coord.x >= 0:
+		Vfx.shockwave(b, b, u.coord, 1, c, 0.35, 2)
 
 func _reset_anim() -> void:
 	if _anim != null:
@@ -230,6 +280,7 @@ func _fire(target: Unit, at: Vector3) -> void:
 	var from := muzzle()
 	var c := KingSkins.colour(skin)
 	fired += 1
+	Vfx._later(self, LAND, func(): _land(u if is_instance_valid(u) else null, at))
 	match str(KingSkins.DEFS[skin].attack) if KingSkins.has(skin) else "":
 		"claw":   # a roar, a golden bolt and claw marks
 			Vfx.rings(self, from, c, 2, 0.9)

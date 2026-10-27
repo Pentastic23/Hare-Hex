@@ -131,6 +131,16 @@ func _on_state(msg: Dictionary) -> void:
 		if it != null:
 			items.append(it)
 	me.items = items
+	var recv := int(msg.get("recv", 0))
+	if recv != me.received:   # the server handed us items since the last state: pop them up
+		var got: Array[ItemData] = []
+		for id in msg.get("recv_items", []):
+			var it := EnemyBoard.lookup_item(gm.item_roster, StringName(str(id)))
+			if it != null:
+				got.append(it)
+		if recv > me.received and not got.is_empty():
+			Events.items_received.emit(got)
+		me.received = recv
 	var offers: Array[UnitData] = []
 	for n in msg.get("offers", []):
 		var d := EnemyBoard.lookup_unit(gm.roster, str(n))
@@ -455,6 +465,9 @@ func reroll() -> void:
 	Sfx.play(&"reroll")
 
 func buy_xp() -> void:
+	if GameState.me.is_max_level():
+		Sfx.play(&"error")
+		return
 	client.buy_xp()
 	Sfx.play(&"xp")
 

@@ -277,9 +277,9 @@ func _skin_checks():
 	var fired := k.fired
 	k.strike(foe)
 	chk("a strike plays an animation (wind-up and lunge)", k.animating())
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(King.WIND_UP + King.LUNGE + 0.05).timeout
 	chk("the skin's shot leaves at the lunge", k.fired == fired + 1)
-	await get_tree().create_timer(0.8).timeout
+	await get_tree().create_timer(King.RECOVER + 0.5).timeout
 	chk("the king settles back where it stood", not k.animating() and k.body.position.is_equal_approx(Vector3(0, 0.01, 0)) and is_equal_approx(k.body.rotation.y, k.rest_yaw()))
 	SaveGame.set_king_skin("merchant")
 	await load_main()

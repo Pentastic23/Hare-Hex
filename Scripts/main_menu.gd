@@ -14,7 +14,7 @@ const TUTORIAL_PATH := "res://tres/campaign/tutorial.tres"
 const GOLD := HudStyle.GOLD
 const GREY := HudStyle.MUTED
 const PVP_TINT := HudStyle.YOU
-const ASYNC_PVP_TIP := "Fight ghosts: boards saved from other runs. Each win is a trophy; 10 trophies win, 10 losses end the run, then endless mode goes on until your last life. Your boards become ghosts too. No ghosts yet? You meet random enemies."
+const ASYNC_PVP_TIP := "Fight ghosts: boards saved from other runs. Each win is a trophy; 10 trophies win, 10 losses end the run, then endless mode goes on as sudden death. The opening fight costs no life. Your boards become ghosts too. No ghosts yet? You meet random enemies."
 
 var campaign: Campaign
 var main_box: VBoxContainer

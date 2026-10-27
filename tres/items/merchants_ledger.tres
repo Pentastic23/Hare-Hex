@@ -6,7 +6,7 @@
 script = ExtResource("1_item")
 id = &"merchants_ledger"
 display_name = "Merchant's Ledger"
-description = "One free reroll each round while its holder is on the board; each Ledger adds another. No combat stats."
+description = "One free reroll each round while its holder is on the board; each Ledger adds another, and unused ones are saved up. No combat stats."
 color = Color(0.6, 0.45, 0.3, 1)
 kind = &"economy"
 min_stage = 4

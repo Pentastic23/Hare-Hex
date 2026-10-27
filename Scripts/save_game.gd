@@ -188,6 +188,19 @@ static func save_comp(comp_name: String, units: Array) -> int:
 	save_game()
 	return comps.size() - 1
 
+# Renames comp i (the planner's name field). False for a blank name or one another comp already has.
+static func rename_comp(i: int, comp_name: String) -> bool:
+	var comps: Array = data().team_comps
+	comp_name = comp_name.strip_edges()
+	if i < 0 or i >= comps.size() or comp_name == "":
+		return false
+	for j in comps.size():
+		if j != i and comps[j].name == comp_name:
+			return false
+	comps[i].name = comp_name
+	save_game()
+	return true
+
 static func delete_comp(i: int) -> void:
 	var comps: Array = data().team_comps
 	if i >= 0 and i < comps.size():

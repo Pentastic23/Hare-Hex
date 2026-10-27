@@ -46,7 +46,7 @@ func _init(p: PlayerState = null, b: Board = null, shared: UnitPool = null, unit
 func start_prep(round_number: int, cheap: bool, opening := false, drops := true) -> bool:
 	player.opening = opening
 	player.gold += player.total_income_for_round(round_number) + item_income()
-	player.free_rerolls = item_free_rerolls()
+	player.free_rerolls += item_free_rerolls()   # unused free rerolls carry over (Merchant's Ledger)
 	KingPowers.prep_start(self, round_number, opening)   # the king's run power: luck, decrees, quests, the hoard...
 	var dropped := drop_item(round_number) if drops else false   # (a replayed final wave drops nothing new)
 	board.merge_all()
@@ -95,21 +95,18 @@ func drop_stage(round_number: int) -> int:
 func drop_item(round_number: int) -> bool:
 	if item_roster.is_empty():
 		return false
-	var dropped := false
+	var got: Array[ItemData] = []
 	if drop_rounds.has(round_number):
 		var item := pick_drop(drop_stage(round_number), player.rng, player.dropped)
 		if item != null:
-			player.items.append(item)
+			got.append(item)
 			player.dropped[item.id] = int(player.dropped.get(item.id, 0)) + 1
-			dropped = true
 	if tongs_rounds.has(round_number):
 		var tongs := EnemyBoard.lookup_item(item_roster, &"tinkers_tongs")
 		if tongs != null:
-			player.items.append(tongs)
-			dropped = true
-	if dropped and player.is_local:
-		Events.items_changed.emit()
-	return dropped
+			got.append(tongs)
+	player.receive(got)
+	return not got.is_empty()
 
 # One random drop for `stage` (items v2): basic items, and from stage 3 a SPECIAL_DROP_CHANCE of a
 # special one (weighted by drop_weight, only those whose min_stage has come; synergy benders at most
@@ -220,7 +217,7 @@ func reroll() -> bool:
 	return true
 
 func buy_xp() -> bool:
-	if player.opening or player.gold < BUY_XP_COST:
+	if player.opening or player.gold < BUY_XP_COST or player.is_max_level():
 		return false
 	player.gold -= BUY_XP_COST
 	add_xp(KingPowers.xp_per_buy(player, XP_PER_BUY))   # the Chaos King's Royal Academy doubles it

@@ -243,7 +243,7 @@ func _refresh_stats() -> void:
 		price_l.add_theme_color_override("font_color", HudStyle.GOLD if free else HudStyle.INK)
 	_style_panel_button(reroll_button, free and not me.shop_locked)   # a gold edge while a reroll is free (Merchant's Ledger)
 	if not me.shop_locked:
-		reroll_button.tooltip_text = Tip.wrap("Free reroll (Merchant's Ledger): %d left this round." % me.free_rerolls) if free else Tip.wrap("New offers for %d gold." % _gm_const("REROLL_COST", 2))
+		reroll_button.tooltip_text = Tip.wrap("Free reroll (Merchant's Ledger): %d saved up." % me.free_rerolls) if free else Tip.wrap("New offers for %d gold." % _gm_const("REROLL_COST", 2))
 	_refresh_affordable()
 
 # Buy XP and Reroll dim when you can't pay for them (they stay clickable; the game ignores it), and in the
@@ -251,7 +251,10 @@ func _refresh_stats() -> void:
 func _refresh_affordable() -> void:
 	var g := GameState.me.gold
 	var shut := GameState.me.opening
-	buy_xp_button.modulate.a = 1.0 if g >= _gm_const("BUY_XP_COST", 4) and not shut else 0.55
+	var maxed := GameState.me.is_max_level()   # level 10: nothing to buy, so greyed out and switched off
+	buy_xp_button.disabled = maxed
+	buy_xp_button.tooltip_text = Tip.wrap("You are at the highest level.") if maxed else Tip.wrap("Buy %d XP for %d gold. Higher levels field more units and find stronger ones." % [XP_PER_BUY, _gm_const("BUY_XP_COST", 4)])
+	buy_xp_button.modulate.a = 1.0 if g >= _gm_const("BUY_XP_COST", 4) and not shut and not maxed else 0.55
 	reroll_button.modulate.a = 1.0 if (g >= _gm_const("REROLL_COST", 2) or GameState.me.free_rerolls > 0 or reroll_button.disabled) and not shut else 0.55
 
 func _on_lock_changed(on: bool):

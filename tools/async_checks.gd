@@ -225,6 +225,11 @@ func _run():
 	var hp := me.player_hp
 	var gold := me.gold
 	gm.runner.fighting = true
+	gm._end_combat(false, 3)
+	await frames(2)
+	chk("the opening fight costs no life and gives no trophy", me.losses == 0 and me.trophies == 0, "%d %d" % [me.losses, me.trophies])
+	GameState.round_number = 2
+	gm.runner.fighting = true
 	gm._end_combat(true, 0)
 	await frames(2)
 	chk("a win is a trophy and a gold", me.trophies == 1 and me.losses == 0 and me.gold >= gold + 1)
@@ -259,7 +264,7 @@ func _run():
 	gm._end_combat(true, 0)
 	await frames(2)
 	chk("endless keeps counting trophies", me.trophies == 11 and not gm.game_over)
-	me.losses = 9
+	chk("endless is sudden death: one life left", me.lives_left() == 1 and you.hp == 1 and you.max_hp == 1, "%d %d/%d" % [me.lives_left(), you.hp, you.max_hp])
 	var lost := [false]
 	var on_lost := func(): lost[0] = true
 	Events.run_lost.connect(on_lost)
@@ -267,10 +272,11 @@ func _run():
 	gm._end_combat(false, 1)
 	await frames(2)
 	Events.run_lost.disconnect(on_lost)
-	chk("the 10th loss ends endless mode", lost[0] and gm.game_over and end.visible and end.title.text == "ENDLESS OVER" and SaveGame.async_best() == 11)
+	chk("the first loss ends endless mode",lost[0] and gm.game_over and end.visible and end.title.text == "ENDLESS OVER" and SaveGame.async_best() == 11)
 	await load_main(9191, true)
 	me = GameState.me
 	me.losses = 9
+	GameState.round_number = 2   # (the opening fight costs no life)
 	gm.runner.fighting = true
 	gm._end_combat(false, 1)
 	await frames(2)

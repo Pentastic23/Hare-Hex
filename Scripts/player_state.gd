@@ -27,6 +27,8 @@ var win_streak := 0
 var loss_streak := 0
 var items: Array[ItemData] = []    # unequipped items this player owns
 var dropped := {}                 # item id -> times dropped this run (rare items drop at most once)
+var received := 0                 # times items were handed to this player (drops, king rewards, the tutorial)
+var last_received: Array[ItemData] = []   # what the latest of those gave (a lobby client shows it from the state)
 var free_rerolls := 0             # rerolls left this round that cost nothing (Merchant's Ledger)
 var cheap_shop := false            # round 1-1: 1-cost units only
 var opening := false               # the PvP opening (round 1 of async PvP and lobbies): a free unit, the shop shut, nothing moves
@@ -73,6 +75,8 @@ func reset():
 	king_state = {}
 	items.clear()
 	dropped.clear()
+	received = 0
+	last_received.clear()
 	free_rerolls = 0
 	shop_offers.clear()
 	shop_locked = false
@@ -88,11 +92,28 @@ func lives_left() -> int:
 func xp_needed() -> int:
 	return GameState.XP_TABLE.get(level, 999999)
 
+# Hands the player new items (a drop, a king's reward, the tutorial's): into the inventory, and the
+# local player sees them pop up (items_received; item_popup.gd).
+func receive(list: Array[ItemData]) -> void:
+	if list.is_empty():
+		return
+	items.append_array(list)
+	received += 1
+	last_received = list.duplicate()
+	if is_local:
+		Events.items_changed.emit()
+		Events.items_received.emit(list.duplicate())
+
+func is_max_level() -> bool:
+	return not GameState.XP_TABLE.has(level)
+
 func add_xp(n: int):
 	xp += n
 	while GameState.XP_TABLE.has(level) and xp >= xp_needed():
 		xp -= xp_needed()
 		level += 1
+	if is_max_level():
+		xp = 0   # nothing left to level towards
 	if is_local:
 		Events.xp_changed.emit(level, xp, xp_needed())
 

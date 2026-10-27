@@ -187,6 +187,13 @@ func _run():
 	planner.comps_pick.select(1)
 	planner.comps_pick.item_selected.emit(1)
 	chk("picking a saved comp plans it again", SaveGame.team_plan() == ["Knight", "Militia"])
+	chk("the picked comp's name shows in the name field", planner.name_edit.visible and planner.name_edit.text == comps[0].name)
+	planner.name_edit.text = "Knight rush"
+	planner.name_edit.text_submitted.emit("Knight rush")
+	chk("Enter renames the comp", SaveGame.team_comps()[0].name == "Knight rush" and planner.comps_pick.get_item_text(1).begins_with("Knight rush"), str(SaveGame.team_comps()))
+	planner.name_edit.text = "   "
+	planner.name_edit.text_submitted.emit("   ")
+	chk("a blank name keeps the old one", SaveGame.team_comps()[0].name == "Knight rush" and planner.name_edit.text == "Knight rush")
 	planner.delete_button.pressed.emit()
 	chk("Del removes it", SaveGame.team_comps().is_empty())
 	dock.close_panel()

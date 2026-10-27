@@ -426,10 +426,11 @@ func _fill_item_chips(u: Unit) -> void:
 		for c in row.get_children():
 			row.remove_child(c)
 			c.queue_free()
-	for it in u.items:
+	for i in u.items.size():
+		var it: ItemData = u.items[i]
 		var chip := DockKit.well(Vector2(34, 34), it.color, 3)
 		chip.mouse_filter = Control.MOUSE_FILTER_STOP   # for the tooltip
-		chip.tooltip_text = Tip.wrap(Glossary.explain(item_tip(it, u.stacks_of(it), u.star)))
+		chip.tooltip_text = Tip.wrap(Glossary.explain(item_tip(it, u.stacks_at(i), u.star)))
 		var tex := DockKit.item_icon(it)
 		if tex != null:
 			var r := TextureRect.new()
@@ -441,7 +442,7 @@ func _fill_item_chips(u: Unit) -> void:
 			chip.add_child(r)
 		if it.counts():
 			var s := HudStyle.number(14, HudStyle.GOLD)
-			s.text = str(u.stacks_of(it))
+			s.text = str(u.stacks_at(i))
 			s.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			s.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 			chip.add_child(s)

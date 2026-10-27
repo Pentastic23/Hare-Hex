@@ -63,7 +63,7 @@ func entries() -> Array:
 		var label := "You" if ps.is_local else (ps.display_name if lobby else "Player %d" % ps.id)
 		var streak := (ps.win_streak if ps.win_streak > 0 else -ps.loss_streak) if lobby else 0
 		if GameState.ghost_mode and not lobby:
-			out.append([label, role, ps.lives_left(), GameState.ASYNC_LIVES, "", -1, 0])
+			out.append([label, role, ps.lives_left(), 1 if ps.endless else GameState.ASYNC_LIVES, "", -1, 0])   # endless: sudden death
 			continue
 		out.append([label, role, ps.player_hp, ps.start_hp, "", ps.id if lobby else -1, streak])
 	if not lobby:

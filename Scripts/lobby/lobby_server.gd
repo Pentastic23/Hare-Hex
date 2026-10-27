@@ -526,6 +526,7 @@ func state_of(s: Seat) -> Dictionary:
 	return {"t": LobbyProtocol.STATE, "seat": s.index, "gold": p.gold, "level": p.level, "xp": p.xp, "hp": p.player_hp,
 		"start_hp": p.start_hp, "win": p.win_streak, "loss": p.loss_streak, "free_rerolls": p.free_rerolls, "opening": p.opening,
 		"cheap": p.cheap_shop, "locked": p.shop_locked, "items": p.items.map(func(i): return String(i.id)),
+		"recv": p.received, "recv_items": p.last_received.map(func(i): return String(i.id)),
 		"offers": p.shop_offers.map(func(d): return d.display_name), "rolls": p.shop_rolls, "units": units, "alive": s.alive, "place": s.place}
 
 # Everyone's public standing (sent to all).

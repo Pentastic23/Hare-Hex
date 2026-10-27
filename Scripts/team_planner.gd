@@ -26,6 +26,7 @@ var filter_pick: OptionButton
 var comps_pick: OptionButton
 var save_button: Button
 var delete_button: Button
+var name_edit: LineEdit       # the picked comp's name, editable
 
 func _ready():
 	add_to_group("team_planner")
@@ -91,6 +92,22 @@ func _ready():
 		SaveGame.delete_comp(comps_pick.selected - 1)
 		_fill_comps())
 	comps_row.add_child(delete_button)
+	name_edit = LineEdit.new()
+	name_edit.placeholder_text = "Comp name"
+	name_edit.max_length = 32
+	name_edit.custom_minimum_size = Vector2(0, 26)
+	name_edit.add_theme_font_override("font", HudStyle.label_font())
+	name_edit.add_theme_font_size_override("font_size", 11)
+	name_edit.add_theme_stylebox_override("normal", DockKit.flat(DockKit.WELL, 3, Vector4(6, 2, 6, 2)))
+	var focus_box := DockKit.flat(DockKit.WELL, 3, Vector4(6, 2, 6, 2))
+	focus_box.set_border_width_all(1)
+	focus_box.border_color = HudStyle.GOLD
+	name_edit.add_theme_stylebox_override("focus", focus_box)
+	name_edit.tooltip_text = Tip.wrap("Type a new name for the picked comp and press Enter.")
+	name_edit.visible = false   # shown while a comp is picked
+	name_edit.text_submitted.connect(func(_t): rename_comp())
+	name_edit.focus_exited.connect(rename_comp)
+	add_child(name_edit)
 	_fill_comps()
 	var div := ColorRect.new()
 	div.color = DockKit.LINE
@@ -170,11 +187,31 @@ func _fill_comps() -> void:
 		comps_pick.add_item("%s  (%d)" % [c.name, (c.units as Array).size()])
 	comps_pick.select(0)
 	delete_button.disabled = true
+	name_edit.visible = false
 
 func _on_comp_picked(i: int) -> void:
 	delete_button.disabled = i == 0
+	_show_name(i)
 	if i > 0:
 		_set_plan(SaveGame.team_comps()[i - 1].units)
+
+func _show_name(i: int) -> void:
+	name_edit.visible = i > 0
+	if i > 0:
+		name_edit.text = SaveGame.team_comps()[i - 1].name
+
+# Renames the picked comp to what the name field says (Enter, or leaving the field); a blank or taken
+# name puts the old one back.
+func rename_comp() -> void:
+	var i := comps_pick.selected
+	if i <= 0 or not name_edit.visible:
+		return
+	if SaveGame.rename_comp(i - 1, name_edit.text):
+		var comps := SaveGame.team_comps()
+		comps_pick.set_item_text(i, "%s  (%d)" % [comps[i - 1].name, (comps[i - 1].units as Array).size()])
+	_show_name(i)
+	if name_edit.has_focus():
+		name_edit.release_focus()
 
 # Saves the plan as a comp named after its strongest traits ("Order Warrior"), or "Comp n".
 func save_comp() -> void:
@@ -194,6 +231,7 @@ func save_comp() -> void:
 	_fill_comps()
 	comps_pick.select(at + 1)
 	delete_button.disabled = false
+	_show_name(at + 1)
 
 # The units the shop can offer this run (a campaign level may limit them).
 func _roster() -> Array:

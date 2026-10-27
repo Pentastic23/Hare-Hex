@@ -80,7 +80,7 @@ func refresh() -> void:
 		if not me.endless:
 			for i in GameState.ASYNC_TROPHIES:
 				states.append("done" if i < me.trophies else ("current" if i == me.trophies else "next"))
-		tooltip_text = Tip.wrap("Round %d. Win a fight for a trophy; %d trophies win the run. Lose %d fights and it is over (%d lives left).%s" % [GameState.round_number, GameState.ASYNC_TROPHIES, GameState.ASYNC_LIVES, me.lives_left(), " Endless mode: keep going until your last life." if me.endless else ""])
+		tooltip_text = Tip.wrap("Round %d. Win a fight for a trophy; %d trophies win the run. Lose %d fights and it is over (%d lives left).%s" % [GameState.round_number, GameState.ASYNC_TROPHIES, GameState.ASYNC_LIVES, me.lives_left(), " Endless mode: sudden death, the next loss ends the run." if me.endless else ""])
 	elif lvl == null or lvl.waves.is_empty():
 		stage_label.text = "STAGE %d" % GameState.stage()
 		count_label.text = "%d-%d" % [GameState.stage(), GameState.round_in_stage()]

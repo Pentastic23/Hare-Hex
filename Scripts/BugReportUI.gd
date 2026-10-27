@@ -231,12 +231,13 @@ func _input(event):
 		close_panel()
 		get_viewport().set_input_as_handled()
 
-# True while the player is typing into the panel (the game's hotkeys check this).
+# True while the player is typing into the panel, or into any text field (a comp's name in the planner);
+# the game's hotkeys check this.
 func typing() -> bool:
-	if not is_open:
-		return false
 	var f := get_viewport().gui_get_focus_owner()
-	return f != null and panel.is_ancestor_of(f)
+	if f is LineEdit or f is TextEdit:
+		return true
+	return is_open and f != null and panel.is_ancestor_of(f)
 
 # --- sending -------------------------------------------------------------------------------------
 

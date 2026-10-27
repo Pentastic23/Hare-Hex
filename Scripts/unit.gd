@@ -1209,12 +1209,10 @@ func attack_interval() -> float:
 func can_equip() -> bool:
 	return items.size() < MAX_ITEMS
 
-# Room and rules for one more item: a free slot, at most one of each bound item and one synergy
-# bender per unit, and never Tinker's Tongs (they are used, not worn).
+# Room and rules for one more item: a free slot, one synergy bender and one Ancient Sigil per unit, and
+# never Tinker's Tongs (they are used, not worn). Several of one bound item are fine; each grows its own stacks.
 func can_take(item: ItemData) -> bool:
 	if item == null or not item.takes_slot() or not can_equip():
-		return false
-	if item.kind == &"bound" and items.any(func(i): return i.id == item.id):
 		return false
 	if item.kind == &"ascension" and (star >= MAX_STAR or items.any(func(i): return i.kind == &"ascension")):
 		return false   # one Ancient Sigil a unit, and an ascended unit has no use for one
@@ -1261,8 +1259,9 @@ func _recalc_items() -> void:
 	item_mana = 0.0
 	item_dr = 0.0
 	item_lifesteal = 0.0
-	for it in items:
-		var stacks := int(item_stacks.get(it.id, 0))
+	for i in items.size():
+		var it: ItemData = items[i]
+		var stacks := stacks_at(i)
 		item_hp += it.hp + it.stack_hp * stacks
 		item_dmg += it.dmg + it.stack_dmg * stacks
 		item_as += it.attack_speed
@@ -1307,7 +1306,7 @@ func _update_item_icons() -> void:
 		item_icons.add_child(s)
 		if it.counts():
 			var l := Label3D.new()
-			l.text = str(stacks_of(it)) if it.kind == &"bound" else "%d/%d" % [stacks_of(it), it.max_stacks]
+			l.text = str(stacks_at(i)) if it.kind == &"bound" else "%d/%d" % [stacks_at(i), it.max_stacks]
 			l.font_size = 48
 			l.pixel_size = 0.006
 			l.outline_size = 12
@@ -1365,11 +1364,12 @@ func _popup(text: String, color: Color):
 # Bound items (Hero's Blade, Heartwood Charm) gain a stack, up to their maximum.
 func grow_bound_items() -> void:
 	var grew := false
-	for it in items:
+	for i in items.size():
+		var it: ItemData = items[i]
 		if it.kind == &"bound":
-			var s := int(item_stacks.get(it.id, 0))
+			var s := stacks_at(i)
 			if s < it.max_stacks:
-				item_stacks[it.id] = s + 1
+				item_stacks[stack_key(i)] = s + 1
 				grew = true
 	if grew:
 		_recalc_items()
@@ -1408,4 +1408,18 @@ func ascend(sigil: ItemData = null) -> void:
 		Sfx.play(&"ascend")
 
 func stacks_of(item: ItemData) -> int:
-	return int(item_stacks.get(item.id, 0))
+	var i := items.find(item)
+	return stacks_at(i) if i >= 0 else int(item_stacks.get(item.id, 0))
+
+func stacks_at(i: int) -> int:
+	return int(item_stacks.get(stack_key(i), 0))
+
+# The item_stacks key of the item in slot i: its id for the first copy on this unit, "<id>#2", "<id>#3"
+# for further copies of the same item (two Hero's Blades grow apart).
+func stack_key(i: int) -> StringName:
+	var id: StringName = items[i].id
+	var n := 1
+	for j in i:
+		if items[j].id == id:
+			n += 1
+	return id if n == 1 else StringName("%s#%d" % [id, n])

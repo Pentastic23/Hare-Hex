@@ -154,7 +154,7 @@ func _show_async(won: bool) -> void:
 	if won:
 		title.text = "VICTORY"
 		detail.text = "%d trophies with %d lives left, by round %d.
-Keep going in endless mode until your last life, or stop here." % [me.trophies, me.lives_left(), GameState.round_number]
+Keep going in endless mode (sudden death: one loss ends it), or stop here." % [me.trophies, me.lives_left(), GameState.round_number]
 		next_button.text = "Endless mode"
 		next_button.visible = true
 	elif me.endless:

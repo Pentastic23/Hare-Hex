@@ -151,8 +151,8 @@ func _enter_step(i: int):
 func _give_item():
 	if not GameState.me.items.is_empty() or _board().all_player_units().any(func(u): return not u.items.is_empty()):
 		return
-	GameState.me.items.append(load("res://tres/items/longsword.tres"))
-	Events.items_changed.emit()
+	var got: Array[ItemData] = [load("res://tres/items/longsword.tres")]
+	GameState.me.receive(got)
 
 # True once the last step is reached: the level may end (GameManager: until then its last wave comes again).
 func finished() -> bool:
@@ -224,5 +224,5 @@ func _planner_open() -> bool:
 func _give_resonance_item():
 	if _board().all_player_units().any(func(u): return not Resonance.keys_for(u.items).is_empty()):
 		return
-	GameState.me.items.append(load("res://tres/items/quick_bow.tres"))
-	Events.items_changed.emit()
+	var got: Array[ItemData] = [load("res://tres/items/quick_bow.tres")]
+	GameState.me.receive(got)

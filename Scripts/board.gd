@@ -514,26 +514,24 @@ func merge_all(bench_only := false):
 		pass
 
 # Gives the consumed units' items to the keeper (up to its limit); the rest go back to the inventory.
-# Bound items keep their growth: the keeper's copy of each ends with the most stacks any of the three
-# units had for it (items that go back to the inventory lose theirs).
+# Bound items keep their growth: each item moves with its own stacks (items that go back to the
+# inventory lose theirs).
 func _move_items_to(keeper: Unit, consumed: Array) -> void:
-	var best := {}
-	for c in [keeper] + consumed:
-		var cu: Unit = c
-		for id in cu.item_stacks:
-			best[id] = maxi(int(best.get(id, 0)), int(cu.item_stacks[id]))
 	var returned := false
+	var regrow := false
 	for c in consumed:
 		var cu: Unit = c
-		for item in cu.take_items():
-			if not keeper.equip(item):
-				player.items.append(item)
+		var stacks: Array = []
+		for i in cu.items.size():
+			stacks.append(cu.stacks_at(i))
+		var list := cu.take_items()
+		for i in list.size():
+			if not keeper.equip(list[i]):
+				player.items.append(list[i])
 				returned = true
-	var regrow := false
-	for it in keeper.items:
-		if best.has(it.id) and keeper.stacks_of(it) < int(best[it.id]):
-			keeper.item_stacks[it.id] = best[it.id]
-			regrow = true
+			elif int(stacks[i]) > 0:
+				keeper.item_stacks[keeper.stack_key(keeper.items.size() - 1)] = int(stacks[i])
+				regrow = true
 	if regrow:
 		keeper._recalc_items()
 	if returned and _local():

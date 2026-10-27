@@ -168,6 +168,9 @@ func _ready():
 			GameState.me.gold += amount   # your Pickpocket kills; enemy boards earn nothing
 	Settings.ensure_loaded()
 	Settings.apply_light(get_node_or_null("../DirectionalLight3D") as DirectionalLight3D)   # shadows (Settings > Graphics)
+	var ui := get_node_or_null("../UI")
+	if ui != null:
+		ui.add_child.call_deferred(ItemPopup.new())   # new items pop up mid-screen (item_popup.gd)
 	if LobbyNet.in_lobby():
 		lobby = LobbyGame.new(self)
 		Events.unit_bought.connect(_on_unit_bought)
@@ -733,9 +736,15 @@ func _end_combat(player_won: bool, enemy_alive: int):
 	Events.combat_ended.emit(player_won)
 	_enter(Events.Phase.RESULT)
 
-# Async PvP: a win is a trophy (and the usual gold), a loss a life; HP is not used.
+# Async PvP: a win is a trophy (and the usual gold), a loss a life; HP is not used. The opening fight
+# (round 1, a random free unit each) is a warm-up: it gives no trophy and costs no life.
 func _end_async_fight(player_won: bool, enemy_alive: int) -> void:
 	var me := GameState.me
+	if GameState.round_number == 1 and not GameState.run_carried:
+		if player_won:
+			me.gold += 1
+		Events.notice.emit("OPENING  %s" % ("VICTORY  +1 GOLD" if player_won else "NO LIFE LOST"), HudStyle.GOLD if player_won else HudStyle.MUTED)
+		return
 	if player_won:
 		me.gold += 1
 		me.trophies += 1
@@ -746,11 +755,12 @@ func _end_async_fight(player_won: bool, enemy_alive: int) -> void:
 		Events.notice.emit("%s  -1 LIFE (%d LEFT)" % ["TIME UP" if timed_out else ("BOTH SIDES FELL" if enemy_alive == 0 else "DEFEAT"), me.lives_left()], HudStyle.RED)
 
 # Async PvP after the 10th trophy: the end screen's Endless mode button. The run goes on with no trophy
-# goal until the last life is lost.
+# goal as sudden death: one life left, so the next loss ends it.
 func continue_endless() -> void:
 	if not GameState.ghost_mode or not game_over or phase != Events.Phase.RESULT or GameState.me.losses >= GameState.ASYNC_LIVES:
 		return
 	GameState.me.endless = true
+	GameState.me.losses = GameState.ASYNC_LIVES - 1
 	game_over = false
 	Events.notice.emit("ENDLESS MODE", HudStyle.GOLD)
 	_next_round()

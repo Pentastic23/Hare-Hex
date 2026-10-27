@@ -20,6 +20,7 @@ signal hp_changed(hp: int)
 signal run_won
 signal run_lost
 signal items_changed                  # GameState.me.items changed (drop, equip, sell, merge)
+signal items_received(items: Array)   # new items handed to you (drops, king rewards, the tutorial): the pop-up shows them
 signal item_drag_started(index: int)  # index into GameState.me.items
 signal item_drag_ended
 signal shop_lock_changed(locked: bool)

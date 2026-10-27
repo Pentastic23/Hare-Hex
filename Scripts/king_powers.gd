@@ -519,10 +519,9 @@ static func _give(r: PlayerRules, what: String, round_number := -1) -> bool:
 				item = _special(r)
 			if item == null:
 				return false
-			p.items.append(item)
 			p.dropped[item.id] = int(p.dropped.get(item.id, 0)) + 1
-			if p.is_local:
-				Events.items_changed.emit()
+			var got: Array[ItemData] = [item]
+			p.receive(got)
 			return true
 		"cost4", "cost5":
 			var slot := r.board.first_free_bench()

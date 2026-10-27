@@ -96,7 +96,7 @@ func _run():
 	await load_main(6)
 	var a := place("knight", 0)
 	chk("a bound item equips", a.equip(I("heros_blade")))
-	chk("a second copy of the same bound item is refused", not a.can_take(I("heros_blade")))
+	chk("a second copy of the same bound item fits", a.can_take(I("heros_blade")))
 	chk("Tinker's Tongs are never worn", not a.can_take(I("tinkers_tongs")))
 	var b := place("archer", 1)
 	b.equip(I("twin_sigil"))
@@ -113,7 +113,18 @@ func _run():
 	board.sell_unit(a)
 	chk("selling returns the item with no stacks", GameState.me.items.has(I("heros_blade")))
 	GameState.me.items.clear()
-	# Merge: three Knights, the keeper ends with the most stacks any copy had.
+	# Two Hero's Blades on one unit grow apart.
+	var two := place("knight", 2)
+	two.equip(I("heros_blade"))
+	two.end_combat()
+	two.equip(I("heros_blade"))
+	var dmg2 := two.damage()
+	two.end_combat()
+	chk("two Hero's Blades on one unit keep their own stacks (2 and 1)", two.stacks_at(0) == 2 and two.stacks_at(1) == 1, str(two.item_stacks))
+	chk("both add their stacks to damage", is_equal_approx(two.damage() - dmg2, 8.0), str(two.damage() - dmg2))
+	board.sell_unit(two)
+	GameState.me.items.clear()
+	# Merge: three Knights, each blade keeps its own stacks on the kept unit.
 	var ks: Array = []
 	for i in 3:
 		ks.append(place("knight", -1))
@@ -121,10 +132,18 @@ func _run():
 	ks[1].item_stacks[&"heros_blade"] = 9
 	ks[2].equip(I("heros_blade"))
 	ks[2].item_stacks[&"heros_blade"] = 4
+	for i in 2:
+		ks[2].equip(I("longsword"))
 	board.merge_all()
 	var merged: Array = board.all_player_units().filter(func(u): return u.data.display_name == "Knight" and u.star == 2)
-	chk("merging keeps the highest stacks (9) on the kept unit", merged.size() == 1 and merged[0].stacks_of(I("heros_blade")) == 9 and merged[0].items.filter(func(i): return i.id == &"heros_blade").size() == 1, str(merged[0].item_stacks) if not merged.is_empty() else "no merge")
-	chk("the spare copy goes back to the inventory", GameState.me.items.has(I("heros_blade")))
+	var got: Array = []
+	if merged.size() == 1:
+		for i in merged[0].items.size():
+			if merged[0].items[i].id == &"heros_blade":
+				got.append(merged[0].stacks_at(i))
+	got.sort()
+	chk("merging keeps both blades with their own stacks (4 and 9)", got == [4, 9], str(merged[0].item_stacks) if not merged.is_empty() else "no merge")
+	chk("an item past the 3-item limit goes back to the inventory", GameState.me.items.has(I("longsword")))
 
 	print("--- Tinker's Tongs")
 	await load_main(7)
@@ -176,9 +195,22 @@ func _run():
 	p2.equip(I("merchants_ledger"))
 	gm._enter(Events.Phase.PREP)
 	chk("two Ledgers on the board give two free rerolls", GameState.me.free_rerolls == 2)
+	gm._enter(Events.Phase.PREP)
+	chk("unused free rerolls carry into the next round", GameState.me.free_rerolls == 4, str(GameState.me.free_rerolls))
+	GameState.me.free_rerolls = 0
 
 	print("--- drops")
 	chk("14 drop rounds in a free-play run, Tongs at the end of stages 2 to 6 (and one in each chapter level)", GameState.ITEM_DROP_ROUNDS.size() == 14 and GameState.TONGS_ROUNDS == [9, 15, 21, 27, 33] and GameState.CAMPAIGN_TONGS_ROUND == 3)
+	var popup = main.get_node_or_null("UI/ItemPopup")
+	if popup != null:
+		popup._queue.clear()   # (an earlier PREP's drop may still be showing)
+		popup._busy = false
+	var shown_before: int = popup.shown if popup != null else -1
+	var got_before := GameState.me.items.size()
+	gm.rules.drop_item(9)   # a drop round and a Tongs round: two items at once
+	await get_tree().process_frame
+	chk("a drop pops up its items side by side", popup != null and popup.shown == shown_before + 1 and GameState.me.items.size() == got_before + 2 and popup._cards.size() == 2, "popup %s, %d cards" % [popup != null, popup._cards.size() if popup != null else 0])
+	GameState.me.items.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
 	var early := true
