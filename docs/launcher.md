@@ -5,8 +5,10 @@ Testers run **HareHex-Launcher.exe**. Each time it starts it asks GitHub for the
 
 ## For testers
 
-1. Download `HareHex-Launcher.exe` from any release on https://github.com/Pentastic23/Hare-Hex/releases
-   and put it in a folder of its own (e.g. `Documents\Hare&Hex`).
+1. Download the launcher from https://github.com/Pentastic23/Hare-Hex/releases/latest/download/HareHex-Launcher.exe
+   (the link to pin in Discord: it always gives the newest full release's launcher and starts the
+   download without showing GitHub) and put it in a folder of its own (e.g. `Documents\Hare&Hex`),
+   not on a OneDrive Desktop (a shortcut there is fine).
 2. Run it. The first time it downloads the game (about 70 MB) into a `game` folder beside it.
 3. From then on, start the game with the launcher. It updates when there is a new version and
    starts the game after 3 seconds (untick "Start the game automatically" to read the notes first;
@@ -42,7 +44,8 @@ the launcher (`build\HareHex-Launcher.exe`), zips the game as `build\HareHex-win
 the release `v0.1.4` as a draft on the current commit, uploads both files and publishes it. Publishing
 also posts to Discord (`.github/workflows/release-discord.yml`). Without `-Notes`, GitHub writes the
 notes from the commits. Options: `-DryRun` (build and zip only), `-Full` (a full release instead of a
-pre-release; the launcher takes either), `-SkipLauncher`, `-Godot <path>`.
+pre-release; the launcher takes either, but the pinned latest link only follows full releases, so the
+release panel ticks Full release by default), `-SkipLauncher`, `-Godot <path>`.
 
 It asks before releasing with uncommitted changes and pushes the branch if GitHub doesn't have
 the commit yet.
