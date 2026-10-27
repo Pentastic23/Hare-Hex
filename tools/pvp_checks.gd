@@ -221,6 +221,7 @@ func _run():
 	chk("free play records your board when a fight starts", LocalSnapshotStore.new().count(1) == 1, str(LocalSnapshotStore.new().count(1)))
 	var saved := LocalSnapshotStore.new().fetch(1, 5, gm.balance_hash, rng)
 	chk("the recorded snapshot holds your 3 units, mirrored", saved.board.units.size() == 3 and saved.run == str(GameState.run_seed) and saved.player_level == 5)
+	chk("and the arena your half wore (the ghost's half will wear it)", saved.get("arena") == String(board.theme) and BoardThemes.has(board.theme))
 
 	await load_main(444, true)
 	await get_tree().process_frame
@@ -230,11 +231,14 @@ func _run():
 	# a ghost saved by another run at round 1 now shows up in the next ghost run
 	var other := BoardSnapshot.capture(place_player_units(), meta("otherrun", 1, 1, gm.balance_hash))
 	other["player_level"] = 1
+	var foe_arena: StringName = &"volcano" if BoardThemes.for_run(null, 555) != &"volcano" else &"snow"
+	other["arena"] = String(foe_arena)
 	LocalSnapshotStore.new().submit(other)
 	await load_main(555, true)
 	await get_tree().process_frame
 	row = main.get_node("UI/Standings").opponent_row()
 	chk("round 1 of the next ghost run shows the saved ghost in the standings, with its HP", row != null and row.name_text == "Ghost of You" and row.hp_lbl.text == str(int(other.get("hp", -1))), "%s %s" % [row.name_text, row.hp_lbl.text] if row else "no row")
+	chk("the far half wears the ghost's arena, your half yours", board.foe_theme == foe_arena and board.theme == BoardThemes.for_run(null, GameState.run_seed) and board.theme != foe_arena, "%s / %s" % [board.theme, board.foe_theme])
 	gm.start_combat()
 	var ghosts := main.get_node("Board/Units").get_children().filter(func(n): return n is Unit and n.team == 1)
 	chk("and the ghost's units are on the enemy half at their mirrored tiles", ghosts.size() >= 1 and ghosts.all(func(u): return u.coord.y <= 3))

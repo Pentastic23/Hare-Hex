@@ -54,7 +54,7 @@ func begin() -> void:
 	_scout_timer.wait_time = 1.5
 	_scout_timer.timeout.connect(func(): if scouting >= 0: client.scout(scouting))
 	gm.add_child(_scout_timer)
-	board.apply_theme(BoardThemes.for_run(null, client.seed), client.seed)
+	board.apply_theme(BoardThemes.for_seat(BoardThemes.picked(), client.seed, client.seat), client.seed)   # your arena (the server works it out the same way)
 	gm.runner.on_finish = _on_replay_finish
 	gm.runner.gold_sink = Callable()   # gold comes from the server's state
 	client.phase_changed.connect(_on_phase)
@@ -199,6 +199,7 @@ func _on_fight(desc: Dictionary) -> void:
 	sides = Arena.setup(board, desc, gm.roster, gm.item_roster, gm.unit_scene, true)
 	_show_foe_bench(desc.get("away_bench" if my_side == "home" else "home_bench", []))
 	board.set_view_flipped(my_side == "away")
+	_dress_halves(desc)
 	gm.snapshot.clear()
 	for u in sides[my_side]:
 		if u != null:
@@ -219,6 +220,16 @@ func _on_fight(desc: Dictionary) -> void:
 		Sfx.muted -= 1
 	var foe := str(desc.get("away_name" if my_side == "home" else "home_name", ""))
 	Events.opponent_announced.emit(foe)
+
+# Your half of the board in your arena, the opponent's in theirs, blending across the middle (display only;
+# only rebuilt when one changes, so the same opponent twice costs nothing).
+func _dress_halves(desc: Dictionary) -> void:
+	var mine := StringName(str(desc.get(my_side + "_arena", "")))
+	var foe := StringName(str(desc.get(("away" if my_side == "home" else "home") + "_arena", "")))
+	if BoardThemes.has(mine) and mine != board.theme:
+		board.apply_theme(mine, client.seed, foe)
+	else:
+		board.set_foe_theme(foe)
 
 func _on_input(fight_id: int, input: Dictionary) -> void:
 	if replaying and fight_id == replay_id:

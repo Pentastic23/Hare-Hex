@@ -246,6 +246,8 @@ func add(raw: Dictionary) -> String:
 		s["losses"] = clampi(int(raw.get("losses", 0)), 0, GameState.ASYNC_LIVES)
 	if KingSkins.has(StringName(str(raw.get("king", "")))):   # the player's king skin (a look only)
 		s["king"] = str(raw.king)
+	if BoardThemes.has(StringName(str(raw.get("arena", "")))):   # the player's arena (a look only)
+		s["arena"] = str(raw.arena)
 	var round: int = s.round
 	if not _rounds.has(round):
 		_rounds[round] = []

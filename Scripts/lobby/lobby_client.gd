@@ -43,7 +43,7 @@ func _init(lobby_net, player_name: String):
 	name = LobbyProtocol.clean_name(player_name)
 
 func say_hello() -> void:
-	net.send_to_server({"t": LobbyProtocol.HELLO, "v": LobbyProtocol.VERSION, "balance": LobbyProtocol.balance(), "name": name, "token": token, "king": String(KingSkins.selected())})
+	net.send_to_server({"t": LobbyProtocol.HELLO, "v": LobbyProtocol.VERSION, "balance": LobbyProtocol.balance(), "name": name, "token": token, "king": String(KingSkins.selected()), "arena": String(BoardThemes.picked())})
 
 func send(msg: Dictionary) -> void:
 	_seq += 1

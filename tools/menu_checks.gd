@@ -64,6 +64,31 @@ class Driver extends Node:
 		press("Back")
 		await get_tree().process_frame
 		chk("Back returns to the menu", not kp.get_parent().visible and find_button(scene(), "Free Play") != null)
+
+		# Arena: the biome of your half of the board (Random by default), never the campaign's
+		SaveGame.set_arena("")
+		await to_menu()
+		var ab: Button = find_button(scene(), "Arena")
+		chk("Arena sits on the bottom row beside King", ab != null and ab.get_parent() == find_button(scene(), "King").get_parent())
+		press("Arena")
+		await get_tree().process_frame
+		var ap = scene().arena_panel
+		var cards: Array = scene()._arena_grid.get_children()
+		chk("Arena opens its screen: Random and the 12 biomes", ap.get_parent().visible and cards.size() == 13 and cards[0].get_meta("arena") == &"" and find_button(scene(), "Free Play") == null)
+		chk("Random is chosen by default (gold edge)", BoardThemes.picked() == &"" and cards[0]._style.border_color == HudStyle.EDGE_GOLD and cards[1]._style.border_color != HudStyle.EDGE_GOLD)
+		chk("the Arena screen fits a 648 px window", ap.get_combined_minimum_size().y <= 620, "height %d" % ap.get_combined_minimum_size().y)
+		scene().pick_arena(&"desert")
+		var desert_card: Control = cards.filter(func(c): return c.get_meta("arena") == &"desert")[0]
+		chk("picking a biome saves it and marks its card", SaveGame.arena() == "desert" and desert_card._style.border_color == HudStyle.EDGE_GOLD and cards[0]._style.border_color != HudStyle.EDGE_GOLD and scene().arena_button.tooltip_text.contains("Desert"))
+		SaveGame.reset_progress()
+		chk("Reset campaign progress keeps the arena", SaveGame.arena() == "desert")
+		press("Back")
+		await get_tree().process_frame
+		press("Free Play")
+		await wait(0.5)
+		chk("Free Play's board wears the picked arena", scene().name == "Main" and scene().get_node("Board").theme == &"desert")
+		await to_menu()
+		SaveGame.set_arena("")
 		SaveGame.reset_progress()
 		var l1: CampaignLevel = load("res://tres/campaign/levels/ch1_l1.tres")
 		var l2: CampaignLevel = load("res://tres/campaign/levels/ch1_l2.tres")

@@ -100,6 +100,7 @@ func _enter(p: int):
 				opponents.prepare(GameState.round_number)   # async PvP picks this round's ghost now
 				Events.opponent_announced.emit(opponents.describe_next())
 			_dress_kings()   # the ghost's king, and a Shadow King takes its shape
+			_dress_foe_half()   # the ghost's arena on the far half
 			_open_foe_half()
 			# counted down in _process, so the timer label can show it and pausing stops it
 			prep_length = OPENING_PREP if opening else (UNTIMED if manual_start else float(prep_time))
@@ -221,7 +222,7 @@ func _begin_run():
 		camp = null
 	var carry := GameState.begin_run(lvl, camp)
 	rng.seed = GameState.run_seed
-	board.apply_theme(BoardThemes.for_run(lvl, GameState.run_seed), GameState.run_seed)   # the level's biome (or one from the seed) and its scenery
+	board.apply_theme(BoardThemes.for_run(lvl, GameState.run_seed, BoardThemes.picked()), GameState.run_seed)   # the level's biome, else your arena (or one from the seed), and its scenery
 	# Your king's run power (KingPowers) works in free play and async PvP; in a campaign level a king only
 	# strikes (and the Golden Lion shields).
 	GameState.me.king = KingSkins.selected() if lvl == null and KingSkins.is_run_power(KingSkins.selected()) else &""
@@ -280,6 +281,7 @@ func _record_snapshot():
 		"hp": GameState.me.player_hp,
 		"balance": balance_hash,
 		"king": String(KingSkins.selected()),   # the ghost's king looks like yours (a look only)
+		"arena": String(board.theme),   # and its half of the board wears your arena
 	}
 	if GameState.ghost_mode:
 		meta["trophies"] = GameState.me.trophies
@@ -482,6 +484,16 @@ func _dress_kings() -> void:
 			foe = k
 	board.kings[1].set_skin(foe)
 	board.kings[0].set_skin(KingSkins.selected(), foe)
+
+# The far half of the board in the ghost's arena (async PvP ghosts record it), blending into yours across
+# the middle; with no ghost, or one recorded before arenas, the whole board is yours. Visual only.
+func _dress_foe_half() -> void:
+	var foe := board.theme
+	if opponents is SnapshotOpponents:
+		var a := StringName(str(opponents.current_snapshot().get("arena", "")))
+		if BoardThemes.has(a):
+			foe = a
+	board.set_foe_theme(foe)
 
 # The Fate King's prophecy pick (the King tab).
 func choose_prophecy(index: int) -> bool:
@@ -782,6 +794,7 @@ func _on_ghost_changed() -> void:
 	Events.opponent_announced.emit(opponents.describe_next())
 	_open_foe_half()
 	_dress_kings()
+	_dress_foe_half()
 
 # The PREP countdown. Fights have their own fixed ticks (_physics_process); this only runs the
 # preparation timer, and stops while the tree is paused.

@@ -73,6 +73,8 @@ static func capture(player_units: Array, meta: Dictionary) -> Dictionary:
 	}
 	if meta.has("king"):   # the player's king skin (its look on the ghost's side; no effect)
 		out["king"] = str(meta.king)
+	if meta.has("arena"):   # the biome of the player's half (the ghost's half wears it; no effect)
+		out["arena"] = str(meta.arena)
 	if meta.has("trophies"):   # async PvP runs only
 		out["trophies"] = int(meta.trophies)
 		out["losses"] = int(meta.get("losses", 0))

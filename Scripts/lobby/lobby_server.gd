@@ -35,6 +35,7 @@ class Seat extends RefCounted:
 	var added_bot := false # added as a bot (never had a player)
 	var token := ""        # lets a disconnected player take the seat back
 	var king: StringName = KingSkins.DEFAULT   # the king skin this player fights with (sent in hello; bots: the default)
+	var arena: StringName = &""   # the arena this player picked (sent in hello; "" = random; arena_of resolves it)
 	var player: PlayerState
 	var board: Board
 	var rules: PlayerRules
@@ -139,6 +140,8 @@ func _on_hello(peer: int, msg: Dictionary) -> void:
 	s.peer = peer
 	var king := StringName(str(msg.get("king", "")))
 	s.king = king if KingSkins.has(king) else KingSkins.DEFAULT
+	var arena := StringName(str(msg.get("arena", "")))
+	s.arena = arena if BoardThemes.has(arena) else &""
 	s.token = "%x%x" % [rng.randi(), Time.get_ticks_usec()]
 	if host_peer == 0:
 		host_peer = peer
@@ -364,17 +367,23 @@ func _pairings() -> Array:
 		out.append([lone, copy, true])
 	return out
 
+# The biome a seat's half of the board wears in fights (display only): its pick, else one from the seed.
+func arena_of(s: Seat) -> StringName:
+	return BoardThemes.for_seat(s.arena, seed, s.index)
+
 func _start_fight(home: Seat, away: Seat, ghost: bool) -> void:
 	_fight_id += 1
 	var desc := {"id": _fight_id, "round": round_number, "home": home.index, "away": away.index if away != null else -1,
 		"ghost": ghost, "home_name": home.name, "home_level": home.player.level,
 		"home_king": String(home.king), "away_king": "", "away_level": home.player.level,
+		"home_arena": String(arena_of(home)), "away_arena": String(arena_of(home)),
 		"home_units": Arena.board_entries(home.board, false), "home_bench": Arena.bench_entries(home.board)}
 	if away != null:
 		desc["away_name"] = ("Ghost of %s" % away.name) if ghost else away.name
 		desc["away_units"] = Arena.board_entries(away.board, true)
 		desc["away_bench"] = Arena.bench_entries(away.board)   # shown to the home player on the far bench (display only)
 		desc["away_king"] = String(away.king)
+		desc["away_arena"] = String(arena_of(away))
 		desc["away_level"] = away.player.level
 		desc["enemy_open"] = Arena.mirrored_open(away.player.level, away.board)
 		desc["away_scale"] = 1.0

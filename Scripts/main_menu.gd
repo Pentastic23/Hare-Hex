@@ -5,7 +5,7 @@ extends Control
 #   SINGLE PLAYER: Tutorial, Campaign (chapters and levels), Free Play
 #   PVP: Async PvP (ghost opponents, playable) and Lobby (2-8 players: you against bots here, or a LAN
 #   game you host or join; the Lobby and room screens below, lobby code in Scripts/lobby/)
-# and Settings / Credits / Quit (Keybinds opens from Settings). Built in code; menu.tscn is just this script on a full-screen Control.
+# and King / Arena / Planner / Settings / Credits / Quit (Keybinds opens from Settings). Built in code; menu.tscn is just this script on a full-screen Control.
 
 const TITLE := "Hare & Hex"
 const MAIN_SCENE := "res://scenes/main.tscn"
@@ -54,6 +54,10 @@ var planner_panel: PanelContainer   # the team planner (team_planner.gd) with th
 var planner: VBoxContainer
 const PLANNER_SCRIPT := preload("res://Scripts/team_planner.gd")
 var king_button: Button
+var arena_panel: PanelContainer     # pick the biome of your half of the board (BoardThemes, SaveGame.arena)
+var arena_button: Button
+var _arena_grid: GridContainer
+const ARENA_TEXT := "The land your half of the board stands in, in Free Play, Async PvP and Lobbies. In PvP your opponent's half wears their arena and the two lands meet in the middle. Campaign levels and the tutorial keep their own."
 var _king_rows: VBoxContainer
 var confirm: ConfirmationDialog
 var _confirm_action: Callable
@@ -120,6 +124,8 @@ Best: %d trophies." % SaveGame.async_best() if SaveGame.async_best() > 0 else ""
 	main_box.add_child(row)
 	king_button = _button(row, "King", func(): _show_panel(king_panel))
 	king_button.custom_minimum_size = Vector2(120, 44)
+	arena_button = _button(row, "Arena", func(): _show_panel(arena_panel))
+	arena_button.custom_minimum_size = Vector2(120, 44)
 	var plan_btn := _button(row, "Planner", func(): _show_panel(planner_panel))
 	plan_btn.custom_minimum_size = Vector2(120, 44)
 	plan_btn.tooltip_text = Tip.wrap("Plan a team and save comps before you play. Your plan carries into every run (planned units are starred in the shop).")
@@ -134,6 +140,7 @@ Best: %d trophies." % SaveGame.async_best() if SaveGame.async_best() > 0 else ""
 	info_panel = _build_info_panel()
 	credits_panel = _build_credits_panel()
 	king_panel = _build_king_panel()
+	arena_panel = _build_arena_panel()
 	planner_panel = _build_planner_panel()
 	lobby_panel = _build_lobby_panel()
 	room_panel = _build_room_panel()
@@ -264,7 +271,7 @@ func _show_panel(panel: Control):
 		return
 	main_box.get_parent().visible = panel == null
 	var screens := {campaign_panel: "campaign", settings_panel: "settings", keybinds_panel: "keybinds", info_panel: "info", credits_panel: "credits",
-		lobby_panel: "lobby", room_panel: "lobby_room", king_panel: "king", planner_panel: "planner"}
+		lobby_panel: "lobby", room_panel: "lobby_room", king_panel: "king", arena_panel: "arena", planner_panel: "planner"}
 	for p in screens:
 		if p != null:
 			p.get_parent().visible = panel == p
@@ -276,11 +283,13 @@ func _show_panel(panel: Control):
 		_refresh()
 
 func _panel_open() -> bool:
-	return [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel, king_panel, planner_panel].any(func(p): return p != null and p.get_parent().visible)
+	return [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel, king_panel, arena_panel, planner_panel].any(func(p): return p != null and p.get_parent().visible)
 
 func _refresh():
 	var saved := _saved_level()
 	king_button.tooltip_text = Tip.wrap("Your king: %s. It stands beside the board, can't be hurt, and every 10 s strikes a random enemy. Its skin adds one more effect." % KingSkins.display_name(KingSkins.selected()))
+	var arena := BoardThemes.picked()
+	arena_button.tooltip_text = Tip.wrap("Your arena: %s. The land your half of the board stands in outside the campaign." % (BoardThemes.display_name(arena) if arena != &"" else "Random (a new one every run)"))
 	continue_button.visible = saved != null
 	if saved != null:
 		continue_button.text = continue_text(saved, SaveGame.chapter_run())
@@ -571,6 +580,117 @@ func _king_preview(id: StringName) -> Control:
 	if not KingSkins.owned(id):
 		holder.modulate = Color(0.35, 0.35, 0.4)
 	return holder
+
+# Arena: pick the biome your half of the board wears (Random by default). A card per biome with a small
+# 3D view of its tiles, plus Random; the chosen one has a gold edge. Saved at once (SaveGame.arena).
+const ARENA_CARD := Vector2i(104, 72)
+func _build_arena_panel() -> PanelContainer:
+	var panel := _panel()
+	panel.custom_minimum_size = Vector2(640, 0)
+	var box := panel.get_child(0) as VBoxContainer
+	box.add_child(_heading("Arena"))
+	var note := _label(ARENA_TEXT, 13, GREY)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(580, 0)
+	box.add_child(note)
+	_arena_grid = GridContainer.new()
+	_arena_grid.columns = 5
+	_arena_grid.add_theme_constant_override("h_separation", 8)
+	_arena_grid.add_theme_constant_override("v_separation", 8)
+	_arena_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(_arena_grid)
+	_arena_grid.add_child(_arena_card(&""))
+	for id in BoardThemes.ORDER:
+		_arena_grid.add_child(_arena_card(id))
+	_mark_arena()
+	_button(box, "Back", func(): _show_panel(null))
+	return panel
+
+func _arena_card(id: StringName) -> Control:
+	var card := HudPlate.new()
+	card.setup_plate(6, 6, 6, DockKit.WELL)
+	card.name = "Arena_" + (String(id) if id != &"" else "random")
+	card.set_meta("arena", id)
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var where: String = BoardThemes.WHERE.get(id, "")
+	card.tooltip_text = Tip.wrap("A different land every run (the default)." if id == &"" else BoardThemes.display_name(id) + (". In the campaign: " + where + "." if where != "" else ". Not in the campaign: only as an arena."))
+	card.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			pick_arena(id))
+	var col := VBoxContainer.new()
+	col.name = "Col"
+	col.add_theme_constant_override("separation", 4)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(col)
+	col.add_child(_arena_preview(id) if id != &"" else _arena_random())
+	var name_l := _label(BoardThemes.display_name(id) if id != &"" else "Random", 12, HudStyle.INK)
+	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_l.name = "Name"
+	col.add_child(name_l)
+	return card
+
+# Saves the pick ("" = random) and marks its card.
+func pick_arena(id: StringName) -> void:
+	SaveGame.set_arena(String(id))
+	_mark_arena()
+	_refresh()
+
+func _mark_arena() -> void:
+	var chosen := BoardThemes.picked()
+	for card in _arena_grid.get_children():
+		var on: bool = card.get_meta("arena") == chosen
+		card.set_edge(HudStyle.EDGE_GOLD if on else HudStyle.EDGE)
+		(card.get_node("Col/Name") as Label).add_theme_color_override("font_color", HudStyle.GOLD if on else HudStyle.INK)
+
+# A still 3D view of a few of the biome's tiles (a tree, a standing stone, flowers), in its own light.
+func _arena_preview(id: StringName) -> Control:
+	var holder := SubViewportContainer.new()
+	holder.custom_minimum_size = ARENA_CARD
+	holder.stretch = true
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.size = ARENA_CARD
+	holder.add_child(vp)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = BoardThemes.backdrop(id)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	var we := WorldEnvironment.new()
+	we.environment = env
+	vp.add_child(we)
+	var sun := DirectionalLight3D.new()
+	vp.add_child(sun)
+	BoardThemes.apply_look(id, env, sun)
+	env.fog_enabled = false   # the run's haze is tuned for the board's distance, not a close-up
+	env.glow_enabled = false
+	var w := sqrt(3.0)   # hex width (Board.HEX = 1)
+	var cells := [[Vector3(0, 0, 0), "tree_1"], [Vector3(-w, 0, 0), "standing"], [Vector3(w, 0, 0), "flowers"],
+		[Vector3(-w * 0.5, 0, 1.5), "base_1"], [Vector3(w * 0.5, 0, 1.5), "base_2"], [Vector3(-w * 0.5, 0, -1.5), "stone"], [Vector3(w * 0.5, 0, -1.5), "roots"]]
+	for cell in cells:
+		var m := MeshInstance3D.new()
+		m.mesh = BoardThemes.tile(id, cell[1])
+		m.position = cell[0]
+		vp.add_child(m)
+	var cam := Camera3D.new()
+	cam.fov = 34.0
+	vp.add_child(cam)
+	cam.look_at_from_position(Vector3(0, 5.2, 6.2), Vector3(0, 0.6, 0))
+	return holder
+
+func _arena_random() -> Control:
+	var well := ColorRect.new()
+	well.color = HudStyle.LIP
+	well.custom_minimum_size = ARENA_CARD
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var q := HudStyle.number(48, GOLD)
+	q.text = "?"
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	q.set_anchors_preset(Control.PRESET_FULL_RECT)
+	well.add_child(q)
+	return well
 
 const MUSIC_URL := "https://soundcloud.com/joe-gallagher-620567095"
 

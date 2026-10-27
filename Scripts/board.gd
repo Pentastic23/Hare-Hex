@@ -23,7 +23,9 @@ var enemy_order: Array[Vector2i] = []
 var foe_level := -1   # the enemy half's level (async PvP's ghost, a lobby); -1 = it follows yours (refresh_unlocks)
 var kings: Array[King] = []   # index = team (0 you, 1 the enemy): the extra hex left of each side, see king.gd
 var _border_mat: StandardMaterial3D
-var theme: StringName = &""   # the board look (BoardThemes); set by apply_theme
+var theme: StringName = &""   # the board look (BoardThemes) of your half, near the camera; set by apply_theme
+var foe_theme: StringName = &""   # the far half's (the opponent's arena in PvP; else the same as theme)
+var _theme_seed := 0
 var runner: CombatRunner      # the fight on this board (set by CombatRunner.new(board)); Abilities find it here
 # Whose board this is: gold from selling, items given back. The visible board is the local player's
 # (GameState.me); the lobby server's seat boards belong to their seats. Signals (Events) only fire for
@@ -166,36 +168,58 @@ func _ready():
 # of the biome's three plain voxel tiles (picked by its coord), the bench, sell hex and kings get theirs,
 # the world round it is filled with the biome's decorated tiles (flowers, stones, roots, standing stones,
 # shrines, trees) from `seed` (_build_backdrop), and the backdrop takes the biome's colour. Visual only.
-func apply_theme(id: StringName, seed := 0) -> void:
+# With `foe` (PvP: the opponent's arena) the far half, its bench and king wear that biome instead, and
+# the scenery mixes the two across the middle of the board (_half_biome); the light sits between them.
+const LIGHT_MIX := 0.35   # how far the light leans towards the far half's biome
+func apply_theme(id: StringName, seed := 0, foe: StringName = &"") -> void:
 	if not visual:
 		return
 	if not BoardThemes.has(id):
 		id = BoardThemes.DEFAULT
 	theme = id
-	for t in tiles.values():
-		var c: Vector2i = t.coord
-		_skin(t, VoxelTiles.BASES[posmod(c.x * 7 + c.y * 13, VoxelTiles.BASES.size())])
-	for s in _bench_tiles + _enemy_bench_tiles:
+	foe_theme = foe if BoardThemes.has(foe) else id
+	_theme_seed = seed
+	_skin_sides()
+	for s in _bench_tiles:
 		_skin(s, "bench")
-	for k in kings:
-		_skin(k, "base_2")
+	for s in _enemy_bench_tiles:
+		_skin(s, "bench", foe_theme)
 	if _sell_tile != null:
 		_skin(_sell_tile, "sell")
 	if interest != null:
 		_skin(interest, "base_2")
 	_build_backdrop(seed)
-	RenderingServer.set_default_clear_color(BoardThemes.backdrop(id))
+	var mix := LIGHT_MIX if foe_theme != theme else 0.0
+	RenderingServer.set_default_clear_color(BoardThemes.backdrop_between(id, foe_theme, mix))
 	var main := get_parent()
 	if main != null:   # the run's sun, ambient light, haze and glow (main.tscn's WorldEnvironment and light)
 		var we := main.get_node_or_null("WorldEnvironment") as WorldEnvironment
-		BoardThemes.apply_look(id, we.environment if we != null else null, main.get_node_or_null("DirectionalLight3D") as DirectionalLight3D)
+		BoardThemes.apply_look(id, we.environment if we != null else null, main.get_node_or_null("DirectionalLight3D") as DirectionalLight3D, foe_theme, mix)
 		PortraitStudio.open(main, id)   # the unit portraits drawn in the same light
 
-func _skin(node: Node3D, part: String) -> void:
+# A new opponent's arena on the far half (async PvP's ghost, a lobby fight). Rebuilt only when it changes.
+func set_foe_theme(foe: StringName) -> void:
+	if not visual or theme == &"":
+		return
+	if not BoardThemes.has(foe):
+		foe = theme
+	if foe != foe_theme:
+		apply_theme(theme, _theme_seed, foe)
+
+# The board's hexes and the kings, each in the arena of the half it shows on: rows 4-7 (team 0) sit near
+# the camera, unless a lobby's away view has turned the board (then rows 0-3 do, and they are yours).
+func _skin_sides() -> void:
+	for t in tiles.values():
+		var c: Vector2i = t.coord
+		_skin(t, VoxelTiles.BASES[posmod(c.x * 7 + c.y * 13, VoxelTiles.BASES.size())], theme if (c.y >= ROWS / 2) != view_flipped else foe_theme)
+	for i in kings.size():
+		_skin(kings[i], "base_2", theme if (i == 0) != view_flipped else foe_theme)
+
+func _skin(node: Node3D, part: String, biome: StringName = &"") -> void:
 	var mi := node.get_node_or_null("MeshInstance3D") as MeshInstance3D
 	if mi == null:
 		return
-	var m := BoardThemes.tile(theme, part)
+	var m := BoardThemes.tile(biome if biome != &"" else theme, part)
 	mi.mesh = m if m != null else hex_block()   # not baked yet: the plain block
 	mi.material_override = null
 	for i in mi.get_surface_override_material_count():
@@ -219,6 +243,9 @@ const TALL := ["standing", "tree_1", "tree_2"]
 const SCENERY_SHADE := Color(0.85, 0.85, 0.88)   # the board stays at full brightness, so it reads at a glance
 const UNDERLAY_SHADE := Color(0.6, 0.6, 0.64)    # board hexes not unlocked yet
 var backdrop_cells := {}      # hex -> part, the scenery laid out by the last apply_theme (tests read it)
+var backdrop_biomes := {}     # hex -> biome of that scenery (two of them when the halves differ)
+const BLEND_ROWS := 3.0       # how many hex rows the two halves' scenery mixes over, across the middle
+const EDGE_WAVE := 3.0        # how far (in rows) the line between them wanders, so it never runs straight
 var _flip_spots: Array[Node3D] = []
 
 func _build_backdrop(seed: int) -> void:
@@ -230,7 +257,14 @@ func _build_backdrop(seed: int) -> void:
 	root.name = "Backdrop"
 	add_child(root)
 	backdrop_cells.clear()
+	backdrop_biomes.clear()
 	_flip_spots.clear()
+	var mixed := foe_theme != theme and BoardThemes.has(foe_theme)
+	var edge := FastNoiseLite.new()   # the wandering line between the two halves (its own seed: one biome lays out as before)
+	edge.seed = hash([seed, "edge"])
+	edge.frequency = 0.09
+	var scatter := RandomNumberGenerator.new()   # which hexes near that line cross over
+	scatter.seed = hash([seed, String(theme), String(foe_theme)])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, String(theme)])
 	var growth := FastNoiseLite.new()   # groves, meadows and rocky patches
@@ -260,7 +294,7 @@ func _build_backdrop(seed: int) -> void:
 				continue
 			var spin := Basis(Vector3.UP, rng.randi_range(0, 5) * PI / 3.0)   # a hex fits every sixth of a turn
 			if tiles.has(c) or (c.x == -1 and c.y in KING_ROWS):   # under the board (and the kings' full-board spots): lower, darker ground until a tile or king is there
-				_group(groups, "underlay", Transform3D(spin, pos + Vector3(0, -3.0 * VoxelTiles.V, 0)))
+				_group(groups, _key(theme if c.y >= ROWS / 2 or not mixed else foe_theme, "underlay"), Transform3D(spin, pos + Vector3(0, -3.0 * VoxelTiles.V, 0)))
 				continue
 			if c == INTEREST_CELL:
 				continue   # the interest hex stands here
@@ -278,21 +312,28 @@ func _build_backdrop(seed: int) -> void:
 			if d > FLAT_RING and not in_front:
 				height += roundi(lift.get_noise_2d(x, y) * 3.0) * VoxelTiles.V   # -2 to +2 voxels more
 			var t := Transform3D(spin, pos + Vector3(0, height, 0))
+			var biome := _half_biome(c, edge, scatter) if mixed else theme
 			backdrop_cells[c] = part
+			backdrop_biomes[c] = biome
 			if c.x == COLS and (ROWS - 1 - c.y) in KING_ROWS:
-				_flip_spot(root, part, t)   # where a turned lobby board's kings stand: its own node
-			elif theme == &"desert" and rng.randf() < MIRAGE_CHANCE:
+				_flip_spot(root, part, t, biome)   # where a turned lobby board's kings stand: its own node
+			elif biome == &"desert" and rng.randf() < MIRAGE_CHANCE:
 				_group(groups, "flowers|mirage", t)
 			else:
-				_group(groups, part, t)
+				_group(groups, _key(biome, part), t)
 	for key in groups:
 		var name: String = key
+		var biome := theme
+		var part: String = name
+		if name.contains("/"):   # the far half's biome
+			biome = StringName(name.get_slice("/", 0))
+			part = name.get_slice("/", 1)
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true   # scenery a shade darker than the board, locked board hexes darker still
 		var mirage := name.ends_with("|mirage")
-		var underlay := name == "underlay"
-		mm.mesh = BoardThemes.tile(&"forest" if mirage else theme, "flowers" if mirage else ("base_2" if underlay else name))
+		var underlay := part == "underlay"
+		mm.mesh = BoardThemes.tile(&"forest" if mirage else biome, "flowers" if mirage else ("base_2" if underlay else part))
 		if mm.mesh == null:
 			continue
 		var list: Array = groups[key]
@@ -302,7 +343,7 @@ func _build_backdrop(seed: int) -> void:
 			mm.set_instance_transform(i, list[i])
 			mm.set_instance_color(i, shade)
 		var mmi := MultiMeshInstance3D.new()
-		mmi.name = name.replace("|", "_")
+		mmi.name = name.replace("|", "_").replace("/", "_")
 		mmi.multimesh = mm
 		if mirage:
 			mmi.material_override = _mirage_mat()
@@ -321,14 +362,26 @@ func _pick_part(g: float, d: int, rng: RandomNumberGenerator) -> String:
 		return "stone" if r < 0.3 else ("standing" if r < 0.42 else "base_3")
 	return "flowers" if r < 0.12 else ("stone" if r < 0.2 else "base_1")
 
+# Which half's biome a scenery hex takes when the two differ: yours towards the camera, the opponent's
+# beyond the middle of the board, mixed across a band a few rows wide whose middle wanders with the noise,
+# so the two lands run into each other like neighbouring countryside rather than meeting at a straight line.
+func _half_biome(c: Vector2i, edge: FastNoiseLite, scatter: RandomNumberGenerator) -> StringName:
+	var rows := c.y - (ROWS - 1) / 2.0 + edge.get_noise_2d(c.x, c.y) * EDGE_WAVE   # + towards you
+	var near := smoothstep(0.0, 1.0, clampf(0.5 + rows / BLEND_ROWS, 0.0, 1.0))
+	return theme if scatter.randf() < near else foe_theme
+
+# A scenery group's key: the part for your half's biome (as before there were two), "<biome>/<part>" else.
+func _key(biome: StringName, part: String) -> String:
+	return part if biome == theme else String(biome) + "/" + part
+
 func _group(groups: Dictionary, key: String, t: Transform3D) -> void:
 	if not groups.has(key):
 		groups[key] = []
 	groups[key].append(t)
 
-func _flip_spot(root: Node3D, part: String, t: Transform3D) -> void:
+func _flip_spot(root: Node3D, part: String, t: Transform3D, biome: StringName) -> void:
 	var m := MeshInstance3D.new()
-	m.mesh = BoardThemes.tile(theme, part)
+	m.mesh = BoardThemes.tile(biome, part)
 	m.transform = t
 	m.visible = not view_flipped
 	root.add_child(m)
@@ -581,6 +634,8 @@ func set_view_flipped(on: bool) -> void:
 			node.transform = t
 	for k in kings:
 		k.recolour()
+	if foe_theme != theme:
+		_skin_sides()   # the halves swap places on screen, and each keeps its own player's arena
 	for m in _flip_spots:
 		if is_instance_valid(m):
 			m.visible = not on   # the scenery steps aside where the turned kings stand

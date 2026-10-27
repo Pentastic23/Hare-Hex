@@ -4,8 +4,10 @@ class_name BoardThemes
 # The board's biomes (docs/hex-tile-design-plan.md): each is a set of voxel hex tiles baked by
 # tools/make_voxel_tiles.gd from VoxelTiles.BIOMES (plain base tiles for the playable board, bench, sell
 # hex, and decor variants and trees for the background ring) plus a backdrop colour. Each campaign level
-# names its biome (CampaignLevel.theme); free play, async PvP and lobbies pick one from the run seed
-# (for_run). Floating Islands from the plan isn't built (it needs extra code for the perspective).
+# names its biome (CampaignLevel.theme); free play, async PvP and lobbies use the player's arena (picked on
+# the main menu, SaveGame.arena) or one from the run seed (for_run). In PvP the far half wears the
+# opponent's arena and the two blend across the middle (Board.apply_theme's `foe`).
+# Floating Islands from the plan isn't built (it needs extra code for the perspective).
 
 const ORDER: Array[StringName] = [&"forest", &"autumn", &"snow", &"swamp", &"volcano", &"cave", &"mushroom", &"mushroom_cave", &"jungle", &"desert", &"salt_flats", &"parasitic"]
 const DEFAULT: StringName = &"forest"
@@ -29,11 +31,24 @@ static func has(id: StringName) -> bool:
 static func display_name(id: StringName) -> String:
 	return VoxelTiles.BIOMES[String(id)].name if has(id) else ""
 
-# The biome for a run: the level's own, else one picked from the run seed (free play, async PvP, lobbies).
-static func for_run(level: CampaignLevel, seed: int) -> StringName:
+# The biome for a run: a campaign level always uses its own (the arena pick never touches the campaign
+# or the tutorial); otherwise `pick` (the player's arena, picked()) if it is a biome, else one from the seed.
+static func for_run(level: CampaignLevel, seed: int, pick: StringName = &"") -> StringName:
 	if level != null and has(level.theme):
 		return level.theme
+	if level == null and has(pick):
+		return pick
 	return ORDER[absi(seed) % ORDER.size()]
+
+# The arena the player picked on the main menu (SaveGame.arena), or &"" for a random one.
+static func picked() -> StringName:
+	var id := StringName(SaveGame.arena())
+	return id if has(id) else &""
+
+# A lobby seat's arena: its pick, else one from the game seed and the seat (the server and every client
+# work it out the same way, so everyone sees the same biome on that player's side).
+static func for_seat(pick: StringName, seed: int, seat: int) -> StringName:
+	return pick if has(pick) else ORDER[absi(hash([seed, seat])) % ORDER.size()]
 
 static func backdrop(id: StringName) -> Color:
 	return Color(VoxelTiles.BIOMES[String(id)].backdrop) if has(id) else Color(0.3, 0.3, 0.3)
@@ -58,8 +73,12 @@ const LIGHT := {
 
 # Lights the run in a biome: the sun, the ambient light, the haze and the glow. With Settings.post_fx
 # off (Glow & fog, off in the Low preset) the glow and haze are switched off; the light still changes.
-static func apply_look(id: StringName, env: Environment, sun: DirectionalLight3D) -> void:
+# With `other` (the far half's biome, when the two players' arenas differ) the light is mixed `mix` of
+# the way towards it, so one sun and one haze suit both halves.
+static func apply_look(id: StringName, env: Environment, sun: DirectionalLight3D, other: StringName = &"", mix := 0.0) -> void:
 	var l: Dictionary = LIGHT.get(id, LIGHT[DEFAULT])
+	if mix > 0.0 and other != id and LIGHT.has(other):
+		l = _blend_light(l, LIGHT[other], mix)
 	if sun != null:
 		sun.light_color = Color(l.sun)
 		sun.light_energy = l.sun_e
@@ -73,6 +92,19 @@ static func apply_look(id: StringName, env: Environment, sun: DirectionalLight3D
 	env.glow_intensity = l.glow
 	env.glow_enabled = Settings.post_fx
 	env.fog_enabled = Settings.post_fx
+
+static func _blend_light(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
+	var out := {}
+	for k in a:
+		if a[k] is String:
+			out[k] = Color(a[k]).lerp(Color(b[k]), t)   # apply_look's Color() takes a Color as well
+		else:
+			out[k] = lerpf(float(a[k]), float(b[k]), t)
+	return out
+
+# The clear colour between two biomes (mostly hidden by the scenery).
+static func backdrop_between(id: StringName, other: StringName, mix: float) -> Color:
+	return backdrop(id).lerp(backdrop(other), mix) if has(other) else backdrop(id)
 
 # A baked tile of a biome (VoxelTiles.PARTS: base_1..3, bench, sell, flowers, stone, roots, standing,
 # shrine, tree_1, tree_2).

@@ -396,6 +396,57 @@ Wave 1/6: Scouts"), tip2.replace("
 	var again: Dictionary = board.backdrop_cells
 	chk("the same seed lays out the same scenery", first == again)
 	chk("free play picks a biome from the run seed", BoardThemes.for_run(null, 12) == BoardThemes.for_run(null, 12) and BoardThemes.has(BoardThemes.for_run(null, 12)) and BoardThemes.for_run(null, 3) != BoardThemes.for_run(null, 4))
+	var ch2_l3: CampaignLevel = load("res://tres/campaign/levels/ch2_l3.tres")
+	chk("an arena pick wins in free play but never in a campaign level", BoardThemes.for_run(null, 3, &"swamp") == &"swamp" and BoardThemes.for_run(ch2_l3, 3, &"swamp") == &"volcano" and BoardThemes.for_run(null, 3, &"nonsense") == BoardThemes.for_run(null, 3))
+	chk("a lobby seat's arena: its pick, else the same random one for the same seed and seat", BoardThemes.for_seat(&"snow", 9, 2) == &"snow" and BoardThemes.for_seat(&"", 9, 2) == BoardThemes.for_seat(&"", 9, 2) and BoardThemes.has(BoardThemes.for_seat(&"", 9, 2)))
+
+	print("--- two arenas, one board")
+	board.apply_theme(&"volcano", GameState.run_seed, &"volcano")
+	chk("the same arena on both halves lays out exactly as one", board.backdrop_cells == first and board.foe_theme == &"volcano" and board.backdrop_biomes.values().all(func(b): return b == &"volcano"))
+	board.apply_theme(&"snow", GameState.run_seed, &"volcano")
+	var mesh_of := func(n: Node3D) -> String: return (n.get_node("MeshInstance3D") as MeshInstance3D).mesh.resource_path
+	var halves_ok := true
+	for t in board.tiles.values():
+		halves_ok = halves_ok and mesh_of.call(t).contains("/snow/" if t.coord.y >= Board.ROWS / 2 else "/volcano/")
+	chk("your half of the board is your arena, the far half the opponent's", halves_ok)
+	chk("each bench and king is in its own side's arena", mesh_of.call(board._bench_tiles[0]).contains("/snow/") and mesh_of.call(board._enemy_bench_tiles[0]).contains("/volcano/") and mesh_of.call(board.kings[0]).contains("/snow/") and mesh_of.call(board.kings[1]).contains("/volcano/") and mesh_of.call(board._sell_tile).contains("/snow/"))
+	var near_mine := true
+	var far_foe := true
+	var middle := {}
+	for c in board.backdrop_biomes:
+		var cc: Vector2i = c
+		var b: StringName = board.backdrop_biomes[cc]
+		if cc.y >= Board.ROWS + 1:
+			near_mine = near_mine and b == &"snow"
+		elif cc.y <= -3:
+			far_foe = far_foe and b == &"volcano"
+		elif cc.y in [3, 4]:
+			middle[b] = true
+	chk("the scenery is yours towards the camera, theirs beyond the board", near_mine and far_foe)
+	chk("and the two lands mix beside the middle of the board", middle.has(&"snow") and middle.has(&"volcano"), str(middle.keys()))
+	var drawn: Array = board.get_node("Backdrop").get_children().map(func(n): return String(n.name))
+	chk("both biomes' scenery is drawn", drawn.any(func(n): return n.begins_with("volcano_") and n != "volcano_underlay") and drawn.has("underlay") and drawn.has("volcano_underlay") and drawn.any(func(n): return not n.begins_with("volcano_") and not n.begins_with("@") and n != "underlay"), str(drawn))
+	var mixed_env := (board.get_parent().get_node("WorldEnvironment") as WorldEnvironment).environment
+	chk("the light sits between the two biomes", mixed_env.fog_light_color.is_equal_approx(Color(BoardThemes.LIGHT[&"snow"].fog).lerp(Color(BoardThemes.LIGHT[&"volcano"].fog), Board.LIGHT_MIX)))
+	var mixed_cells: Dictionary = board.backdrop_biomes.duplicate()
+	board.apply_theme(&"snow", GameState.run_seed, &"volcano")
+	chk("the same seed mixes them the same way", board.backdrop_biomes == mixed_cells)
+	board.set_view_flipped(true)
+	var flipped_ok := true
+	for t in board.tiles.values():
+		flipped_ok = flipped_ok and mesh_of.call(t).contains("/volcano/" if t.coord.y >= Board.ROWS / 2 else "/snow/")
+	chk("a lobby's turned view keeps your arena on the near half (the tiles there are yours)", flipped_ok and mesh_of.call(board.kings[1]).contains("/snow/"))
+	board.set_view_flipped(false)
+	board.set_foe_theme(&"snow")
+	chk("set_foe_theme back to yours gives one arena again", board.foe_theme == &"snow" and board.backdrop_biomes.values().all(func(b): return b == &"snow"))
+
+	print("--- the arena pick in a run")
+	SaveGame.set_arena("swamp")
+	await start(null)
+	chk("free play wears the picked arena", board.theme == &"swamp" and board.foe_theme == &"swamp")
+	await start(ch2_l3)
+	chk("a campaign level ignores it", board.theme == &"volcano")
+	SaveGame.set_arena("")
 
 	print("--- free play")
 	await start(null)

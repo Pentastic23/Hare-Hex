@@ -12,7 +12,8 @@ class_name SaveGame extends RefCounted
 #     "chapter_run": {} or the carried state at the start of the next level (see GameManager.make_carry),
 #     "team_plan": [ "<unit display name>", ... ],
 #     "team_comps": [ { "name": str, "units": [ "<unit display name>", ... ] }, ... ],   (saved plans, the planner's Comps)
-#     "king": "<king skin id>" }   (the chosen king; "" = not picked yet)
+#     "king": "<king skin id>",   (the chosen king; "" = not picked yet)
+#     "arena": "<biome id>" }     (your half of the board in free play, async PvP and lobbies; "" = random)
 # Version 1 files (no chapter_run) and files without team_plan load fine.
 #
 # Mid-level saves: while a chapter level is being played, chapter_run is rewritten at the start of every
@@ -41,7 +42,7 @@ static func data() -> Dictionary:
 	return _data
 
 static func _defaults() -> Dictionary:
-	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}, "team_plan": [], "team_comps": [], "king": "", "async_best": 0}
+	return {"version": VERSION, "completed_levels": {}, "unlocks": [], "chapter_run": {}, "team_plan": [], "team_comps": [], "king": "", "arena": "", "async_best": 0}
 
 static func load_game() -> void:
 	_data = _defaults()
@@ -95,6 +96,7 @@ static func _migrate(d: Dictionary) -> Dictionary:
 			if c is Dictionary and c.get("units") is Array:
 				out.team_comps.append({"name": str(c.get("name", "Comp")), "units": (c.units as Array).map(func(n): return str(n))})
 	out.king = str(d.get("king", ""))
+	out.arena = str(d.get("arena", ""))
 	out.async_best = maxi(int(d.get("async_best", 0)), 0)
 	return out
 
@@ -148,6 +150,14 @@ static func king_skin() -> String:
 
 static func set_king_skin(id: String) -> void:
 	data().king = id
+	save_game()
+
+# The chosen arena (BoardThemes): a biome id, or "" for a random one each run.
+static func arena() -> String:
+	return str(data().get("arena", ""))
+
+static func set_arena(id: String) -> void:
+	data().arena = id
 	save_game()
 
 # Async PvP: the most trophies a run has reached (endless runs count on past 10).
@@ -240,9 +250,11 @@ static func reset_progress() -> void:
 	var plan: Array = data().team_plan   # the team plan is a preference, not progress: keep it
 	var king: String = data().king   # so is the chosen king
 	var comps: Array = data().team_comps   # and the saved comps
+	var arena := arena()   # and the chosen arena
 	_data = _defaults()
 	_data.team_plan = plan
 	_data.team_comps = comps
 	_data.king = king
+	_data.arena = arena
 	_loaded = true
 	save_game()

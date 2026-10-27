@@ -7,7 +7,7 @@ class_name LobbyProtocol extends RefCounted
 # and the balance hash (BoardSnapshot.balance_hash: unit and item stats) match.
 #
 # Client -> server
-#   hello {v, balance, name, token, king}   join (king: your king skin id) (token: rejoin your seat after a disconnect; "" otherwise)
+#   hello {v, balance, name, token, king, arena}   join (king: your king skin id; arena: your board biome, "" = random) (token: rejoin your seat after a disconnect; "" otherwise)
 #   add_bot {} / remove_bot {seat} / start {seed?}   the host, in the lobby room
 #   leave {}
 #   intents, during PREP (and bench-only during a fight), each with a client "seq":
@@ -31,7 +31,8 @@ class_name LobbyProtocol extends RefCounted
 #   reject {seq, why, of}             an intent that wasn't allowed (your state follows anyway)
 #   over {places: [{seat, name, place, hp}], round}
 
-const VERSION := 4   # 2: hello carries the king skin; fights carry home_king / away_king / away_level; 4: state carries recv / recv_items (items handed out)
+const VERSION := 5   # 2: hello carries the king skin; fights carry home_king / away_king / away_level; 4: state carries recv / recv_items (items handed out)
+                     # 5: hello carries the arena; fights carry home_arena / away_arena
                      # 3: the opening round (state.opening), streaks in public, scout / board; fights carry
                      #    home_bench / away_bench (display only: each player sees the other's bench)
 const DEFAULT_PORT := 7777

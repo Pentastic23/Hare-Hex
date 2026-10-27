@@ -242,7 +242,7 @@ class Driver extends Node:
 		srv.receive(5, {"t": "hello", "v": 999, "balance": LobbyProtocol.balance(), "name": "Old"})
 		chk("a different version is refused", inbox.size() == 1 and inbox[0].t == "error" and inbox[0].why == "version")
 		inbox.clear()
-		srv.receive(5, {"t": "hello", "v": LobbyProtocol.VERSION, "balance": LobbyProtocol.balance(), "name": "  Tester\u0007 "})
+		srv.receive(5, {"t": "hello", "v": LobbyProtocol.VERSION, "balance": LobbyProtocol.balance(), "name": "  Tester\u0007 ", "arena": "jungle"})
 		chk("joining: a seat, a token and the host", inbox.size() >= 2 and inbox[0].t == "welcome" and int(inbox[0].seat) == 0 and bool(inbox[0].host) and str(inbox[0].token) != "")
 		chk("names are cleaned (trimmed, no control characters)", srv.seats[0].name == "Tester", srv.seats[0].name)
 		srv.receive(5, {"t": "start"})
@@ -290,6 +290,8 @@ class Driver extends Node:
 		# a fight: board units are fighting (their copies are), the bench is not
 		srv._begin_combat()
 		chk("the fight starts with your description sent to you", inbox.any(func(m): return m.t == "fight" and int(m.fight.home) == 0))
+		var my_desc: Dictionary = (srv.fights[0] if int(srv.fights[0].desc.home) == 0 else srv.fights[1]).desc
+		chk("fights carry each side's arena: your pick, a bot's from the seed", my_desc.get("home_arena") == "jungle" and BoardThemes.has(StringName(str(my_desc.get("away_arena", "")))) and srv.arena_of(srv.seats[1]) == BoardThemes.for_seat(&"", 31337, 1))
 		srv.receive(5, {"t": "move", "uid": u.uid, "bench": 0, "tile": [-1, -1], "seq": 9})
 		chk("mid-fight, fighting units can't be moved...", u.coord == open)
 		srv.receive(5, {"t": "sell", "uid": u.uid, "seq": 10})

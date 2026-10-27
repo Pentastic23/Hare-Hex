@@ -17,6 +17,7 @@ class_name Arena extends RefCounted
 #    "away_scale": float (a PvE wave's strength; 1.0 for players), "away_synergies": bool}
 #   kings: "home_king" / "away_king" (KingSkins ids, "" for a PvE wave: it strikes but has no skin),
 #    "away_level" (the away king's strike scales with it); the kings' picks are seeded from "id" and "round".
+#   arenas: "home_arena" / "away_arena" (BoardThemes ids: each player's half of the board; display only)
 #   unit entry: {"uid": int, "unit": "<display name>", "star": int, "items": ["<item id>", ...],
 #                "stacks": {"<item id>": int}, "coord": [x, y]}
 #
