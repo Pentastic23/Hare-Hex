@@ -196,6 +196,14 @@ func _run():
 	chk("a blank name keeps the old one", SaveGame.team_comps()[0].name == "Knight rush" and planner.name_edit.text == "Knight rush")
 	planner.delete_button.pressed.emit()
 	chk("Del removes it", SaveGame.team_comps().is_empty())
+	var missing: Array = []
+	for p in planner.PRESETS:
+		for n in p[1]:
+			if EnemyBoard.lookup_unit(gm.roster, n) == null:
+				missing.append("%s: %s" % [p[0], n])
+	chk("every preset comp names real units", planner.PRESETS.size() == 10 and missing.is_empty(), str(missing))
+	chk("picking a preset plans it, and it can't be renamed or deleted", planner.pick_preset("Wild Hunt") and SaveGame.team_plan() == planner.PRESETS[5][1] and planner.delete_button.disabled and not planner.name_edit.visible and SaveGame.team_comps().is_empty())
+	planner.clear_plan()
 	dock.close_panel()
 
 	print("--- Settings from the pause menu")

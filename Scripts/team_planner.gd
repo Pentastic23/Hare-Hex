@@ -8,7 +8,22 @@ extends VBoxContainer
 # highlighted in the shop (shop_slot.gd). The plan is saved (SaveGame.team_plan) by unit name.
 # A trait filter shows only that trait's units (every cost) instead of a cost tab; the Comps row saves
 # the plan as a named comp (named after its strongest traits; SaveGame.team_comps), loads one back or
-# deletes it. The main menu shows this panel too (Planner), with the full roster.
+# deletes it. Below a line the same dropdown lists PRESETS, built-in comps every player has (not in the
+# save, so they can't be renamed or deleted). The main menu shows this panel too (Planner), with the full roster.
+
+# Built-in comps: [name, [unit display names]]. Names must match the roster (roster_checks doesn't see these).
+const PRESETS := [
+	["Celestial Crusade", ["Paladin", "Knight", "Cleric", "Acolyte", "Monk", "Seraph"]],
+	["Shadow Assassins", ["Thief", "Assassin", "Reaper", "Nightstalker", "Nightblade", "Shadowfist", "Imp"]],
+	["Frozen Kingdom", ["Frostling", "Frost Archer", "Ice Mage", "Winter Knight", "Frost Giant", "Frost Queen", "Mage", "Archmage"]],
+	["Infernal Summoners", ["Imp", "Cultist", "Necromancer", "Demonologist", "Hellknight", "Archdemon", "Phoenix", "Lich"]],
+	["Dwarven Artillery", ["Miner", "Ironbeard", "Alchemist", "Runesmith", "Skald", "Dwarf Gunner", "Titan"]],
+	["Wild Hunt", ["Archer", "Scout", "Druid", "Initiate", "Berserker", "Hunter", "Beastmaster", "Treant"]],
+	["Arcane Academy", ["Apprentice", "Mage", "Archmage", "Cleric", "Zen Master", "Dragon", "Frost Queen"]],
+	["Royal Vanguard", ["Knight", "Militia", "Guardian", "Paladin", "Herald", "Warlord", "Dragon", "Winter Knight", "Titan"]],
+	["Fey Festival", ["Sprite", "Bard", "Dryad", "Minstrel", "Duelist", "Faerie Queen", "Treant", "Archmage"]],
+	["Undead Legion", ["Skeleton", "Necromancer", "Ghoul", "Plague Doctor", "Lich", "Deathlord", "Demonologist", "Archdemon", "Reaper"]],
+]
 
 const COLUMNS := 5
 const GAP := 4
@@ -74,7 +89,7 @@ func _ready():
 	comps_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	comps_row.add_theme_constant_override("separation", 4)
 	add_child(comps_row)
-	comps_pick = _dropdown("Your saved comps: pick one to plan it.")
+	comps_pick = _dropdown("Your saved comps, then the preset comps: pick one to plan it.")
 	comps_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	comps_pick.item_selected.connect(_on_comp_picked)
 	comps_row.add_child(comps_pick)
@@ -178,33 +193,56 @@ func _dropdown(tip: String) -> OptionButton:
 		o.add_theme_stylebox_override(k, s if k != "hover" else DockKit.flat(DockKit.WELL.lightened(0.06), 3, Vector4(6, 2, 6, 2)))
 	return o
 
-# The Comps dropdown: a placeholder line, then each saved comp.
+# The Comps dropdown: a placeholder line, each saved comp (items 1..n), a separator, then the presets.
 func _fill_comps() -> void:
 	comps_pick.clear()
 	var comps := SaveGame.team_comps()
 	comps_pick.add_item("Saved comps (%d)" % comps.size() if not comps.is_empty() else "No saved comps")
 	for c in comps:
 		comps_pick.add_item("%s  (%d)" % [c.name, (c.units as Array).size()])
+	comps_pick.add_separator("Presets")
+	for p in PRESETS:
+		comps_pick.add_item("%s  (%d)" % [p[0], (p[1] as Array).size()])
 	comps_pick.select(0)
 	delete_button.disabled = true
 	name_edit.visible = false
 
+# The preset at dropdown item i, or -1 when i isn't a preset.
+func preset_index(i: int) -> int:
+	var p := i - SaveGame.team_comps().size() - 2
+	return p if p >= 0 and p < PRESETS.size() else -1
+
+func _is_saved(i: int) -> bool:
+	return i > 0 and i <= SaveGame.team_comps().size()
+
 func _on_comp_picked(i: int) -> void:
-	delete_button.disabled = i == 0
+	delete_button.disabled = not _is_saved(i)
 	_show_name(i)
-	if i > 0:
+	if _is_saved(i):
 		_set_plan(SaveGame.team_comps()[i - 1].units)
+	elif preset_index(i) >= 0:
+		_set_plan((PRESETS[preset_index(i)][1] as Array).duplicate())
+
+# For checks and other scripts: plans the preset called `comp_name`. False if there's none.
+func pick_preset(comp_name: String) -> bool:
+	for p in PRESETS.size():
+		if PRESETS[p][0] == comp_name:
+			var i := SaveGame.team_comps().size() + 2 + p
+			comps_pick.select(i)
+			_on_comp_picked(i)
+			return true
+	return false
 
 func _show_name(i: int) -> void:
-	name_edit.visible = i > 0
-	if i > 0:
+	name_edit.visible = _is_saved(i)
+	if _is_saved(i):
 		name_edit.text = SaveGame.team_comps()[i - 1].name
 
 # Renames the picked comp to what the name field says (Enter, or leaving the field); a blank or taken
 # name puts the old one back.
 func rename_comp() -> void:
 	var i := comps_pick.selected
-	if i <= 0 or not name_edit.visible:
+	if not _is_saved(i) or not name_edit.visible:
 		return
 	if SaveGame.rename_comp(i - 1, name_edit.text):
 		var comps := SaveGame.team_comps()
