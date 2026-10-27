@@ -38,6 +38,8 @@ var runner_credits_both := false   # a lobby arena: both teams belong to players
 var _bench_tiles: Array[Node3D] = []
 var _enemy_bench_tiles: Array[Node3D] = []   # the enemy's bench across the board (scenery for now: no enemy keeps units on it)
 var _sell_tile: Node3D
+const INTEREST_CELL := Vector2i(COLS, 6)   # the hex just right of your half where your interest piles up (interest_stack.gd)
+var interest: InterestStack
 static var _prism: ArrayMesh   # the hex block every tile, bench slot and sell hex shares
 
 const BLOCK_DEPTH := 0.3       # how far a tile block reaches below its top
@@ -157,6 +159,7 @@ func _ready():
 	Events.phase_changed.connect(_on_phase_for_unlocks)
 	_build_bench_slots()
 	_build_sell_zone()
+	_build_interest()
 	apply_theme(BoardThemes.DEFAULT)   # until GameManager sets the run's biome
 	
 # Dresses the board in a biome (BoardThemes, docs/hex-tile-design-plan.md): every board hex becomes one
@@ -178,6 +181,8 @@ func apply_theme(id: StringName, seed := 0) -> void:
 		_skin(k, "base_2")
 	if _sell_tile != null:
 		_skin(_sell_tile, "sell")
+	if interest != null:
+		_skin(interest, "base_2")
 	_build_backdrop(seed)
 	RenderingServer.set_default_clear_color(BoardThemes.backdrop(id))
 	var main := get_parent()
@@ -257,6 +262,8 @@ func _build_backdrop(seed: int) -> void:
 			if tiles.has(c) or (c.x == -1 and c.y in KING_ROWS):   # under the board (and the kings' full-board spots): lower, darker ground until a tile or king is there
 				_group(groups, "underlay", Transform3D(spin, pos + Vector3(0, -3.0 * VoxelTiles.V, 0)))
 				continue
+			if c == INTEREST_CELL:
+				continue   # the interest hex stands here
 			if _near(pos, keep_clear, 0.9 * HEX):
 				continue   # right under a bench slot or the sell hex
 			var by_bench := _near(pos, keep_clear, 1.8 * HEX)   # right beside one: kept low and flat
@@ -818,6 +825,13 @@ func _order_for(player: bool) -> Array[Vector2i]:
 
 # Opens your half for `level`. The enemy half follows it too, unless foe_level is set (async PvP and
 # lobbies: the opponent's own level, its tiles the mirror images of the ones that player has open).
+# Your interest as a pile of gold coins on its own hex right of the board (interest_stack.gd).
+func _build_interest() -> void:
+	interest = InterestStack.new()
+	$Bench.add_child(interest)
+	interest.position = grid_to_world(INTEREST_CELL)
+	interest.setup(self)
+
 func refresh_unlocks(level: int, animate := true):
 	var n: int = tiles_open_for_level(level)
 	unlocked.clear()

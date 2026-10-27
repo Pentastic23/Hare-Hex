@@ -15,7 +15,12 @@ const COOLDOWN := {&"hit": 0.05, &"crit": 0.08, &"swing": 0.09, &"death": 0.12, 
 # Per-sound loudness trim in dB (the pack is normalised, so the busy ones are turned down).
 const GAIN := {&"hit": -7.0, &"swing": -13.0, &"crit": -4.0, &"death": -5.0, &"cast": -6.0, &"heal": -8.0, &"click": -8.0, &"place": -5.0, &"pickup": -9.0}
 # Sounds that keep one pitch (jingles with melodies); the rest vary a little.
-const FIXED_PITCH := [&"buy", &"sell", &"xp", &"merge", &"levelup", &"win", &"lose", &"round", &"equip", &"resonance", &"ascend", &"heal", &"lock", &"unlock", &"error"]
+const FIXED_PITCH := [&"buy", &"sell", &"xp", &"merge", &"levelup", &"win", &"lose", &"round", &"equip", &"resonance", &"ascend", &"easter_egg", &"heal", &"lock", &"unlock", &"error"]
+# Easter egg: a won fight plays easter_egg.wav (not from synth_sfx.py) once in EASTER_ODDS. Its own unseeded
+# RNG, so it differs every session and never touches the game's random numbers; tests can lower easter_odds.
+const EASTER_ODDS := 100000
+var easter_odds := EASTER_ODDS
+var _easter_rng := RandomNumberGenerator.new()
 
 var muted := 0                 # > 0: nothing plays
 var played := {}               # sound -> times it played (for tests)
@@ -27,6 +32,7 @@ var _last_level := 0
 
 func _ready():
 	_rng.seed = 90210
+	_easter_rng.randomize()
 	var bus := Settings.sfx_bus()
 	for i in POOL:
 		var p := AudioStreamPlayer.new()
@@ -41,6 +47,11 @@ func _ready():
 	Events.run_lost.connect(func(): play(&"lose"))
 	Events.xp_changed.connect(_on_xp_changed)
 	Events.phase_changed.connect(func(p): if p == Events.Phase.COMBAT: play(&"round"))
+	Events.combat_ended.connect(_on_combat_ended)
+
+func _on_combat_ended(won: bool) -> void:
+	if won and muted == 0 and _easter_rng.randi_range(1, easter_odds) == 1:
+		play(&"easter_egg")
 
 func _on_xp_changed(level: int, _xp: int, _needed: int) -> void:
 	if _last_level != 0 and level > _last_level:

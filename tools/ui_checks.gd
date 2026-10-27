@@ -145,6 +145,17 @@ func _run():
 	if panel != null:
 		panel.highlight("")
 	chk("...and off again", not k.highlighted and k.ring.material_override == Unit.RING_MATS[0])
+	var pile := board.interest
+	var me := GameState.me
+	me.gold = 9
+	var none := pile.coins.size()
+	me.gold = 34
+	var three := pile.coins.size()
+	me.gold = 90
+	var capped := pile.coins.size()
+	me.gold = 12
+	chk("the interest hex piles one coin per 10 gold banked, up to the interest cap", none == 0 and three == 3 and capped == mini(9, KingPowers.interest_cap(me)) and pile.coins.size() == 1, "%d %d %d" % [none, three, capped])
+	chk("it stands just right of your half, off the board and the scenery", pile.position.is_equal_approx(board.grid_to_world(Board.INTEREST_CELL)) and not board.tiles.has(Board.INTEREST_CELL) and not board.backdrop_cells.has(Board.INTEREST_CELL))
 
 	print("--- items")
 	var bar := _find_item_bar(ui)

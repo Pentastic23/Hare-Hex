@@ -14,3 +14,7 @@ Github release webhook.txt
 *.apk
 *.apk.idsig
 *.pck
+
+# Release builds (tools/release.ps1) and the GitHub token it uploads with (a secret)
+/build/
+release_token.txt

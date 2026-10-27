@@ -14,12 +14,12 @@ config/name="Hare&Hex"
 run/main_scene="res://scenes/splash.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon="res://icon.png"
-config/windows_native_icon="res://icon.ico"
 boot_splash/bg_color=Color(0.043137256, 0.047058824, 0.07058824, 1)
-boot_splash/image="res://icon.png"
 boot_splash/stretch_mode=0
 boot_splash/use_filter=false
+boot_splash/image="res://icon.png"
+config/icon="res://icon.png"
+config/windows_native_icon="res://icon.ico"
 
 [autoload]
 

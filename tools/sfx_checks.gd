@@ -62,6 +62,7 @@ func _run():
 	print("--- the pack")
 	chk("every sound is in the pack and loads", ALL.all(func(s): return Sfx._stream(s) is AudioStream), str(ALL.filter(func(s): return Sfx._stream(s) == null)))
 	chk("none is empty or long (under 2 s)", ALL.all(func(s): var l := Sfx._stream(s).get_length(); return l > 0.03 and l < 2.0))
+	chk("the easter egg clip loads", Sfx._stream(&"easter_egg") is AudioStream)
 	chk("an unknown name is ignored, not an error", not Sfx.play(&"no_such_sound"))
 
 	print("--- the SFX bus and its setting")
@@ -138,6 +139,13 @@ func _run():
 	Events.run_won.emit()
 	Events.run_lost.emit()
 	chk("winning and losing the run", count(&"win") == 1 and count(&"lose") == 1)
+	chk("the easter egg is 1 in 100000", Sfx.easter_odds == 100000)
+	Sfx.easter_odds = 1
+	Events.combat_ended.emit(false)
+	chk("no easter egg on a loss", count(&"easter_egg") == 0)
+	Events.combat_ended.emit(true)
+	chk("the easter egg on a win (odds forced to 1)", count(&"easter_egg") == 1)
+	Sfx.easter_odds = Sfx.EASTER_ODDS
 
 	for i in 3:
 		var u := (load("res://scenes/unit.tscn").instantiate() as Unit)

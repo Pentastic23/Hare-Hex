@@ -649,18 +649,13 @@ func _run():
 	dr.set_items(its)
 	get_tree().root.size = Vector2i(1152, 648)   # the game's own size, so the HUD lays out as it does on screen
 	var insp = main.get_node("UI/UnitInspector")
-	insp.shown = dr
-	insp.visible = true
-	insp._fill()
+	insp.show_unit(dr)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var standings: Control = main.get_node("UI/Standings")
-	var overlaps: bool = insp.get_global_rect().intersects(standings.get_global_rect())
-	insp._yield_standings()
 	chk("the inspector names the ability and shows it at the unit's star", insp.ability_head.text == "ABILITY  ·  DRAGONFIRE BREATH" and insp.ability_text.text.contains("720"), insp.ability_text.text)
-	chk("a tall inspector fades the HP standings out instead of covering them", standings.modulate.a == (0.0 if overlaps else 1.0), "inspector top %d, standings end %d" % [insp.get_global_rect().position.y, standings.get_global_rect().end.y])
+	chk("a tall inspector draws over the HP standings, which stay visible under it", standings.visible and standings.modulate.a == 1.0 and insp.get_index() > standings.get_index())
 	insp._close()
-	chk("the standings come back when it closes", standings.modulate.a == 1.0)
 	clear_units()
 
 	print("--- switched off")

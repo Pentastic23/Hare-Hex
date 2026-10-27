@@ -81,23 +81,11 @@ func _process(_delta):
 		_close()
 		return
 	_fill()   # keeps it right if the unit merges up a star
-	_yield_standings()
 
 func _close():
 	shown = null
 	_items_sig = ""
 	visible = false
-	_yield_standings()
-
-# A tall inspector (an ability, three items and their resonances) can reach up into the HP standings;
-# they fade out while it covers them and come back when it closes or shrinks. (The right box decides
-# whether they are shown at all; this only touches their transparency.)
-func _yield_standings() -> void:
-	var standings := get_parent().get_node_or_null("Standings") as Control
-	if standings == null:
-		return
-	var covered := visible and get_global_rect().intersects(standings.get_global_rect())
-	standings.modulate.a = 0.0 if covered else 1.0
 
 func _unit_under_mouse() -> Unit:
 	if board == null:

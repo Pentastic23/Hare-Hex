@@ -37,6 +37,7 @@ func _run():
 			await get_tree().process_frame
 		var board: Board = main.get_node("Board")
 		GameState.me.level = level
+		GameState.me.gold = 50   # a full interest pile (interest_stack.gd)
 		board.refresh_unlocks(level, false)
 		board.apply_theme(id, 7)
 		var units := ["knight", "archer", "mage", "guardian", "berserker"]
@@ -49,7 +50,7 @@ func _run():
 					board.put_on_tile(u, board.player_order[i])
 				else:
 					board.put_enemy_on_tile(u, board.enemy_order[i])
-		for i in 12:
+		for i in 40:   # (the interest coins finish falling)
 			await get_tree().process_frame
 		var img := get_viewport().get_texture().get_image()
 		img.resize(shot.x, shot.y, Image.INTERPOLATE_BILINEAR)
