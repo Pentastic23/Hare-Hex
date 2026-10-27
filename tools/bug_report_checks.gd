@@ -79,6 +79,10 @@ func _run():
 	var req: Dictionary = br.build_request()
 	var embed: Dictionary = req.payload.embeds[0]
 	chk("the report is a Discord embed: severity in the title, tester and game info as fields", embed.title == "[High] Units walk through walls" and embed.fields[0].value == "High" and embed.fields[1].value == "Tester" and embed.fields[2].name == "Game" and embed.color == 0xff8a4c)
+	br.severity.select(br.SEVERITIES.find("Suggestion"))
+	embed = br.build_request().payload.embeds[0]
+	chk("Suggestion is a severity choice and titles the embed", br.severity.item_count == br.SEVERITIES.size() and embed.title == "[Suggestion] Units walk through walls" and embed.color == 0x7bd88f)
+	br.severity.select(1)
 	chk("no mentions can be triggered from a report", req.payload.allowed_mentions.parse.is_empty())
 	chk("without a screenshot it is plain JSON", req.headers[0] == "Content-Type: application/json" and JSON.parse_string(req.body.get_string_from_utf8()) != null)
 	br._shot = Image.create_empty(4, 4, false, Image.FORMAT_RGBA8).save_png_to_buffer()

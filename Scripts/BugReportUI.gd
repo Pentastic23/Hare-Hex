@@ -11,8 +11,8 @@ extends CanvasLayer
 
 const WEBHOOK_FILE := "res://bug_report_webhook.txt"
 var name_cfg := "user://bug_report.cfg"   # remembers the tester's name (tests point it elsewhere)
-const SEVERITIES := ["Critical", "High", "Medium", "Low", "Cosmetic"]
-const SEVERITY_COLORS := [0xe03131, 0xff8a4c, 0xf2c14e, 0x6cc4ff, 0xa9aec4]
+const SEVERITIES := ["Critical", "High", "Medium", "Low", "Cosmetic", "Suggestion"]
+const SEVERITY_COLORS := [0xe03131, 0xff8a4c, 0xf2c14e, 0x6cc4ff, 0xa9aec4, 0x7bd88f]
 const COOLDOWN := 10.0          # seconds between reports, so a stuck key can't flood the channel
 const SHOT_WIDTH := 960         # screenshots are scaled down to this width
 const MAX_DESCRIPTION := 3500   # Discord allows 4096 in an embed description
