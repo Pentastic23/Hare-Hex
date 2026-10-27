@@ -124,7 +124,7 @@ func _check() -> void:
 	_update_play()
 	if _api == null:
 		_api = HTTPRequest.new()
-		_api.timeout = 15.0
+		_api.timeout = 30.0
 		_api.request_completed.connect(_on_releases)
 		add_child(_api)
 	var url := _arg("--releases-url", RELEASES_URL % REPO)
@@ -136,7 +136,7 @@ func _check() -> void:
 
 func _on_releases(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS:
-		_fail("Couldn't reach GitHub. Check your internet connection.")
+		_fail(_network_problem(result))
 		return
 	if code == 403 or code == 429:
 		_fail("GitHub is limiting requests right now. Try again in a few minutes.")
@@ -173,6 +173,26 @@ func _on_releases(result: int, code: int, _headers: PackedStringArray, body: Pac
 		_ready_to_play("Up to date: %s" % release.get("tag_name", ""), false)
 	else:
 		_start_download()
+
+
+# What went wrong, in words a tester can act on, with Godot's result number to report.
+static func _network_problem(result: int) -> String:
+	var text := "Couldn't reach GitHub. Check your internet connection."
+	match result:
+		HTTPRequest.RESULT_CANT_RESOLVE:
+			text = "Couldn't look up GitHub's address. Check your internet connection."
+		HTTPRequest.RESULT_CANT_CONNECT:
+			text = "Couldn't connect to GitHub. A firewall or antivirus may be blocking the launcher."
+		HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
+			text = "Couldn't open a secure connection to GitHub. Check the PC's date and time, or antivirus HTTPS scanning."
+		HTTPRequest.RESULT_TIMEOUT:
+			# Also what a blocked or refused connection looks like on Windows: Godot waits it out.
+			text = "GitHub didn't answer in time. A firewall or antivirus may be blocking the launcher."
+		HTTPRequest.RESULT_CONNECTION_ERROR, HTTPRequest.RESULT_NO_RESPONSE:
+			text = "The connection to GitHub dropped. A VPN, proxy or antivirus may be in the way."
+		HTTPRequest.RESULT_DOWNLOAD_FILE_CANT_OPEN, HTTPRequest.RESULT_DOWNLOAD_FILE_WRITE_ERROR:
+			text = "Couldn't save the download. Is the launcher's folder writable, with space left?"
+	return "%s (error %d)" % [text, result]
 
 
 func _is_current() -> bool:
@@ -229,7 +249,10 @@ func _show_progress(delta: float) -> void:
 func _on_downloaded(result: int, code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
 		DirAccess.remove_absolute(_part_path())
-		_fail("The download failed (%s). Try again." % (("HTTP %d" % code) if code != 0 else "result %d" % result))
+		if result != HTTPRequest.RESULT_SUCCESS:
+			_fail("The download failed: " + _network_problem(result))
+		else:
+			_fail("The download failed (HTTP %d). Try again." % code)
 		return
 	state = State.VERIFYING
 	_bar.value = 100.0
@@ -608,6 +631,7 @@ func _build_ui() -> void:
 
 	# Status, progress bar and its detail line.
 	_status = _label("", LABEL_FONT, 17, MUTED)
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # the network problems run long
 	_main.add_child(_status)
 	_bar = ProgressBar.new()
 	_bar.show_percentage = false
