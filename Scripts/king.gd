@@ -12,6 +12,7 @@ class_name King extends Node3D
 # a lunge and its skin's shot), help() its lift for an ally and act() a little hop.
 
 const SLIDE := 0.4       # seconds to slide to a new spot when the board grows
+const TURN := 0.35       # seconds to turn round when a fight starts or ends
 
 var team := 0            # 0 you, 1 the enemy
 var locked := true       # fixed to its hex: never dragged, sold, benched or removed
@@ -19,6 +20,8 @@ var body: MeshInstance3D # the king itself (its skin's model)
 var skin: StringName = KingSkins.DEFAULT
 var shape: StringName = KingSkins.DEFAULT   # the model it wears: its own skin's (the Shadow King: its opponent's)
 var _tween: Tween
+var _turn: Tween         # turning to face the fight or the camera
+var fighting := false    # (set from Events.phase_changed)
 var _mats: Array[StandardMaterial3D] = []   # body and outline, recoloured by recolour()
 
 func setup(t: int) -> void:
@@ -35,9 +38,41 @@ func setup(t: int) -> void:
 	body = MeshInstance3D.new()
 	body.name = "Body"
 	body.position.y = 0.01
-	body.rotation.y = PI if t == 1 else 0.0   # faces the other side, like the units
 	add_child(body)
+	body.rotation.y = rest_yaw()
 	set_skin(KingSkins.DEFAULT)
+	Events.phase_changed.connect(_on_phase)
+
+# Like the units: out of a fight your king faces the camera; when a fight starts it turns to the other
+# side, and back when it ends. The enemy's king always faces your side.
+func rest_yaw() -> float:
+	if fighting or team != Unit.viewer_team:
+		return PI if team == 1 else 0.0   # facing the other side (models face -Z)
+	var b := get_parent().get_parent() as Board if get_parent() != null else null
+	return 0.0 if b != null and b.view_flipped else PI   # world +Z, at the camera, as Unit.face_rest
+
+func _on_phase(phase: int) -> void:
+	var now := phase == Events.Phase.COMBAT
+	if now == fighting:
+		return
+	fighting = now
+	if body == null:
+		return
+	if _anim != null:   # a strike still playing out as the fight ends: stop it where it is
+		_anim.kill()
+		_anim = null
+		body.position = Vector3(0, 0.01, 0)
+		body.scale = Vector3.ONE
+		body.rotation.x = 0.0
+	if _turn != null:
+		_turn.kill()
+	var yaw := rest_yaw()
+	if Settings.reduce_motion or not is_inside_tree():
+		body.rotation.y = yaw
+		return
+	var from := body.rotation.y
+	_turn = create_tween()
+	_turn.tween_property(body, "rotation:y", from + wrapf(yaw - from, -PI, PI), TURN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 # A thin glowing outline round the hex in the team colour, so you can tell the two kings apart.
 func _outline(colour: Color) -> void:
@@ -146,11 +181,11 @@ func strike(target: Unit) -> void:
 		return
 	var d := to_local(at)
 	d.y = 0.0
-	var rest_yaw := PI if team == 1 else 0.0
-	var yaw := rest_yaw
+	var rest := rest_yaw()
+	var yaw := rest
 	var dir := Vector3(0, 0, -1 if team == 0 else 1)
 	if d.length() > 0.01:
-		yaw = rest_yaw + wrapf(atan2(-d.x, -d.z) - rest_yaw, -PI, PI)   # the short way round
+		yaw = rest + wrapf(atan2(-d.x, -d.z) - rest, -PI, PI)   # the short way round
 		dir = d.normalized()
 	var home := Vector3(0, 0.01, 0)
 	_reset_anim()
@@ -166,7 +201,7 @@ func strike(target: Unit) -> void:
 	_anim.parallel().tween_property(body, "scale", Vector3.ONE, RECOVER).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	_anim.parallel().tween_property(body, "position", home, RECOVER)
 	_anim.tween_interval(0.15)
-	_anim.tween_property(body, "rotation:y", rest_yaw, 0.25).set_trans(Tween.TRANS_SINE)
+	_anim.tween_property(body, "rotation:y", rest, 0.25).set_trans(Tween.TRANS_SINE)
 
 func animating() -> bool:
 	return _anim != null and _anim.is_running()
@@ -177,7 +212,9 @@ func _reset_anim() -> void:
 		_anim = null
 	body.position = Vector3(0, 0.01, 0)
 	body.scale = Vector3.ONE
-	body.rotation = Vector3(0, PI if team == 1 else 0.0, 0)
+	if _turn != null:
+		_turn.kill()
+	body.rotation = Vector3(0, rest_yaw(), 0)
 
 # The world point its shots leave from.
 func muzzle() -> Vector3:

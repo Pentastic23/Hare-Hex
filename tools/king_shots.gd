@@ -2,6 +2,7 @@
 # Dev tool, not part of the game: pictures of the kings. Needs a real window (not --headless):
 #   Godot_v4.7.2-stable_win64.exe --path . res://tools/king_shots.tscn -- <out.png>            every skin's model, front and three-quarter
 #   Godot_v4.7.2-stable_win64.exe --path . res://tools/king_shots.tscn -- <out.png> strike [skin,skin]
+# `facing` shows your king in prep and in a fight, side by side.
 # `strike` plays each skin's attack in a free-play fight and saves a row of frames per skin, cropped to
 # the king and the unit it strikes (all skins unless some are named).
 
@@ -23,6 +24,8 @@ func _run():
 	if args.size() > 1 and args[1] == "strike":
 		var skins: Array = Array(args[2].split(",")) if args.size() > 2 else KingSkins.ORDER.duplicate()
 		await _strikes(out, skins)
+	elif args.size() > 1 and args[1] == "facing":
+		await _facing(out)
 	elif args.size() > 1 and args[1] == "tab":
 		await _tabs(out, Array(args[2].split(",")) if args.size() > 2 else KingSkins.ORDER.duplicate())
 	elif args.size() > 1 and args[1] == "menu":
@@ -182,3 +185,42 @@ func _tabs(out: String, skins: Array) -> void:
 			await get_tree().process_frame
 	sheet.save_png(out)
 	print("tabs -> ", out)
+
+# Your king in prep (facing the camera) and once a fight has started (turned to the enemy), side by side.
+func _facing(out: String) -> void:
+	Settings.ensure_loaded()
+	Settings.dock_collapsed = true
+	GameState.run_level = null
+	GameState.run_carry = {}
+	GameState.next_seed = 7
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.get_node("Game Manager").prep_time = 9999
+	add_child(main)
+	for i in 3:
+		await get_tree().process_frame
+	(main.get_node("UI") as CanvasLayer).visible = false
+	var gm = main.get_node("Game Manager")
+	var board: Board = main.get_node("Board")
+	var cam: Camera3D = main.get_node("CameraRig/Camera3D")
+	board.kings[0].set_skin(&"lion")
+	var ally := (load("res://scenes/unit.tscn").instantiate() as Unit)
+	board.get_node("Units").add_child(ally)
+	ally.setup(load("res://tres/knight.tres"), 0)
+	ally.stat_scale = 50.0   # so the fight lasts
+	board.put_on_tile(ally, Vector2i(3, 4))
+	var shots: Array[Image] = []
+	for fight in [false, true]:
+		if fight:
+			gm._enter(Events.Phase.COMBAT)
+		for i in 40:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		var scale := get_viewport().get_final_transform().get_scale()
+		var mid := cam.unproject_position(board.kings[0].global_position + Vector3(0, 0.8, 0)) * scale
+		var r := Rect2i(Vector2i(mid) - Vector2i(160, 160), Vector2i(320, 320)).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+		shots.append(img.get_region(r))
+	var sheet := Image.create_empty(shots[0].get_width() * 2, shots[0].get_height(), false, shots[0].get_format())
+	sheet.blit_rect(shots[0], Rect2i(Vector2i.ZERO, shots[0].get_size()), Vector2i.ZERO)
+	sheet.blit_rect(shots[1], Rect2i(Vector2i.ZERO, shots[1].get_size()), Vector2i(shots[0].get_width(), 0))
+	sheet.save_png(out)

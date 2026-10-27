@@ -145,8 +145,13 @@ func _run():
 	var waves: Array[EnemyBoard] = [wave]
 	gm.opponents = WaveOpponents.new(waves, 1.0)
 	var spots := [board.kings[0].position, board.kings[1].position]
-	gm.start_combat()
+	var own_king: King = board.kings[0]
+	var foe_king: King = board.kings[1]
+	chk("in prep your king faces the camera and theirs faces you", is_equal_approx(own_king.rest_yaw(), PI) and is_equal_approx(foe_king.rest_yaw(), PI))
+	gm._enter(Events.Phase.COMBAT)
+	chk("when the fight starts your king turns to face the enemy", own_king.fighting and is_equal_approx(own_king.rest_yaw(), 0.0) and own_king._turn != null and own_king._turn.is_running())
 	gm.resolve_combat()
+	chk("after the fight it turns back to the camera", not own_king.fighting and is_equal_approx(own_king.rest_yaw(), PI))
 	chk("a whole fight leaves both kings where they were", board.kings.size() == 2 and board.kings.all(func(k): return is_instance_valid(k) and k.is_inside_tree()) and board.kings[0].position.is_equal_approx(spots[0]) and board.kings[1].position.is_equal_approx(spots[1]))
 	chk("and the fight ignored them (only the five units fought)", gm.combatants.size() == 5)
 	await get_tree().process_frame
@@ -275,7 +280,7 @@ func _skin_checks():
 	await get_tree().create_timer(0.35).timeout
 	chk("the skin's shot leaves at the lunge", k.fired == fired + 1)
 	await get_tree().create_timer(0.8).timeout
-	chk("the king settles back where it stood", not k.animating() and k.body.position.is_equal_approx(Vector3(0, 0.01, 0)) and is_equal_approx(k.body.rotation.y, 0.0))
+	chk("the king settles back where it stood", not k.animating() and k.body.position.is_equal_approx(Vector3(0, 0.01, 0)) and is_equal_approx(k.body.rotation.y, k.rest_yaw()))
 	SaveGame.set_king_skin("merchant")
 	await load_main()
 	chk("your pick is your run power in free play", GameState.me.king == &"merchant" and board.kings[0].skin == &"merchant")

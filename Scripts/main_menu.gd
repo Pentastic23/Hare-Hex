@@ -536,7 +536,7 @@ func _fill_kings() -> void:
 			pick.custom_minimum_size = Vector2(110, 38)
 			pick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
-# A small turning 3D view of a king (its own little world in a SubViewport).
+# A small still 3D view of a king (its own little world in a SubViewport).
 func _king_preview(id: StringName) -> Control:
 	var holder := SubViewportContainer.new()
 	holder.custom_minimum_size = Vector2(96, 96)
@@ -559,10 +559,8 @@ func _king_preview(id: StringName) -> Control:
 	m.mesh = KingSkins.model(id)
 	if id == &"shadow":
 		m.material_override = King.shadow_mat()   # the shape of a Golden Lion, in shadow (in a run: its opponent's king)
+	m.rotation.y = PI - 0.5   # a still three-quarter view (king models face -Z, away from this camera)
 	vp.add_child(m)
-	if not Settings.reduce_motion:
-		var t := m.create_tween().set_loops()
-		t.tween_property(m, "rotation:y", TAU, 6.0).from(0.0)
 	if not KingSkins.owned(id):
 		holder.modulate = Color(0.35, 0.35, 0.4)
 	return holder
