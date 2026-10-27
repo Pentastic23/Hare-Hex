@@ -15,6 +15,7 @@ class_name SnapshotServer extends Node
 #   POST /v1/events      {"events": [...]}   201 {"stored": n}   (unknown event names are skipped)
 #   GET  /stats?key=K&days=30                 the stats page (HTML)
 #   GET  /v1/stats?key=K&days=30              the same numbers as JSON (TelemetryStats.summarize)
+#   GET  /v1/events?key=K&days=30             the raw events as JSON lines, for parsing elsewhere (the launcher's STATS panel)
 # The stats need the --stats-key the server was started with; without one they only answer this machine.
 #
 # Every upload is checked against the game's own roster (units and items that exist, stars, item counts,
@@ -155,6 +156,15 @@ func handle(method: String, target: String, headers: Dictionary, body: String, a
 				var days := clampi(int(query.get("days", str(STATS_DAYS))), 1, 3650)
 				var summary := TelemetryStats.summarize(TelemetryStats.load_dir(data_dir + "/events", days))
 				out = [200, summary] if path == "/v1/stats" else [200, TelemetryStats.html(summary, days), "text/html; charset=utf-8"]
+		["GET", "/v1/events"]:
+			if not _stats_allowed(query, addr):
+				out = [401, {"error": "events need ?key="}]
+			else:
+				var days := clampi(int(query.get("days", str(STATS_DAYS))), 1, 3650)
+				var lines := PackedStringArray()
+				for e in TelemetryStats.load_dir(data_dir + "/events", days):
+					lines.append(JSON.stringify(e))
+				out = [200, "\n".join(lines) + ("\n" if not lines.is_empty() else ""), "application/x-ndjson; charset=utf-8"]
 		_:
 			out = [404, {"error": "no such call"}]
 	if log_requests:

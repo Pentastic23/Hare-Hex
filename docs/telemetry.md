@@ -62,6 +62,26 @@ Other overrides (OnlineConfig): `--telemetry-url`, or `user://online.cfg` with `
   per step, time on each, where tutorial runs stopped); crashes by where; frame rate by graphics card; menu
   screens; one row per tester.
 - The raw files are JSON lines, easy to copy off the server and load elsewhere (`TelemetryStats.load_dir`).
+- `GET /v1/events?key=<stats key>&days=30` serves them as one JSON-lines download (same key rule as the stats).
+
+## Reading it yourself: the launcher's STATS panel
+
+On your PC the launcher has a **STATS** button next to RELEASE (`launcher/telemetry_panel.gd`; only when
+it knows the project folder, like RELEASE). Fill in the server address (it starts from
+`OnlineConfig.SNAPSHOT_URL`, empty until you host) and the stats key once; they are kept in the launcher's
+`user://stats_panel.cfg` on your PC only.
+
+- **DOWNLOAD** fetches `/v1/events` for the last DAYS days.
+- **THIS PC** loads the events your own game has queued but not sent (its `user://telemetry_queue.json`),
+  which works before any server exists.
+- **STATS PAGE** opens `/stats` in the browser; **FOLDER** opens the output folder.
+
+Each load is saved to `<project>/telemetry/` (git-ignored: it is testers' data) as
+`events_<server|this_pc>_<date>_<time>.jsonl` (as stored) and `.csv`: one row per event with
+`time_utc, received_utc, event, player, session, version`, then one column per property name seen
+(nested values such as the board's units stay JSON in their cell). The panel also sums the load up
+(events, testers, sessions, events by name, fight win rate, how runs ended per mode, crashes).
+`launcher/tools/stats_panel_check.tscn -- out.png <server> <key>` drives it.
 
 Checks: `tools/telemetry_checks.tscn` (client, a real run's events, the service, the numbers, an upload over
 HTTP).

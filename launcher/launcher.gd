@@ -17,8 +17,9 @@ extends Control
 # Command line (after --): --releases-url URL (a test feed instead of GitHub), --install-dir DIR,
 # --no-self-update.
 #
-# The developer also gets a RELEASE button (release_panel.gd) once the launcher knows where the
-# game's project is: found by itself from <project>/build or the editor, or picked with Ctrl+Shift+D.
+# The developer also gets RELEASE and STATS buttons (release_panel.gd, telemetry_panel.gd) once the
+# launcher knows where the game's project is: found by itself from <project>/build or the editor, or
+# picked with Ctrl+Shift+D.
 
 const REPO := "Pentastic23/Hare-Hex"
 const ASSET := "HareHex-windows.zip"
@@ -28,6 +29,7 @@ const SETTINGS_PATH := "user://launcher.cfg"
 const MARKER := ".hare_hex_version"          # written into every version folder we unpack
 const COUNTDOWN := 3.0                       # seconds before the game starts by itself
 const ReleasePanel := preload("res://release_panel.gd")
+const TelemetryPanel := preload("res://telemetry_panel.gd")
 
 const INK := Color("ece6d6")
 const MUTED := Color("a9aec4")
@@ -77,6 +79,8 @@ var _play: Button
 var _main: VBoxContainer
 var _release: VBoxContainer
 var _release_button: Button
+var _stats: VBoxContainer
+var _stats_button: Button
 var _close_warned := false
 
 
@@ -704,8 +708,9 @@ func _pick_project() -> void:
 			project_dir = dir
 			_save_settings()
 			_release.project_dir = dir
-			_release_button.visible = true
-			_set_status("Release panel on: %s" % dir, GREEN)
+			_stats.project_dir = dir
+			_show_panel(null)
+			_set_status("Release and stats panels on: %s" % dir, GREEN)
 		else:
 			_set_status("That folder has no tools/release.ps1.", RED))
 	add_child(picker)
@@ -713,12 +718,20 @@ func _pick_project() -> void:
 
 
 func _show_release(on: bool) -> void:
+	_show_panel(_release if on else null)
+
+
+# One of the developer panels in place of the player's view, or null for the player's view.
+func _show_panel(panel: Control) -> void:
 	_stop_countdown()
-	_main.visible = not on
-	_release.visible = on
-	_release_button.visible = not on   # the panel has its own BACK
-	if on:
-		_release.open()
+	_main.visible = panel == null
+	_release.visible = panel == _release
+	_stats.visible = panel == _stats
+	# The panels have their own BACK.
+	_release_button.visible = panel == null and project_dir != ""
+	_stats_button.visible = panel == null and project_dir != ""
+	if panel != null:
+		panel.open()
 
 
 func _on_release_finished(ok: bool, dry_run: bool) -> void:
@@ -787,8 +800,15 @@ func _build_ui() -> void:
 	_release_button.add_theme_font_size_override("font_size", 20)
 	_release_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_release_button.visible = project_dir != ""
-	_release_button.pressed.connect(func(): _show_release(not _release.visible))
+	_release_button.pressed.connect(func(): _show_panel(_release))   # built below
 	head.add_child(_release_button)
+	_stats_button = _button("STATS", false)
+	_stats_button.custom_minimum_size = Vector2(0, 30)
+	_stats_button.add_theme_font_size_override("font_size", 20)
+	_stats_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_stats_button.visible = project_dir != ""
+	_stats_button.pressed.connect(func(): _show_panel(_stats))
+	head.add_child(_stats_button)
 
 	# Everything under the header: the player's view, or the release panel in its place.
 	_main = VBoxContainer.new()
@@ -802,6 +822,12 @@ func _build_ui() -> void:
 	_release.build(self)
 	_release.closed.connect(_show_release.bind(false))
 	_release.finished.connect(_on_release_finished)
+	_stats = TelemetryPanel.new()
+	_stats.project_dir = project_dir
+	_stats.visible = false
+	col.add_child(_stats)
+	_stats.build(self)
+	_stats.closed.connect(_show_panel.bind(null))
 
 	# Status, progress bar and its detail line.
 	_status = _label("", LABEL_FONT, 17, MUTED)

@@ -197,6 +197,11 @@ func _run():
 	chk("the stats page is a whole page", str(page[1]).begins_with("<!doctype html>") and str(page[1]).contains("Modes") and str(page[1]).ends_with("</html>"))
 	var json: Array = srv.handle("GET", "/v1/stats?key=s", {}, "", "8.8.8.8")
 	chk("the JSON stats count the stored events", json[0] == 200 and int(json[1].overview.players) == 1 and int(json[1].overview.events) >= 3, str(json[1].get("overview", {})))
+	var raw: Array = srv.handle("GET", "/v1/events?key=s&days=7", {}, "", "8.8.8.8")
+	var raw_lines := str(raw[1]).split("\n", false)
+	chk("the raw events download as JSON lines, one per stored event", raw[0] == 200 and str(raw[2]).begins_with("application/x-ndjson") \
+		and raw_lines.size() == srv.events_stored and (JSON.parse_string(raw_lines[0]) as Dictionary).has("pid"), "%d lines, %d stored" % [raw_lines.size(), srv.events_stored])
+	chk("the raw events need the stats key too", srv.handle("GET", "/v1/events", {}, "", "127.0.0.1")[0] == 401 and srv.handle("GET", "/v1/events?key=x", {}, "", "8.8.8.8")[0] == 401)
 	srv.stats_key = ""
 
 	print("--- the numbers")

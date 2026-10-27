@@ -33,6 +33,9 @@ project folder, so they never see it. The panel (`launcher/release_panel.gd`) ru
 `-ExecutionPolicy Bypass` for that one PowerShell process, since Windows blocks scripts by default.
 `launcher/tools/release_panel_check.tscn -- <out folder> 0.1.3` drives it through a dry run.
 
+**Stats:** the **STATS** button beside RELEASE downloads the testers' telemetry for parsing
+(JSON lines and CSV in `<project>	elemetry`); see `docs/telemetry.md`.
+
 **From PowerShell:**
 
 ```
