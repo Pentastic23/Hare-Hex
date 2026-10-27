@@ -14,10 +14,14 @@
 # release_token.txt at the project root (git-ignored). Make one at
 # https://github.com/settings/personal-access-tokens/new (fine-grained, only this repository).
 # Releases are pre-releases unless -Full is given; the launcher installs either.
+# -NotesFile reads the notes from a file; -Yes answers yes to every question (the launcher's
+# release panel uses both, after showing its own warnings).
 
 param(
 	[Parameter(Mandatory = $true)][string]$Version,
 	[string]$Notes = "",
+	[string]$NotesFile = "",
+	[switch]$Yes,
 	[switch]$Full,
 	[switch]$DryRun,
 	[switch]$SkipLauncher,
@@ -34,11 +38,13 @@ $Tag = "v$Version"
 
 function Step($text) { Write-Host "`n== $text" -ForegroundColor Yellow }
 function Ask($question) {
+	if ($Yes) { Write-Host "$question yes (-Yes)"; return }
 	$a = Read-Host "$question (y/n)"
 	if ($a -ne "y") { Write-Host "Stopped."; exit 1 }
 }
 
 if ($Version -notmatch '^\d+(\.\d+){1,3}$') { throw "Version should look like 0.1.4 (got '$Version')." }
+if ($NotesFile) { $Notes = [IO.File]::ReadAllText($NotesFile).Trim() }
 if (-not (Test-Path $Godot)) { throw "Godot not found at $Godot (pass -Godot <path>)." }
 if (-not (Test-Path (Join-Path $Root "bug_report_webhook.txt"))) {
 	Write-Warning "bug_report_webhook.txt is missing: bug reports won't work in this build."

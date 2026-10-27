@@ -11,6 +11,9 @@ extends Control
 # The game's saves live in its own app_userdata folder, so an update never touches them.
 #
 # Command line (after --): --releases-url URL (a test feed instead of GitHub), --install-dir DIR.
+#
+# The developer also gets a RELEASE button (release_panel.gd) once the launcher knows where the
+# game's project is: found by itself from <project>/build or the editor, or picked with Ctrl+Shift+D.
 
 const REPO := "Pentastic23/Hare-Hex"
 const ASSET := "HareHex-windows.zip"
@@ -18,6 +21,7 @@ const RELEASES_URL := "https://api.github.com/repos/%s/releases?per_page=15"
 const SETTINGS_PATH := "user://launcher.cfg"
 const MARKER := ".hare_hex_version"          # written into every version folder we unpack
 const COUNTDOWN := 3.0                       # seconds before the game starts by itself
+const ReleasePanel := preload("res://release_panel.gd")
 
 const INK := Color("ece6d6")
 const MUTED := Color("a9aec4")
@@ -40,6 +44,7 @@ var release := {}          # the release we want (from the API)
 var asset := {}            # its ASSET entry
 var auto_start := true
 var countdown := -1.0      # > 0 while counting down to start the game
+var project_dir := ""      # the game's project folder (developer only; "" for testers)
 
 var _api: HTTPRequest
 var _download: HTTPRequest
@@ -57,11 +62,17 @@ var _version: Label
 var _auto: CheckBox
 var _retry: Button
 var _play: Button
+var _main: VBoxContainer
+var _release: VBoxContainer
+var _release_button: Button
+var _close_warned := false
 
 
 func _ready() -> void:
 	DisplayServer.window_set_title("Hare & Hex Launcher")
+	get_tree().auto_accept_quit = false
 	_load_settings()
+	project_dir = _find_project()
 	_build_ui()
 	install_dir = _pick_install_dir()
 	installed = _read_installed()
@@ -85,12 +96,21 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Any click or key stops the countdown, so a tester can read the notes first.
 	if countdown > 0.0 and (event is InputEventMouseButton or event is InputEventKey) and event.is_pressed():
 		_stop_countdown()
+	if event is InputEventKey and event.pressed and event.keycode == KEY_D and event.ctrl_pressed and event.shift_pressed:
+		_pick_project()
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST and state == State.DOWNLOADING:
+	if what != NOTIFICATION_WM_CLOSE_REQUEST:
+		return
+	if _release != null and _release.running and not _close_warned:
+		_close_warned = true
+		_release._set_status("A release is still running. Close again to quit anyway.", RED)
+		return
+	if state == State.DOWNLOADING:
 		_download.cancel_request()
 		DirAccess.remove_absolute(_part_path())
+	get_tree().quit()
 
 
 # --- Checking -----------------------------------------------------------------------------------
@@ -128,6 +148,10 @@ func _on_releases(result: int, code: int, _headers: PackedStringArray, body: Pac
 	if not list is Array:
 		_fail("GitHub sent something unexpected.")
 		return
+	for r in list:
+		if r is Dictionary and not r.get("draft", false):
+			_release.latest_tag = str(r.get("tag_name", ""))
+			break
 	# The newest release with a Windows build. GitHub lists them newest first.
 	release = {}
 	asset = {}
@@ -312,7 +336,7 @@ func _ready_to_play(text: String, updated: bool) -> void:
 	_detail.text = "Your saves are kept between versions." if updated else ""
 	_set_status(text, GREEN)
 	_update_play()
-	if auto_start:
+	if auto_start and _main.visible:
 		countdown = COUNTDOWN
 
 
@@ -445,12 +469,67 @@ func _load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
 		auto_start = bool(cfg.get_value("launcher", "auto_start", true))
+		project_dir = str(cfg.get_value("launcher", "project_dir", ""))
 
 
 func _save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("launcher", "auto_start", auto_start)
+	if project_dir != "":
+		cfg.set_value("launcher", "project_dir", project_dir)
 	cfg.save(SETTINGS_PATH)
+
+
+# --- Developer: the release panel ---------------------------------------------------------------
+
+static func _is_project(dir: String) -> bool:
+	return dir != "" and FileAccess.file_exists(dir.path_join("tools/release.ps1"))
+
+
+# The saved folder, else the project this launcher was built in (it runs from <project>/build) or
+# runs from (the editor, res:// = <project>/launcher). Testers have none of these.
+func _find_project() -> String:
+	if _is_project(project_dir):
+		return project_dir
+	var here := OS.get_executable_path().get_base_dir() if OS.has_feature("template") \
+			else ProjectSettings.globalize_path("res://").trim_suffix("/")
+	return here.get_base_dir() if _is_project(here.get_base_dir()) else ""
+
+
+func _pick_project() -> void:
+	var picker := FileDialog.new()
+	picker.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	picker.access = FileDialog.ACCESS_FILESYSTEM
+	picker.use_native_dialog = true
+	picker.title = "Pick the Hare & Hex project folder"
+	picker.dir_selected.connect(func(dir: String):
+		if _is_project(dir):
+			project_dir = dir
+			_save_settings()
+			_release.project_dir = dir
+			_release_button.visible = true
+			_set_status("Release panel on: %s" % dir, GREEN)
+		else:
+			_set_status("That folder has no tools/release.ps1.", RED))
+	add_child(picker)
+	picker.popup_centered(Vector2i(640, 420))
+
+
+func _show_release(on: bool) -> void:
+	_stop_countdown()
+	_main.visible = not on
+	_release.visible = on
+	_release_button.visible = not on   # the panel has its own BACK
+	if on:
+		_release.open()
+
+
+func _on_release_finished(ok: bool, dry_run: bool) -> void:
+	_close_warned = false
+	if ok and not dry_run:
+		# GitHub takes a moment to list it; then install it here too, like a tester would.
+		await get_tree().create_timer(2.0).timeout
+		_check()
 
 
 func _arg(key: String, fallback: String) -> String:
@@ -506,27 +585,47 @@ func _build_ui() -> void:
 	_version = _label("", LABEL_FONT, 12, MUTED)
 	_version.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	head.add_child(_version)
+	_release_button = _button("RELEASE", false)
+	_release_button.custom_minimum_size = Vector2(0, 30)
+	_release_button.add_theme_font_size_override("font_size", 20)
+	_release_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_release_button.visible = project_dir != ""
+	_release_button.pressed.connect(func(): _show_release(not _release.visible))
+	head.add_child(_release_button)
+
+	# Everything under the header: the player's view, or the release panel in its place.
+	_main = VBoxContainer.new()
+	_main.add_theme_constant_override("separation", 10)
+	_main.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_main)
+	_release = ReleasePanel.new()
+	_release.project_dir = project_dir
+	_release.visible = false
+	col.add_child(_release)
+	_release.build(self)
+	_release.closed.connect(_show_release.bind(false))
+	_release.finished.connect(_on_release_finished)
 
 	# Status, progress bar and its detail line.
 	_status = _label("", LABEL_FONT, 17, MUTED)
-	col.add_child(_status)
+	_main.add_child(_status)
 	_bar = ProgressBar.new()
 	_bar.show_percentage = false
 	_bar.custom_minimum_size = Vector2(0, 12)
 	_bar.add_theme_stylebox_override("background", _flat(TRACK))
 	_bar.add_theme_stylebox_override("fill", _flat(GOLD))
 	_bar.visible = false
-	col.add_child(_bar)
+	_main.add_child(_bar)
 	_detail = _label("", NUMBER_FONT, 20, MUTED)
-	col.add_child(_detail)
+	_main.add_child(_detail)
 
 	# What's new in the release.
 	_notes_title = _label("", LABEL_FONT, 12, GOLD)
-	col.add_child(_notes_title)
+	_main.add_child(_notes_title)
 	var well := PanelContainer.new()
 	well.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	well.add_theme_stylebox_override("panel", _flat(Color(0.04, 0.045, 0.07, 0.8), 8))
-	col.add_child(well)
+	_main.add_child(well)
 	_notes = RichTextLabel.new()
 	_notes.bbcode_enabled = false
 	_notes.scroll_active = true
@@ -539,7 +638,7 @@ func _build_ui() -> void:
 	# Bottom row: auto start, retry, play.
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	col.add_child(row)
+	_main.add_child(row)
 	_auto = CheckBox.new()
 	_auto.text = "Start the game automatically"
 	_auto.button_pressed = auto_start

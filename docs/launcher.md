@@ -17,8 +17,24 @@ Windows SmartScreen may warn about an unsigned exe the first time ("More info" >
 
 ## For you: releasing a version
 
+**From the launcher:** on your PC the launcher has a **RELEASE** button in its header. Type the
+version (it suggests the next one) and the notes, then press RELEASE. The first press says what will
+happen (uncommitted files, commits to push); press CONFIRM to publish. **Dry run** builds without
+uploading. The log shows the script's output; when it's done the launcher installs the new version
+itself, like a tester's would. Don't close the launcher while it runs.
+
+The button shows when the launcher knows your project folder: it finds it by itself when run from
+`build\` or the editor, and otherwise remembers the one you pick with **Ctrl+Shift+D** (saved as
+`project_dir` in `%APPDATA%\Godot\app_userdata\Hare&Hex Launcher\launcher.cfg`). Testers have no
+project folder, so they never see it. The panel (`launcher/release_panel.gd`) runs the same
+`tools/release.ps1` as below, with `-Yes` and the notes in a file; it passes
+`-ExecutionPolicy Bypass` for that one PowerShell process, since Windows blocks scripts by default.
+`launcher/tools/release_panel_check.tscn -- <out folder> 0.1.3` drives it through a dry run.
+
+**From PowerShell:**
+
 ```
-powershell -NoProfile -File tools\release.ps1 -Version 0.1.4 -Notes "What changed"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\release.ps1 -Version 0.1.4 -Notes "What changed"
 ```
 
 It sets the version in `export_presets.cfg`, exports the game (`build\windows\Hare&Hex.exe`) and
@@ -35,8 +51,8 @@ the commit yet.
 with access to only this repository and "Contents: Read and write", then put it in
 `release_token.txt` at the project root (git-ignored) or in the `GITHUB_TOKEN` environment variable.
 
-If Windows says running scripts is disabled, run this once in PowerShell to allow your own scripts:
-`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+Windows blocks scripts by default on this PC, hence `-ExecutionPolicy Bypass` above (it applies to
+that one PowerShell process only). Or use the launcher's release panel.
 
 ## How the launcher works (`launcher/`)
 
