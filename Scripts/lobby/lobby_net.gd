@@ -50,9 +50,11 @@ func _ready():
 		var sp := args.find("--snapshot-port")
 		var dir := args.find("--snapshot-data")
 		var key := args.find("--key")
+		var stats := args.find("--stats-key")   # opens the telemetry stats page (/stats?key=...) to others
 		snapshot_server.start(int(args[sp + 1]) if sp != -1 and sp + 1 < args.size() else SnapshotServer.DEFAULT_PORT,
 			args[dir + 1] if dir != -1 and dir + 1 < args.size() else "",
-			args[key + 1] if key != -1 and key + 1 < args.size() else OS.get_environment("SNAPSHOT_KEY"))
+			args[key + 1] if key != -1 and key + 1 < args.size() else OS.get_environment("SNAPSHOT_KEY"),
+			args[stats + 1] if stats != -1 and stats + 1 < args.size() else OS.get_environment("STATS_KEY"))
 
 func in_lobby() -> bool:
 	return mode != Mode.NONE and client != null

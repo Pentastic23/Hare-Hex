@@ -11,6 +11,11 @@ class_name SnapshotServer extends Node
 #   GET  /v1/snapshots?round=9&level=7&balance=<hash>&exclude=<run>&limit=24
 #                                       200 {"snapshots": [...]}: rounds 8-10, level <= 7, not that run,
 #                                       today's balance first, then older ones; random order
+# It also collects the testers' telemetry (telemetry.gd, docs/telemetry.md) and shows it summed up:
+#   POST /v1/events      {"events": [...]}   201 {"stored": n}   (unknown event names are skipped)
+#   GET  /stats?key=K&days=30                 the stats page (HTML)
+#   GET  /v1/stats?key=K&days=30              the same numbers as JSON (TelemetryStats.summarize)
+# The stats need the --stats-key the server was started with; without one they only answer this machine.
 #
 # Every upload is checked against the game's own roster (units and items that exist, stars, item counts,
 # tiles on the enemy half, no more units than the level allows) and cleaned (name, server time, an id), so
@@ -26,10 +31,16 @@ const REQUEST_TIMEOUT := 5.0   # seconds a client may take to send its request
 const RATE := 60               # requests per minute per address
 const POST_RATE := 20          # uploads per minute per address (a run uploads one per round)
 const ENEMY_ROWS := 4         # a ghost stands on rows 0-3 (BoardSnapshot.mirror)
+const MAX_EVENTS := 100        # telemetry events per upload
+const MAX_EVENT := 4096        # bytes of one event's properties
+const EVENT_RATE := 40         # telemetry uploads per minute per address (a backlog goes up in a burst)
+const STATS_DAYS := 30
 
 var port := DEFAULT_PORT
 var data_dir := "user://snapshot_server"
 var api_key := ""              # when set, uploads need the header X-Api-Key: <key>
+var stats_key := ""            # when set, /stats and /v1/stats need ?key=<key>; else only this machine may read them
+var events_stored := 0         # telemetry events stored since the start (tests)
 var log_requests := true
 var _tcp := TCPServer.new()
 var _conns: Array = []         # {peer, buf, started, addr}
@@ -41,11 +52,12 @@ var _items := {}               # id -> ItemData
 var _rng := RandomNumberGenerator.new()
 
 # Starts listening; false if the port is taken.
-func start(listen_port := DEFAULT_PORT, dir := "", key := "") -> bool:
+func start(listen_port := DEFAULT_PORT, dir := "", key := "", stats := "") -> bool:
 	port = listen_port
 	if dir != "":
 		data_dir = dir
 	api_key = key
+	stats_key = stats
 	_load_roster()
 	_load_store()
 	_rng.randomize()
@@ -97,15 +109,17 @@ func _poll(c: Dictionary) -> void:
 		_reply(c, int(req.code), {"error": req.error})
 		return
 	var out: Array = handle(req.method, req.path, req.headers, req.body, str(c.addr))
-	_reply(c, out[0], out[1])
+	_reply(c, out[0], out[1], out[2] if out.size() > 2 else "application/json")
 
-# One HTTP request -> [status code, JSON body]. Separate from the socket code so tests can call it.
+# One HTTP request -> [status code, JSON body] (or [code, HTML text, "text/html"] for the stats page).
+# Separate from the socket code so tests can call it.
 func handle(method: String, target: String, headers: Dictionary, body: String, addr := "local") -> Array:
 	var path := target.get_slice("?", 0)
 	var query := _query(target.get_slice("?", 1) if target.contains("?") else "")
 	if method == "OPTIONS":
 		return [204, null]
-	if not _allow(addr, method == "POST"):
+	var events := method == "POST" and path == "/v1/events"
+	if not _allow(addr, method == "POST" and not events, events):
 		return [429, {"error": "slow down"}]
 	var out: Array
 	match [method, path]:
@@ -123,6 +137,24 @@ func handle(method: String, target: String, headers: Dictionary, body: String, a
 					out = [400, {"error": problem}]
 				else:
 					out = [201, {"id": add(parsed)}]
+		["POST", "/v1/events"]:
+			if api_key != "" and str(headers.get("x-api-key", "")) != api_key:
+				out = [401, {"error": "bad key"}]
+			else:
+				var parsed = JSON.parse_string(body)
+				if not parsed is Dictionary or not parsed.get("events") is Array:
+					out = [400, {"error": "expected {\"events\": [...]}"}]
+				elif (parsed.events as Array).size() > MAX_EVENTS:
+					out = [400, {"error": "at most %d events per upload" % MAX_EVENTS}]
+				else:
+					out = [201, {"stored": add_events(parsed.events)}]
+		["GET", "/v1/stats"], ["GET", "/stats"]:
+			if not _stats_allowed(query, addr):
+				out = [401, {"error": "stats need ?key="}]
+			else:
+				var days := clampi(int(query.get("days", str(STATS_DAYS))), 1, 3650)
+				var summary := TelemetryStats.summarize(TelemetryStats.load_dir(data_dir + "/events", days))
+				out = [200, summary] if path == "/v1/stats" else [200, TelemetryStats.html(summary, days), "text/html; charset=utf-8"]
 		_:
 			out = [404, {"error": "no such call"}]
 	if log_requests:
@@ -221,6 +253,56 @@ func add(raw: Dictionary) -> String:
 		_count -= 1
 	return s.id
 
+# --- telemetry ------------------------------------------------------------------------------------
+
+# Stores the events worth keeping (known names, ids and properties of a sane size) as JSON lines in
+# <data_dir>/events/<today>.jsonl, with the server's time added; returns how many. Addresses aren't kept.
+func add_events(list: Array) -> int:
+	var lines := PackedStringArray()
+	var now := int(Time.get_unix_time_from_system())
+	for x in list:
+		if not x is Dictionary:
+			continue
+		var e: Dictionary = x
+		var name := str(e.get("e", ""))
+		var props = e.get("p", {})
+		if not name in TelemetryStats.EVENTS or not props is Dictionary or JSON.stringify(props).length() > MAX_EVENT:
+			continue
+		var pid := _clean_id(e.get("pid", ""))
+		if pid == "":
+			continue
+		lines.append(JSON.stringify({"e": name, "t": clampi(int(e.get("t", now)), 0, now + 86400), "rt": now, "pid": pid,
+			"sid": _clean_id(e.get("sid", "")), "v": str(e.get("v", "")).left(24), "p": props}))
+	if lines.is_empty():
+		return 0
+	var dir := data_dir + "/events"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	var path := "%s/%s.jsonl" % [dir, Time.get_date_string_from_unix_time(now)]
+	var f := FileAccess.open(path, FileAccess.READ_WRITE if FileAccess.file_exists(path) else FileAccess.WRITE)
+	if f == null:
+		push_error("Snapshot server: can't write %s" % path)
+		return 0
+	f.seek_end()
+	f.store_string("\n".join(lines) + "\n")
+	f.close()
+	events_stored += lines.size()
+	return lines.size()
+
+# An install or session id: letters and digits only, at most 40 ("" if it isn't one).
+static func _clean_id(raw: Variant) -> String:
+	var s := str(raw)
+	if s.length() > 40 or s.is_empty():
+		return ""
+	for ch in s:
+		if not (ch >= "a" and ch <= "z" or ch >= "A" and ch <= "Z" or ch >= "0" and ch <= "9"):
+			return ""
+	return s
+
+func _stats_allowed(query: Dictionary, addr: String) -> bool:
+	if stats_key != "":
+		return str(query.get("key", "")) == stats_key
+	return addr in ["local", "127.0.0.1", "::1", "::ffff:127.0.0.1"]
+
 func _clean_board(b: Dictionary) -> Dictionary:
 	var units: Array = []
 	for e in b.units:
@@ -273,13 +355,17 @@ func _load_roster() -> void:
 			elif r is ItemData:
 				_items[String((r as ItemData).id)] = r
 
-func _allow(addr: String, post: bool) -> bool:
+func _allow(addr: String, post: bool, events := false) -> bool:
 	var minute := int(Time.get_unix_time_from_system() / 60.0)
 	var e: Dictionary = _rate.get(addr, {})
 	if int(e.get("t", -1)) != minute:
-		e = {"t": minute, "n": 0, "p": 0}
+		e = {"t": minute, "n": 0, "p": 0, "e": 0}
 		if _rate.size() > 10000:
 			_rate.clear()
+	if events:   # telemetry has its own budget, so a backlog going up doesn't block ghosts
+		e.e += 1
+		_rate[addr] = e
+		return e.e <= EVENT_RATE
 	e.n += 1
 	if post:
 		e.p += 1
@@ -328,10 +414,10 @@ static func _query(q: String) -> Dictionary:
 		out[kv[0].uri_decode()] = kv[1].uri_decode() if kv.size() > 1 else ""
 	return out
 
-func _reply(c: Dictionary, code: int, body: Variant) -> void:
-	var text := "" if body == null else JSON.stringify(body)
+func _reply(c: Dictionary, code: int, body: Variant, type := "application/json") -> void:
+	var text := "" if body == null else (body as String if body is String else JSON.stringify(body))
 	var reason := {200: "OK", 201: "Created", 204: "No Content", 400: "Bad Request", 401: "Unauthorized", 404: "Not Found", 408: "Request Timeout", 413: "Payload Too Large", 429: "Too Many Requests"}
-	var head := "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, X-Api-Key\r\n\r\n" % [code, reason.get(code, "Error"), text.to_utf8_buffer().size()]
+	var head := "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, X-Api-Key\r\n\r\n" % [code, reason.get(code, "Error"), type, text.to_utf8_buffer().size()]
 	var p: StreamPeerTCP = c.peer
 	p.put_data((head + text).to_utf8_buffer())
 	p.disconnect_from_host()

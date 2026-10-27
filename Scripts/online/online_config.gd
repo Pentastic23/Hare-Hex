@@ -46,6 +46,24 @@ static func snapshot_key() -> String:
 		k = str(cfg.get_value("snapshots", "key", ""))
 	return k if k != "" else SNAPSHOT_KEY
 
+# Where the testers' telemetry goes (telemetry.gd): the ghost service above, unless overridden by
+# `--telemetry-url`, user://online.cfg's [telemetry] url="...", or switched off there with enabled=false
+# (events then stay queued on this PC). "" = nowhere yet.
+static var telemetry_override := ""   # tests set this
+
+static func telemetry_url() -> String:
+	var u := telemetry_override
+	if u == "":
+		u = _arg("--telemetry-url")
+	var cfg := _cfg()
+	if u == "" and cfg != null:
+		if not bool(cfg.get_value("telemetry", "enabled", true)):
+			return ""
+		u = str(cfg.get_value("telemetry", "url", ""))
+	if u == "":
+		u = snapshot_url()
+	return u.strip_edges().trim_suffix("/")
+
 static func is_online() -> bool:
 	return snapshot_url() != ""
 

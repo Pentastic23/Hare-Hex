@@ -52,6 +52,8 @@ Godot --headless --path /srv/hare-hex -- --snapshot-server --snapshot-port 8910 
 - `--snapshot-port` (default 8910), `--snapshot-data` (default `user://snapshot_server`), `--key` (or the
   `SNAPSHOT_KEY` environment variable). It can share one process with the lobby server: add `--server
   --port 7777` to the same command.
+- The same service collects the testers' telemetry and serves its stats page at `/stats`; add
+  `--stats-key <key>` (or `STATS_KEY`) to open it from elsewhere. See `docs/telemetry.md`.
 - It speaks plain HTTP. Put it behind a reverse proxy for HTTPS, e.g. Caddy (gets certificates itself):
   ```
   ghosts.example.com {

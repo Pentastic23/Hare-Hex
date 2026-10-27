@@ -279,12 +279,14 @@ func _on_over(msg: Dictionary) -> void:
 
 func _on_lost(text: String) -> void:
 	gm.game_over = true
+	Telemetry.lobby_ended(0, 0)
 	var es = gm.get_node_or_null("../UI/End Screen")
 	if es != null and es.has_method("show_lobby"):
 		es.show_lobby(0, 0, "DISCONNECTED", text)
 
 func _show_end(place: int, over: bool, at_round := 0) -> void:
 	var total: int = client.public.get("seats", []).size()
+	Telemetry.lobby_ended(place, total)
 	var es = gm.get_node_or_null("../UI/End Screen")
 	var title := "VICTORY" if place == 1 else ("#%d" % place if place > 0 else "OUT")
 	var text := "You placed %s of %d" % [_ordinal(place), total]

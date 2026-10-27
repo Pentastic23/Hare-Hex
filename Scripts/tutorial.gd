@@ -143,6 +143,7 @@ func _enter_step(i: int):
 	next_button.visible = s.get("next", false)
 	if s.has("enter"):
 		s.enter.call()
+	Telemetry.tutorial_step(i, s.title)   # the tutorial funnel on the stats page
 	if fight_button != null:
 		_update_buttons()
 

@@ -32,6 +32,7 @@ Music="*res://Scripts/music.gd"
 Sfx="*res://Scripts/sfx.gd"
 LobbyNet="*res://Scripts/lobby/lobby_net.gd"
 BugReporter="*res://scenes/BugReportUI.tscn"
+Telemetry="*res://Scripts/telemetry.gd"
 
 [display]
 

@@ -352,6 +352,8 @@ func game_info() -> String:
 	var ver := str(ProjectSettings.get_setting("application/config/version", ""))
 	lines.append("Build: %s, Godot %s, %s" % [ver if ver != "" else "dev", Engine.get_version_info().string, OS.get_name()])
 	lines.append("Window: %s, %s" % [DisplayServer.window_get_size(), Settings.display_mode])
+	if Telemetry.active():
+		lines.append("Telemetry id: %s" % Telemetry.player_id.left(8))   # finds this tester's row on the stats page
 	var gm = get_tree().get_first_node_in_group("game_manager")
 	if gm == null:
 		lines.append("Screen: main menu")

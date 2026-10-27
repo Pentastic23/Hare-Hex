@@ -178,8 +178,10 @@ func _ready():
 		Events.buy_xp_pressed.connect(_on_buy_xp)
 		await get_tree().process_frame   # the HUD is ready
 		lobby.begin()
+		Telemetry.run_started(self)
 		return
 	_begin_run()
+	Telemetry.run_started(self)   # anonymous tester stats (telemetry.gd): the run's mode, then its fights and how it ends
 	Events.unit_bought.connect(_on_unit_bought)
 	Events.reroll_pressed.connect(_on_reroll)
 	Events.buy_xp_pressed.connect(_on_buy_xp)

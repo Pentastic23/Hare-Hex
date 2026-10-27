@@ -46,6 +46,7 @@ var room_seats: VBoxContainer
 var room_add: Button
 var room_start: Button
 const LOBBY_CFG := "user://lobby.cfg"
+const TELEMETRY_TEXT := "Helps the developer see which modes people enjoy and where they get stuck: the modes and levels you play, how far runs get, fight results, tutorial steps, frame rate and crashes, with your build, operating system and graphics card. No names, files or anything you type. Linked only to a random id."
 const LOBBY_TIP := "Up to 8 players, a shared unit pool, a fight against another player every round; the last one standing wins. Play against bots here, or host or join a game on your local network."
 var credits_panel: PanelContainer   # who made what (music, fonts)
 var king_panel: PanelContainer      # pick your king skin (KingSkins)
@@ -143,6 +144,8 @@ Best: %d trophies." % SaveGame.async_best() if SaveGame.async_best() > 0 else ""
 	add_child(confirm)
 	_style_dialog(confirm)
 	_refresh()
+	if Telemetry.needs_notice():
+		_telemetry_notice.call_deferred()
 	_built_contrast = Settings.high_contrast
 	if _reopen_settings != "":
 		settings_tab = _reopen_settings
@@ -260,9 +263,13 @@ func _show_panel(panel: Control):
 		queue_free()
 		return
 	main_box.get_parent().visible = panel == null
-	for p in [campaign_panel, settings_panel, keybinds_panel, info_panel, credits_panel, lobby_panel, room_panel, king_panel, planner_panel]:
+	var screens := {campaign_panel: "campaign", settings_panel: "settings", keybinds_panel: "keybinds", info_panel: "info", credits_panel: "credits",
+		lobby_panel: "lobby", room_panel: "lobby_room", king_panel: "king", planner_panel: "planner"}
+	for p in screens:
 		if p != null:
 			p.get_parent().visible = panel == p
+	if panel != null and screens.has(panel):
+		Telemetry.menu_opened(screens[panel] + ("_in_run" if overlay else ""))
 	if panel != null and panel == planner_panel:
 		planner._rebuild()
 	if not overlay:
@@ -686,9 +693,9 @@ func _build_settings_panel() -> PanelContainer:
 	tabs.add_theme_constant_override("separation", 6)
 	box.add_child(tabs)
 	var group := ButtonGroup.new()
-	for t in [["display", "Display"], ["graphics", "Graphics"], ["controls", "Controls"], ["accessibility", "Accessibility"], ["audio", "Audio"]]:
+	for t in [["display", "Display"], ["graphics", "Graphics"], ["controls", "Controls"], ["accessibility", "Accessibility"], ["audio", "Audio"], ["privacy", "Privacy"]]:
 		var b := _toggle_tab(t[1], group, t[0] == settings_tab)
-		b.custom_minimum_size = Vector2(118, 34)
+		b.custom_minimum_size = Vector2(100, 34)
 		b.pressed.connect(func():
 			settings_tab = t[0]
 			_fill_settings())
@@ -835,6 +842,18 @@ func _fill_settings() -> void:
 				Settings.mute_unfocused = on
 				_settings_changed(),
 				"Silences the music and sounds while you are tabbed out of the game.")
+		"privacy":
+			_setting_check("telemetry", "Send anonymous gameplay stats", Telemetry.enabled and Telemetry.allowed, func(on):
+				Telemetry.set_enabled(on)
+				_fill_settings.call_deferred(),
+				TELEMETRY_TEXT)
+			_setting_info("Status", Telemetry.status_text(), "Stats wait on this PC until the developer's server is set up, then go up every 30 seconds.")
+			if Telemetry.player_id != "":
+				_setting_info("Your anonymous id", Telemetry.player_id.left(8), "A random id made on your first launch. Tell the developer this if you want them to find your stats.")
+			var note := _label(TELEMETRY_TEXT, 12, GREY)
+			note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			note.custom_minimum_size = Vector2(560, 0)
+			settings_body.add_child(note)
 
 # Saves and applies after a change; `rebuild` refreshes the tab (rows that depend on the change).
 func _settings_changed(rebuild := false) -> void:
@@ -1086,6 +1105,22 @@ func _input(event):
 		Keybinds.set_key(_listening, k)
 	_stop_listening()
 	_fill_keybinds()
+
+# First launch only: what the anonymous stats are (telemetry.gd). OK keeps them on; Turn off (or closing the
+# dialog) switches them off. Either way it never shows again; Settings > Privacy changes it later.
+func _telemetry_notice() -> void:
+	var d := ConfirmationDialog.new()
+	add_child(d)
+	_style_dialog(d)
+	d.title = "Anonymous stats"
+	d.dialog_text = "Thanks for testing! The game sends anonymous gameplay stats to the developer.\n\n" + TELEMETRY_TEXT + "\n\nYou can change this any time in Settings > Privacy."
+	d.dialog_autowrap = true
+	d.min_size = Vector2i(520, 0)
+	d.ok_button_text = "OK"
+	d.cancel_button_text = "Turn off"
+	d.confirmed.connect(func(): Telemetry.notice_seen(true))
+	d.canceled.connect(func(): Telemetry.notice_seen(false))
+	d.popup_centered()
 
 func _ask(text: String, on_yes: Callable):
 	confirm.dialog_text = text
