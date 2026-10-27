@@ -77,5 +77,13 @@ never includes it). `launcher.gd` does everything:
 - `launcher/tools/launcher_shots.tscn -- out.png 2 [launcher args]` saves a picture of it (needs a
   window; excluded from the export).
 
-The launcher doesn't update itself: when `launcher.gd` changes, testers download the new
-`HareHex-Launcher.exe` from the release by hand.
+**The launcher updates itself** (since the build after v0.1.4; launchers from v0.1.4 or earlier
+need one download by hand). Before the game, it compares its own SHA-256 with the
+`HareHex-Launcher.exe` on the newest release that has one (its own hash is cached in launcher.cfg
+until the exe changes). If they differ it downloads the new one beside itself as `.exe.new`, checks
+it, renames itself to `.exe.old` (Windows lets a running exe be renamed, not overwritten), gives the
+new one its name, starts it with `-- --self-updated` (plus its own `--` arguments) and quits; the new
+one deletes the `.old`. A failed download, a bad checksum or a failed rename leaves (or puts back) the
+old launcher and goes on to the game. It never self-updates when run from the editor, from
+`<project>\build\` (that copy is newer than any release), or with `--no-self-update`. Engine options
+such as `--headless` are not passed on to the restarted launcher.

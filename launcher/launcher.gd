@@ -10,13 +10,19 @@ extends Control
 # one can't be written), one subfolder per version, with installed.json naming the current one.
 # The game's saves live in its own app_userdata folder, so an update never touches them.
 #
-# Command line (after --): --releases-url URL (a test feed instead of GitHub), --install-dir DIR.
+# The launcher also keeps itself up to date: each release carries LAUNCHER_ASSET too, and when its
+# SHA-256 differs from this exe's the launcher swaps itself for it and restarts (see "Updating the
+# launcher itself").
+#
+# Command line (after --): --releases-url URL (a test feed instead of GitHub), --install-dir DIR,
+# --no-self-update.
 #
 # The developer also gets a RELEASE button (release_panel.gd) once the launcher knows where the
 # game's project is: found by itself from <project>/build or the editor, or picked with Ctrl+Shift+D.
 
 const REPO := "Pentastic23/Hare-Hex"
 const ASSET := "HareHex-windows.zip"
+const LAUNCHER_ASSET := "HareHex-Launcher.exe"
 const RELEASES_URL := "https://api.github.com/repos/%s/releases?per_page=15"
 const SETTINGS_PATH := "user://launcher.cfg"
 const MARKER := ".hare_hex_version"          # written into every version folder we unpack
@@ -48,6 +54,12 @@ var project_dir := ""      # the game's project folder (developer only; "" for t
 
 var _api: HTTPRequest
 var _download: HTTPRequest
+var _self_download: HTTPRequest
+var _dl: HTTPRequest          # the download in progress (the game or the launcher), for the bar
+var _dl_size := 0
+var _dl_part := ""
+var _self_cache := {}         # this exe's SHA-256 with the path, size and time it was taken for
+var _pending := []            # the release list, while the launcher updates itself first
 var _thread: Thread
 var _speed_bytes := 0
 var _speed_time := 0.0
@@ -77,12 +89,13 @@ func _ready() -> void:
 	install_dir = _pick_install_dir()
 	installed = _read_installed()
 	_clean_old_versions()
+	_remove_old_launcher()
 	_show_installed()
 	_check()
 
 
 func _process(delta: float) -> void:
-	if state == State.DOWNLOADING and _download != null:
+	if state == State.DOWNLOADING and _dl != null:
 		_show_progress(delta)
 	if countdown > 0.0:
 		countdown -= delta
@@ -107,9 +120,9 @@ func _notification(what: int) -> void:
 		_close_warned = true
 		_release._set_status("A release is still running. Close again to quit anyway.", RED)
 		return
-	if state == State.DOWNLOADING:
-		_download.cancel_request()
-		DirAccess.remove_absolute(_part_path())
+	if state == State.DOWNLOADING and _dl != null:
+		_dl.cancel_request()
+		DirAccess.remove_absolute(_dl_part)
 	get_tree().quit()
 
 
@@ -152,6 +165,11 @@ func _on_releases(result: int, code: int, _headers: PackedStringArray, body: Pac
 		if r is Dictionary and not r.get("draft", false):
 			_release.latest_tag = str(r.get("tag_name", ""))
 			break
+	_check_launcher(list)
+
+
+# After the launcher is up to date: the game.
+func _pick_game(list: Array) -> void:
 	# The newest release with a Windows build. GitHub lists them newest first.
 	release = {}
 	asset = {}
@@ -209,11 +227,7 @@ func _start_download() -> void:
 	_stop_countdown()
 	var what := "Updating to" if not installed.is_empty() else "Installing"
 	_set_status("%s %s..." % [what, release.get("tag_name", "")], GOLD)
-	_bar.visible = true
-	_bar.value = 0.0
-	_speed_bytes = 0
-	_speed_time = 0.0
-	_speed = 0.0
+	_reset_progress()
 	_update_play()
 	DirAccess.make_dir_recursive_absolute(install_dir)
 	if _download == null:
@@ -223,14 +237,26 @@ func _start_download() -> void:
 		_download.request_completed.connect(_on_downloaded)
 		add_child(_download)
 	_download.download_file = _part_path()
+	_dl = _download
+	_dl_size = int(asset.get("size", 0))
+	_dl_part = _part_path()
 	var err := _download.request(asset.get("browser_download_url", ""), ["User-Agent: HareHex-Launcher"])
 	if err != OK:
 		_fail("Couldn't start the download (error %d)." % err)
 
 
+func _reset_progress() -> void:
+	_bar.visible = true
+	_bar.value = 0.0
+	_speed_bytes = 0
+	_speed_time = 0.0
+	_speed = 0.0
+	_detail.text = ""
+
+
 func _show_progress(delta: float) -> void:
-	var total := float(asset.get("size", 0))
-	var got := _download.get_downloaded_bytes()
+	var total := float(_dl_size)
+	var got := _dl.get_downloaded_bytes()
 	_speed_time += delta
 	if _speed_time >= 0.5:
 		_speed = lerpf(_speed, (got - _speed_bytes) / _speed_time, 0.5 if _speed > 0.0 else 1.0)
@@ -270,13 +296,17 @@ func _verify(path: String, size: int, digest: String) -> String:
 		return "the download is the wrong size"
 	if not digest.begins_with("sha256:"):
 		return ""   # older assets have no digest; the size has to do
+	if _sha256(f) != digest.substr(7).to_lower():
+		return "the download is damaged"
+	return ""
+
+
+static func _sha256(f: FileAccess) -> String:
 	var ctx := HashingContext.new()
 	ctx.start(HashingContext.HASH_SHA256)
 	while f.get_position() < f.get_length():
 		ctx.update(f.get_buffer(1 << 20))
-	if ctx.finish().hex_encode() != digest.substr(7).to_lower():
-		return "the download is damaged"
-	return ""
+	return ctx.finish().hex_encode()
 
 
 func _on_verified(problem: String) -> void:
@@ -349,6 +379,146 @@ func _on_extracted(exe: String, folder: String) -> void:
 	_clean_old_versions()
 	_show_installed()
 	_ready_to_play("Updated to %s" % installed.tag, true)
+
+
+# --- Updating the launcher itself ---------------------------------------------------------------
+# Windows won't let a running exe be overwritten, but it can be renamed: the new launcher is
+# downloaded beside this one (.new) and checked, this one becomes .old, the new one takes its name
+# and is started, and this one quits. The new one deletes the .old when it starts. Anything that
+# fails along the way leaves (or puts back) a working launcher and carries on with the game.
+
+func _self_path() -> String:
+	return OS.get_executable_path()
+
+
+func _can_self_update() -> bool:
+	var args := OS.get_cmdline_user_args()
+	if not OS.has_feature("template") or args.has("--self-updated") or args.has("--no-self-update"):
+		return false
+	# The copy the release script just built in build/ is newer than any release.
+	var own := _self_path().replace("\\", "/").to_lower()
+	if project_dir != "" and own == project_dir.path_join("build").path_join(LAUNCHER_ASSET).replace("\\", "/").to_lower():
+		return false
+	return _writable(_self_path().get_base_dir())
+
+
+func _check_launcher(list: Array) -> void:
+	var newest := {}
+	for r in list:
+		if not r is Dictionary or r.get("draft", false):
+			continue
+		for a in r.get("assets", []):
+			if a is Dictionary and a.get("name", "") == LAUNCHER_ASSET:
+				newest = a
+				break
+		if not newest.is_empty():
+			break
+	if newest.is_empty() or not str(newest.get("digest", "")).begins_with("sha256:") or not _can_self_update():
+		_pick_game(list)
+		return
+	# Hashing 100 MB takes a moment, so it is remembered until the exe changes.
+	var stamp := _self_stamp()
+	if _self_cache.get("stamp", "") == stamp:
+		_on_own_hash(str(_self_cache.get("hash", "")), newest, list)
+		return
+	_run_thread(_hash_file.bind(_self_path()), _on_own_hash.bind(newest, list))
+
+
+func _self_stamp() -> String:
+	var f := FileAccess.open(_self_path(), FileAccess.READ)
+	var size := f.get_length() if f != null else -1
+	return "%s|%d|%d" % [_self_path(), size, FileAccess.get_modified_time(_self_path())]
+
+
+# Runs on a thread.
+static func _hash_file(path: String) -> String:
+	var f := FileAccess.open(path, FileAccess.READ)
+	return _sha256(f) if f != null else ""
+
+
+func _on_own_hash(hash: String, newest: Dictionary, list: Array) -> void:
+	if hash != "" and _self_cache.get("hash", "") != hash:
+		_self_cache = {"stamp": _self_stamp(), "hash": hash}
+		_save_settings()
+	if hash == "" or hash == str(newest.get("digest", "")).substr(7).to_lower():
+		_pick_game(list)
+		return
+	state = State.DOWNLOADING
+	_stop_countdown()
+	_pending = list
+	_set_status("Updating the launcher...", GOLD)
+	_reset_progress()
+	_update_play()
+	if _self_download == null:
+		_self_download = HTTPRequest.new()
+		_self_download.use_threads = true
+		_self_download.download_chunk_size = 1 << 20
+		_self_download.request_completed.connect(_on_self_downloaded.bind(newest))
+		add_child(_self_download)
+	_dl = _self_download
+	_dl_size = int(newest.get("size", 0))
+	_dl_part = _self_path() + ".new"
+	_self_download.download_file = _dl_part
+	var err := _self_download.request(newest.get("browser_download_url", ""), ["User-Agent: HareHex-Launcher"])
+	if err != OK:
+		_self_update_failed("couldn't start the download (error %d)" % err)
+
+
+func _on_self_downloaded(result: int, code: int, _headers: PackedStringArray, _body: PackedByteArray, newest: Dictionary) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		_self_update_failed(_network_problem(result) if result != HTTPRequest.RESULT_SUCCESS else "HTTP %d" % code)
+		return
+	state = State.VERIFYING
+	_bar.value = 100.0
+	_set_status("Checking the new launcher...", GOLD)
+	_detail.text = ""
+	_run_thread(_verify.bind(_dl_part, int(newest.get("size", -1)), str(newest.get("digest", ""))), _on_self_verified)
+
+
+func _on_self_verified(problem: String) -> void:
+	if problem != "":
+		_self_update_failed(problem)
+		return
+	var own := _self_path()
+	var old := own + ".old"
+	DirAccess.remove_absolute(old)
+	if DirAccess.rename_absolute(own, old) != OK:
+		_self_update_failed("couldn't move the old launcher aside")
+		return
+	if DirAccess.rename_absolute(own + ".new", own) != OK:
+		DirAccess.rename_absolute(old, own)
+		_self_update_failed("couldn't put the new launcher in place")
+		return
+	_set_status("Restarting the launcher...", GOLD)
+	var args := OS.get_cmdline_args()
+	args.append("--")
+	args.append_array(OS.get_cmdline_user_args())
+	args.append("--self-updated")
+	if OS.create_process(own, args) <= 0:
+		# The new launcher is in place for next time; this one carries on.
+		_self_update_failed("couldn't start the new launcher")
+		return
+	get_tree().quit()
+
+
+# Not being able to update the launcher never stops anyone playing: note it and go on to the game.
+func _self_update_failed(why: String) -> void:
+	print("[launcher] Couldn't update the launcher: ", why)
+	DirAccess.remove_absolute(_self_path() + ".new")
+	_bar.visible = false
+	_dl = null
+	_pick_game(_pending)
+
+
+# The .old left by an update. Right after a swap the old launcher may still be closing, so try a few times.
+func _remove_old_launcher() -> void:
+	var old := _self_path() + ".old"
+	if not OS.has_feature("template"):
+		return
+	for i in 20:
+		if not FileAccess.file_exists(old) or DirAccess.remove_absolute(old) == OK:
+			return
+		await get_tree().create_timer(0.5).timeout
 
 
 # --- Playing ------------------------------------------------------------------------------------
@@ -493,6 +663,8 @@ func _load_settings() -> void:
 	if cfg.load(SETTINGS_PATH) == OK:
 		auto_start = bool(cfg.get_value("launcher", "auto_start", true))
 		project_dir = str(cfg.get_value("launcher", "project_dir", ""))
+		var cache = cfg.get_value("launcher", "self", {})
+		_self_cache = cache if cache is Dictionary else {}
 
 
 func _save_settings() -> void:
@@ -500,6 +672,8 @@ func _save_settings() -> void:
 	cfg.set_value("launcher", "auto_start", auto_start)
 	if project_dir != "":
 		cfg.set_value("launcher", "project_dir", project_dir)
+	if not _self_cache.is_empty():
+		cfg.set_value("launcher", "self", _self_cache)
 	cfg.save(SETTINGS_PATH)
 
 
