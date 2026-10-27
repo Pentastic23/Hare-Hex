@@ -37,6 +37,24 @@ $Asset = "HareHex-windows.zip"
 $Tag = "v$Version"
 
 function Step($text) { Write-Host "`n== $text" -ForegroundColor Yellow }
+# git push with the release token, so it works without a git login on this PC (GitHub Desktop
+# keeps its own). The token goes in as an HTTP header through git's environment config, never in
+# the remote URL or on the command line, and git is told not to wait for a password prompt.
+function Push-WithToken($branch, [switch]$DryRun) {
+	$basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$Token"))
+	$env:GIT_TERMINAL_PROMPT = "0"
+	$env:GIT_CONFIG_COUNT = "1"
+	$env:GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader"
+	$env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+	try {
+		if ($DryRun) { git push --dry-run origin $branch } else { git push origin $branch }
+	} finally {
+		foreach ($k in "GIT_TERMINAL_PROMPT", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0") {
+			Remove-Item "env:$k" -ErrorAction SilentlyContinue
+		}
+	}
+}
+
 function Ask($question) {
 	if ($Yes) { Write-Host "$question yes (-Yes)"; return }
 	$a = Read-Host "$question (y/n)"
@@ -47,6 +65,8 @@ if ($Version -notmatch '^\d+(\.\d+){1,3}$') { throw "Version should look like 0.
 if ($NotesFile) { $Notes = [IO.File]::ReadAllText($NotesFile).Trim() }
 if (-not (Test-Path $Godot)) { throw "Godot not found at $Godot (pass -Godot <path>)." }
 if (-not (Test-Path (Join-Path $Root "bug_report_webhook.txt"))) {
+	# Never shipped by accident: -Yes (the launcher's panel) stops here instead of saying yes.
+	if ($Yes) { throw "bug_report_webhook.txt is missing: put the bug report webhook URL in it, or bug reports won't work in this build." }
 	Write-Warning "bug_report_webhook.txt is missing: bug reports won't work in this build."
 	Ask "Build anyway?"
 }
@@ -76,7 +96,7 @@ try {
 		if ($LASTEXITCODE -ne 0 -or [int]$ahead -gt 0) {
 			Write-Warning "This commit isn't on GitHub yet ($branch is $ahead commit(s) ahead of origin)."
 			Ask "Push $branch now?"
-			git push origin $branch
+			Push-WithToken $branch
 			if ($LASTEXITCODE -ne 0) { throw "git push failed." }
 		}
 		$Commit = (git rev-parse HEAD).Trim()

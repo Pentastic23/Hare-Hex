@@ -148,6 +148,9 @@ func _on_go() -> void:
 	if not _token_present():
 		_set_status("No GitHub token: put one in release_token.txt in the project folder.", host.RED)
 		return
+	if not FileAccess.file_exists(project_dir.path_join("bug_report_webhook.txt")):
+		_set_status("bug_report_webhook.txt is missing: put the bug report webhook URL in it first.", host.RED)
+		return
 	if "v" + version == latest_tag:
 		_set_status("v%s is already released. Pick a new version." % version, host.RED)
 		return
