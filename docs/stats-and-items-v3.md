@@ -53,8 +53,8 @@ with a drawback that drops from stage 2. Drop weights are 1.0 for the 4-item ele
 The old basic items keep their ids (saves, waves and ghosts load them): Longsword went from +15 flat
 damage to +20% attack power, Chain Vest from 10% damage reduction to +25 armour, Mana Charm's +8%
 damage became +8% ability power. Hero's Blade is +10% attack power and +4% per stack. The Resonance
-Crystal alone gives +8% HP, attack power and ability power. Icons for the 30 new items are placeholders
-from `tools/make_item_icons.gd`.
+Crystal alone gives +8% HP, attack power and ability power. The 36 stat items' icons are drawn
+by `tools/make_item_icons.gd` to match the hand-made unique item icons (chunky 16 px art, dark outline).
 
 ## Resonances
 
