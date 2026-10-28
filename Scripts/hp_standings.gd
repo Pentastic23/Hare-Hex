@@ -4,8 +4,9 @@ extends VBoxContainer
 # Combat HUD, right edge: one StandingRow per player, highest HP first, eliminated players last.
 # Single player today: you, plus a row for this round's opponent: the ghost in async PvP (its HP when
 # it was recorded), the wave in a campaign ("4/5" instead of HP), or "Random enemies" in free play.
-# Lobbies: one row per GameState.players entry, the one you face gets the VS tag, streaks show beside the
-# HP; click a player's row to see their board (LobbyGame.scout), your own row or Space to come back.
+# Your row shows your win / loss streak (flames / droplets) in every mode.
+# Lobbies: one row per GameState.players entry, the one you face gets the VS tag, everyone's streaks show
+# beside the HP; click a player's row to see their board (LobbyGame.scout), your own row or Space to come back.
 # Async PvP has no HP: the rows show lives left out of 10 (one bar segment each), yours and the ghost's.
 # Replaces the old HpLabel and TopBar/OpponentLabel. The damage meter overlays it while open.
 
@@ -27,6 +28,7 @@ func _ready():
 	Events.trophies_changed.connect(func(_t, _l): refresh())
 	Events.opponent_announced.connect(func(_t): refresh())
 	Events.round_changed.connect(func(_s, _r): refresh())
+	Events.streak_changed.connect(func(_w, _l): refresh())
 	scout_note = HudStyle.caps(10, HudStyle.GOLD)
 	scout_note.visible = false
 	scout_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -50,7 +52,7 @@ func _on_row_input(event: InputEvent, r: StandingRow) -> void:
 		if lobby != null and r.seat >= 0:
 			lobby.scout(-1 if r.role == "you" else r.seat)
 
-# [name, role, hp, max hp, number text, seat, streak] per row, sorted (seat and streak: lobbies only).
+# [name, role, hp, max hp, number text, seat, streak] per row, sorted (seat: lobbies only; streak: yours, and everyone's in lobbies).
 func entries() -> Array:
 	var out: Array = []
 	var lobby := LobbyNet.in_lobby()
@@ -61,9 +63,9 @@ func entries() -> Array:
 		if lobby and not ps.is_local:
 			role = "out" if ps.player_hp <= 0 else ("opponent" if ps.id == foe else "other")
 		var label := "You" if ps.is_local else (ps.display_name if lobby else "Player %d" % ps.id)
-		var streak := (ps.win_streak if ps.win_streak > 0 else -ps.loss_streak) if lobby else 0
+		var streak := (ps.win_streak if ps.win_streak > 0 else -ps.loss_streak) if lobby or ps.is_local else 0   # yours in every mode
 		if GameState.ghost_mode and not lobby:
-			out.append([label, role, ps.lives_left(), 1 if ps.endless else GameState.ASYNC_LIVES, "", -1, 0])   # endless: sudden death
+			out.append([label, role, ps.lives_left(), 1 if ps.endless else GameState.ASYNC_LIVES, "", -1, streak])   # endless: sudden death
 			continue
 		out.append([label, role, ps.player_hp, ps.start_hp, "", ps.id if lobby else -1, streak])
 	if not lobby:

@@ -505,7 +505,6 @@ func _target_rect(key: String) -> Rect2:
 			r = shop.gold_row.get_global_rect()
 			if b.interest != null:
 				r = _union(r, _world_rect(_hex_points(b.interest.global_position, 0.8)))
-			r = _union(r, _ctl(ui, "BottomInfo/InfoRow/StreakLabel"))
 		"level":
 			r = _union(shop.row.get_child(0).get_global_rect(), shop.buy_xp_button.get_global_rect())
 		"board":

@@ -267,6 +267,13 @@ func _run():
 	row.show_player("other", "Bramble", 80, 100)
 	chk("a streak of 2 or more shows on the row (fire for wins, water for losses), not 1", fire and water and not row.mark.visible)
 	row.queue_free()
+	await load_main(4)   # free play: your row carries your streak (the old bottom label is gone)
+	GameState.me.win_streak = 3
+	GameState.me.loss_streak = 0
+	Events.streak_changed.emit(3, 0)
+	await frames(1)
+	var you_rows: Array = main.get_node("UI/Standings").rows.filter(func(r): return r.role == "you")
+	chk("in single player your standings row shows your streak, and the bottom streak label is gone", you_rows.size() == 1 and you_rows[0].streak == 3 and you_rows[0].mark.visible and main.get_node_or_null("UI/BottomInfo/InfoRow/StreakLabel") == null)
 
 	if main != null:
 		main.queue_free()
