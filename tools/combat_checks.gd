@@ -234,8 +234,8 @@ func _run():
 		return out
 	var casters: Array = team_of.call(["cleric", "apprentice", "sprite", "sparkcaller", "mage", "ice_mage", "runesmith", "lich", "archmage"])
 	var fx: Dictionary = Synergies.effects_for(casters)
-	chk("9 Casters: Archmagi +90% damage and every 3rd attack crits (plus +10% from the 3 Arcane among them)", is_equal_approx(fx[casters[4]].get("dmg", 0.0), 1.0) and int(fx[casters[4]].get("crit", 0)) == 3, str(fx[casters[4]]))
-	chk("tiers don't stack: 5 Order units get +50% HP, not 15+25+35+50", is_equal_approx(Synergies.effects_for(team_of.call(["knight", "militia", "guardian", "warlord", "herald"])).values()[0].get("hp", 0.0), 0.5))
+	chk("9 Casters: Archmagi +100% ability power (plus +14% from the 3 Arcane among them), and no crits", is_equal_approx(fx[casters[4]].get("ap", 0.0), 1.14) and int(fx[casters[4]].get("crit", 0)) == 0, str(fx[casters[4]]))
+	chk("tiers don't stack: 5 Order units get 35 mitigation, not 10+16+24+35", is_equal_approx(Synergies.effects_for(team_of.call(["knight", "militia", "guardian", "warlord", "herald"])).values()[0].get("mit", 0.0), 35.0))
 	chk("Lich King gives every Undead a revive", is_equal_approx(Synergies.effects_for([bare("deathlord"), bare("ghoul")]).values()[1].get("revive", 0.0), 0.3))
 	chk("every trait's tooltip lists one line per tier", Synergies.tooltip("Warrior").split("\n").size() == 5 and Synergies.tooltip("Warrior", 7).contains("> 7:"))
 
@@ -322,6 +322,58 @@ func _run():
 		a._tick_effects(gm.COMBAT_TICK)
 	chk("regen: 10% of max HP per second", absf(a.health - a.max_hp() * 0.6) < 1.0)
 
+	print("--- stats v3: armour, magic resist, mitigation, attack and ability power, sunder, shred")
+	await load_main(33)
+	GameState.me.level = 10
+	board.refresh_unlocks(10, false)
+	a = place("knight", Vector2i(3, 4))
+	t = place("knight", Vector2i(3, 3), 1)
+	a.apply_synergy({})
+	t.apply_synergy({"armor": 100.0, "mr": 50.0})
+	a.begin_combat()
+	t.begin_combat()
+	full = t.max_hp()
+	chk("armour: 100 armour halves physical damage (attacks)", is_equal_approx(t.take_damage(100.0, a, true), 50.0))
+	t.begin_combat()
+	chk("magic resist: 50 magic resist cuts magic damage (abilities) to two thirds", is_equal_approx(t.take_damage(90.0, a), 60.0))
+	t.begin_combat()
+	chk("true damage (executes) ignores both", is_equal_approx(t.take_damage(100.0, a, false, true), 100.0))
+	t.apply_synergy({"mit": 10.0})
+	t.begin_combat()
+	chk("mitigation: 10 off a 100 hit", is_equal_approx(t.take_damage(100.0, a, true), 90.0))
+	t.begin_combat()
+	chk("a hit smaller than the mitigation still deals 1", is_equal_approx(t.take_damage(5.0, a, true), 1.0))
+	t.begin_combat()
+	chk("mitigation leaves burn and zone ticks alone", is_equal_approx(t.take_damage(3.0, a, false, false, Unit.MAGIC, true), 3.0))
+	t.apply_synergy({"armor": 60.0})
+	t.begin_combat()
+	a.apply_synergy({"sunder": 20.0, "shred": 30.0})
+	a.begin_combat()
+	a._attack(t)
+	chk("sunder: an attack cuts the target's armour (60 -> 40)", is_equal_approx(t.armor(), 40.0))
+	chk("shred: and its magic resist, never below 0", is_equal_approx(t.magic_resist(), 0.0))
+	for i in 200:   # a little over 3 s
+		t._tick_effects(gm.COMBAT_TICK)
+	chk("sunder and shred wear off after 3 s", is_equal_approx(t.armor(), 60.0) and t.sunder_on == 0.0 and t.shred_on == 0.0)
+	a.apply_synergy({"ad": 0.5})
+	a.begin_combat()
+	chk("attack power: +50% attack power is 1.5x attack damage", is_equal_approx(a.damage(), a.data.attack_damage * 1.5))
+	a.apply_synergy({"ap": 0.5})
+	a.begin_combat()
+	t.apply_synergy({})
+	t.begin_combat()
+	chk("ability power: +50% makes an ability hit of 100 deal 150 (and leaves attacks alone)", is_equal_approx(Abilities.hit(a, t, 100.0, false), 150.0) and is_equal_approx(a.damage(), a.data.attack_damage))
+	a.health = 100.0
+	Abilities.mend(a, 100.0 * a.ability_bonus())
+	chk("and heals 150 for a heal of 100", is_equal_approx(a.health, 250.0))
+	t.begin_combat()
+	t.equip(I("chain_vest"))
+	t.equip(I("warding_cloak"))
+	t.equip(I("leather_jerkin"))
+	chk("items add armour, magic resist and mitigation", is_equal_approx(t.armor(), 25.0) and is_equal_approx(t.magic_resist(), 25.0) and is_equal_approx(t.mitigation(), 8.0))
+	var real_knight: UnitData = UD("knight")
+	chk("units have base armour and magic resist (a melee Knight 20 / 20)", is_equal_approx(real_knight.armor, 20.0) and is_equal_approx(real_knight.magic_resist, 20.0))
+
 	print("--- a fight full of mechanics is still deterministic")
 	var msigs: PackedStringArray = []
 	for i in 2:
@@ -379,6 +431,14 @@ func _run():
 	get_tree().quit()
 
 # A unit data by file name, from tres/ or tres/units/.
+# A copy of a unit's data without its base armour and magic resist, so the mechanic checks measure
+# exact numbers (the resists have checks of their own in combat_checks).
+func no_resists(d: UnitData) -> UnitData:
+	var c := d.duplicate() as UnitData
+	c.armor = 0.0
+	c.magic_resist = 0.0
+	return c
+
 func UD(n: String) -> UnitData:
 	var p := "res://tres/units/%s.tres" % n
 	return load(p if ResourceLoader.exists(p) else "res://tres/%s.tres" % n)
@@ -387,7 +447,7 @@ func UD(n: String) -> UnitData:
 func place(n: String, c: Vector2i, team := 0) -> Unit:
 	var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
 	board.get_node("Units").add_child(u)
-	u.setup(UD(n), team)
+	u.setup(no_resists(UD(n)), team)
 	if team == 0:
 		board.put_on_tile(u, c)
 	else:

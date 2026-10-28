@@ -33,11 +33,14 @@ var _rules_sig := ""
 # The stat cells: key, pixel icon, colour, caption.
 const STAT_ROWS := [
 	["hp", "heart", Color("6fd86a"), "HEALTH"],
-	["dmg", "sword", Color("ff8a4c"), "DAMAGE"],
+	["ad", "sword", Color("ff8a4c"), "ATTACK DMG"],
+	["ap", "orb", Color("7fa8ff"), "ABILITY PWR"],
 	["as", "bolt", Color("f2c14e"), "ATTACK SPD"],
+	["armor", "shield", Color("d0a46a"), "ARMOUR"],
+	["mr", "ward", Color("b48cff"), "MAGIC RES"],
 	["range", "target", Color("c58cff"), "RANGE"],
 	["mana", "drop", Color("5aa8ff"), "MANA"],
-	["dr", "shield", Color("b8c0dc"), "REDUCTION"],
+	["mit", "block", Color("b8c0dc"), "MITIGATION"],
 	["vamp", "fang", Color("ff6b8a"), "OMNIVAMP"],
 ]
 const PLATE_FILL := Color(0.098, 0.110, 0.161, 0.98)   # nearly solid: the board doesn't show through the text
@@ -157,17 +160,25 @@ func _fill():
 	# Stats at the current star with items and synergy bonuses folded in (synergies aren't called out).
 	var b := _synergy_bonuses(u)
 	var hp_mult: float = mult * (1.0 + b.get("hp", 0.0))
-	var dmg_mult: float = mult * (1.0 + b.get("dmg", 0.0))
+	var ad_base: float = d.attack_damage * mult
+	var ad := roundi(ad_base * (1.0 + b.get("ad", 0.0) + u.item_ad))
+	var ad_items := roundi(ad_base * u.item_ad)
+	var ap := roundi(100.0 * (1.0 + b.get("ap", 0.0) + u.item_ap))   # 100 = its abilities as written
+	var armor := roundi(d.armor + b.get("armor", 0.0) + u.item_armor)
+	var mr := roundi(d.magic_resist + b.get("mr", 0.0) + u.item_mr)
+	var mit := roundi(b.get("mit", 0.0) + u.item_mit)
 	var lines: PackedStringArray = [
 		"Health: %d%s" % [roundi((d.max_health + u.item_hp) * hp_mult), _items_note(u.item_hp, "+%d" % roundi(u.item_hp * hp_mult))],
-		"Damage: %d%s" % [roundi((d.attack_damage + u.item_dmg) * dmg_mult), _items_note(u.item_dmg, "+%d" % roundi(u.item_dmg * dmg_mult))],
+		"Attack damage: %d%s" % [ad, _items_note(u.item_ad, "+%d" % ad_items)],
+		"Ability power: %d%s" % [ap, _items_note(u.item_ap, "+%d" % roundi(u.item_ap * 100.0))],
 		"Attack speed: %.2f%s" % [d.attacks_per_second * (1.0 + u.item_as + b.get("as", 0.0)), _items_note(u.item_as, "+%d%%" % roundi(u.item_as * 100.0))],
+		"Armour: %d%s" % [armor, _items_note(u.item_armor, "+%d" % roundi(u.item_armor))],
+		"Magic resist: %d%s" % [mr, _items_note(u.item_mr, "+%d" % roundi(u.item_mr))],
 		"Range: %d" % (roundi(d.attack_range) + int(b.get("range", 0))),
 		"Mana: %d  (start %d)%s" % [roundi(d.max_mana), roundi(minf(d.start_mana + u.item_mana, d.max_mana)), _items_note(u.item_mana, "+%d" % roundi(u.item_mana))],
 	]
-	var reduction := minf(b.get("dr", 0.0) + u.item_dr, 0.6)   # same 60% cap as take_damage()
-	if reduction > 0.0:
-		lines.append("Damage reduction: %d%%" % roundi(reduction * 100.0))
+	if mit > 0:
+		lines.append("Mitigation: %d" % mit)
 	var steal: float = b.get("vamp", 0.0) + u.item_lifesteal
 	if steal > 0.0:
 		lines.append("Omnivamp: %d%%" % roundi(steal * 100.0))
@@ -176,12 +187,15 @@ func _fill():
 		rules.append("Charmed: fighting for the other side (%.1f s)" % u.charm_left)
 	lines.append_array(rules)
 	stats_label.text = "\n".join(lines)
-	_cell("hp", str(roundi((d.max_health + u.item_hp) * hp_mult)), _bonus(u.item_hp, "+%d" % roundi(u.item_hp * hp_mult)))
-	_cell("dmg", str(roundi((d.attack_damage + u.item_dmg) * dmg_mult)), _bonus(u.item_dmg, "+%d" % roundi(u.item_dmg * dmg_mult)))
-	_cell("as", "%.2f" % (d.attacks_per_second * (1.0 + u.item_as + b.get("as", 0.0))), _bonus(u.item_as, "+%d%%" % roundi(u.item_as * 100.0)))
+	_cell("hp", str(roundi((d.max_health + u.item_hp) * hp_mult)), _bonus(u.item_hp, "%+d" % roundi(u.item_hp * hp_mult)))
+	_cell("ad", str(ad), _bonus(u.item_ad, "%+d" % ad_items))
+	_cell("ap", str(ap), _bonus(u.item_ap, "%+d" % roundi(u.item_ap * 100.0)))
+	_cell("as", "%.2f" % (d.attacks_per_second * (1.0 + u.item_as + b.get("as", 0.0))), _bonus(u.item_as, "%+d%%" % roundi(u.item_as * 100.0)))
+	_cell("armor", str(armor), _bonus(u.item_armor, "%+d" % roundi(u.item_armor)))
+	_cell("mr", str(mr), _bonus(u.item_mr, "%+d" % roundi(u.item_mr)))
 	_cell("range", str(roundi(d.attack_range) + int(b.get("range", 0))), "")
-	_cell("mana", str(roundi(d.max_mana)), _bonus(u.item_mana, "+%d" % roundi(u.item_mana)), "MANA · START %d" % roundi(minf(d.start_mana + u.item_mana, d.max_mana)))
-	_cell("dr", "%d%%" % roundi(reduction * 100.0), "", "", reduction > 0.0)
+	_cell("mana", str(roundi(d.max_mana)), _bonus(u.item_mana, "%+d" % roundi(u.item_mana)), "MANA · START %d" % roundi(minf(d.start_mana + u.item_mana, d.max_mana)))
+	_cell("mit", str(mit), _bonus(u.item_mit, "%+d" % roundi(u.item_mit)), "", mit > 0)
 	_cell("vamp", "%d%%" % roundi(steal * 100.0), "", "", steal > 0.0)
 	var rules_sig := "|".join(rules)
 	if rules_sig != _rules_sig:
@@ -236,7 +250,7 @@ func _make_cell(row: Array) -> PanelContainer:
 	var caption := HudStyle.caps(9, HudStyle.MUTED)
 	caption.text = row[3]
 	col.add_child(caption)
-	box.tooltip_text = Tip.wrap({"hp": "Health, with items and synergies. Gold: what items add.", "dmg": "Damage per attack, with items and synergies. Gold: what items add.", "as": "Attacks per second. Gold: what items add.", "range": "How many hexes away it can attack from.", "mana": "Mana to cast its ability, and how much it starts a fight with. It gains 10 per attack and some when hit.", "dr": "Less damage taken (60% at most).", "vamp": "Heals for this share of the damage it deals."}[row[0]])
+	box.tooltip_text = Tip.wrap({"hp": "Health, with items and synergies. Gold: what items add.", "ad": "Damage per attack (physical: armour cuts it), with attack power from items and synergies. Gold: what items add.", "ap": "Ability power: 100 is the ability as written; 150 means its damage, heals and shields are 50% bigger. Ability damage is magic: magic resist cuts it.", "armor": "Armour: physical damage (attacks) taken x 100 / (100 + armour). 50 armour takes a third off.", "mr": "Magic resist: magic damage (abilities, burns, zones) taken x 100 / (100 + magic resist).", "mit": "Mitigation: this much is taken off every hit after armour or magic resist (not off burns or zones). A hit still deals at least 1.", "as": "Attacks per second. Gold: what items add.", "range": "How many hexes away it can attack from.", "mana": "Mana to cast its ability, and how much it starts a fight with. It gains 10 per attack and some when hit.", "vamp": "Heals for this share of the damage it deals."}[row[0]])
 	cells[row[0]] = {"box": box, "value": value, "bonus": bonus, "caption": caption}
 	return box
 
@@ -274,7 +288,7 @@ func _items_note(value: float, text: String) -> String:
 func _synergy_bonuses(u: Unit) -> Dictionary:
 	var gm = get_tree().get_first_node_in_group("game_manager")
 	if gm != null and gm.fighting:
-		return {"hp": u.bonus_hp, "dmg": u.bonus_dmg, "as": u.bonus_as, "dr": u.dmg_reduction, "vamp": u.lifesteal, "shield": u.shield_pct, "regen": u.regen, "ramp": u.ramp, "ramp_max": u.ramp_max, "crit": u.crit_every, "execute": u.execute, "revive": u.revive, "burn": u.burn, "chill": u.chill, "dodge": u.dodge_every, "curse": u.curse, "range": u.range_bonus, "kill_heal": u.kill_heal}
+		return {"hp": u.bonus_hp, "ad": u.bonus_ad, "ap": u.bonus_ap, "as": u.bonus_as, "armor": u.bonus_armor, "mr": u.bonus_mr, "mit": u.bonus_mit, "sunder": u.sunder, "shred": u.shred, "summon": u.summon_power, "vamp": u.lifesteal, "shield": u.shield_pct, "regen": u.regen, "ramp": u.ramp, "ramp_max": u.ramp_max, "crit": u.crit_every, "execute": u.execute, "revive": u.revive, "burn": u.burn, "chill": u.chill, "dodge": u.dodge_every, "curse": u.curse, "range": u.range_bonus, "kill_heal": u.kill_heal}
 	if u.team != 0 or u.coord.x < 0 or board == null:
 		return Synergies.preview(null, [])
 	var team: Array = board.all_player_units().filter(func(x): return x.coord.x >= 0)
@@ -306,6 +320,12 @@ func _mechanic_lines(b: Dictionary) -> PackedStringArray:
 		out.append("Dodges every %s attack" % _nth(int(b.dodge)))
 	if b.get("kill_heal", 0.0) > 0.0:
 		out.append("Heals %d%% of max HP on a kill" % pct.call("kill_heal"))
+	if b.get("sunder", 0.0) > 0.0:
+		out.append("Attacks sunder %d armour" % roundi(float(b.sunder)))
+	if b.get("shred", 0.0) > 0.0:
+		out.append("Attacks shred %d magic resist" % roundi(float(b.shred)))
+	if b.get("summon", 0.0) > 0.0:
+		out.append("Summons +%d%% HP and damage" % pct.call("summon"))
 	return out
 
 func _nth(n: int) -> String:
@@ -440,8 +460,8 @@ func item_tip(it: ItemData, stacks: int, u_star := 3) -> String:
 	var lines: PackedStringArray = [it.display_name + ("  (%s)" % String(it.element) if it.element != &"" else ""), it.description]
 	if it.kind == &"bound":
 		var now: PackedStringArray = []
-		if it.stack_dmg > 0.0:
-			now.append("+%d damage" % roundi(it.dmg + it.stack_dmg * stacks))
+		if it.stack_ad > 0.0:
+			now.append("+%d%% attack power" % roundi((it.attack_power + it.stack_ad * stacks) * 100.0))
 		if it.stack_hp > 0.0:
 			now.append("+%d HP" % roundi(it.hp + it.stack_hp * stacks))
 		lines.append("%d / %d stacks: %s now" % [stacks, it.max_stacks, ", ".join(now)])

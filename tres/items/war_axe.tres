@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"war_axe"
+display_name = "War Axe"
+description = "+15% attack power, +100 HP."
+color = Color(0.75, 0.55, 0.35, 1)
+attack_power = 0.15
+hp = 100.0
+element = &"Might"

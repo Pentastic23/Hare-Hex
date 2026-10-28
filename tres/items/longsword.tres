@@ -6,7 +6,7 @@
 script = ExtResource("1_item")
 id = &"longsword"
 display_name = "Longsword"
-description = "+15 attack damage"
+description = "+20% attack power."
 color = Color(0.9, 0.6, 0.2, 1)
-dmg = 15.0
+attack_power = 0.2
 element = &"Might"

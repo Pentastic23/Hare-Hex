@@ -31,7 +31,7 @@ const DEFS := {
 	"Miner": {"name": "Pick Through", "a": 160, "text": "Strikes the target for {a}; it takes 15% more damage for 4 s."},
 	"Initiate": {"name": "Monkey Barrage", "a": 35, "text": "Five quick strikes on the target for {a} each. They count as attacks, so on-hit effects apply."},
 	# 2-cost
-	"Guardian": {"name": "Shell Up", "text": "Takes 50% less damage for 3 s and taunts enemies within 2 hexes for 2 s."},
+	"Guardian": {"name": "Shell Up", "text": "Gains 100 armour and magic resist for 3 s and taunts enemies within 2 hexes for 2 s."},
 	"Bard": {"name": "Dawn Chorus", "b": [25, 35, 50], "text": "Allies within 2 hexes (the Bard too) gain {b}% attack speed for 4 s."},
 	"Alchemist": {"name": "Tonic Flask", "a": 150, "text": "The ally with the lowest HP% heals {a} and gains 20% attack speed for 3 s."},
 	"Ghoul": {"name": "Feast", "a": 180, "b": 200, "text": "Bites the target for {a}. If it is then below 30% HP, the Ghoul heals {b}."},
@@ -45,10 +45,10 @@ const DEFS := {
 	"Pyromancer": {"name": "Flame Pillar", "a": 220, "text": "Fire on the biggest cluster of enemies: {a} to each within 1 hex of it, and a double-strength burn for 4 s."},
 	"Ice Mage": {"name": "Glacier Slam", "a": 180, "text": "Ice on the biggest cluster of enemies: {a} to each within 1 hex of it, stunned for 1.25 s."},
 	"Dryad": {"name": "Eucalyptus Bloom", "a": 70, "text": "Heals every ally for {a} and gives them 1% regen per second for 4 s."},
-	"Skald": {"name": "War Chant", "b": [20, 30, 45], "c": 150, "text": "Allies within 2 hexes gain {b}% damage for 4 s; the Skald gains a {c} shield for 4 s."},
+	"Skald": {"name": "War Chant", "b": [20, 30, 45], "c": 150, "text": "Allies within 2 hexes gain {b}% attack power for 4 s; the Skald gains a {c} shield for 4 s."},
 	"Shadowfist": {"name": "Stink Cloud", "a": 120, "text": "Adjacent enemies take {a} and their next 2 attacks miss."},
 	"Sunmonk": {"name": "Solar Palm", "a": 100, "text": "Three blows on the target for {a} each; the last one stuns for 1 s."},
-	"Winter Knight": {"name": "Frozen Bulwark", "text": "Adjacent enemies are chilled 50% for 3 s, and it takes 25% less damage for 4 s."},
+	"Winter Knight": {"name": "Frozen Bulwark", "text": "Adjacent enemies are chilled 50% for 3 s, and it gains 35 armour and magic resist for 4 s."},
 	# 4-cost
 	"Berserker": {"name": "Bloodrage", "b": [60, 75, 100], "text": "For 5 s: {b}% attack speed and 30% omnivamp."},
 	"Hunter": {"name": "Hunter's Mark", "a": 250, "text": "Shoots the enemy with the lowest HP for {a}; it takes 30% more damage from everyone for 5 s."},
@@ -56,8 +56,8 @@ const DEFS := {
 	"Frost Giant": {"name": "Avalanche Stomp", "a": 150, "text": "Enemies within 2 hexes take {a} and are stunned for 1.5 s."},
 	"Dwarf Gunner": {"name": "Quill Shot", "a": 200, "text": "Hits the target and every enemy next to it for {a}; they take 10% more damage for 4 s."},
 	"Archmage": {"name": "Dazzling Display", "a": 220, "text": "Stuns enemies within 2 hexes for 1 s, then the three nearest take {a}."},
-	"Herald": {"name": "Rallying Cry", "a": 100, "text": "Every ally takes 20% less damage and gains 15% attack speed for 4 s; Order allies also heal {a}."},
-	"Hellknight": {"name": "Red Fury", "text": "Taunts enemies within 2 hexes for 2 s and gains 30% omnivamp and 20% less damage taken for 4 s."},
+	"Herald": {"name": "Rallying Cry", "a": 100, "text": "Every ally gains 25 armour and magic resist and 15% attack speed for 4 s; Order allies also heal {a}."},
+	"Hellknight": {"name": "Red Fury", "text": "Taunts enemies within 2 hexes for 2 s and gains 30% omnivamp and 25 armour and magic resist for 4 s."},
 	# 5-cost
 	"Dragon": {"name": "Dragonfire Breath", "a": 400, "b": 300, "text": "Breathes fire on the target and the hexes behind it: {a} and a burn. The Dragon gains a {b} shield for 4 s."},
 	"Titan": {"name": "Earthquake", "a": 300, "text": "Stuns every enemy for 1 s; those within 2 hexes also take {a}."},
@@ -151,7 +151,7 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Cleric":
 			for a in lowest_hp_allies(u, 2):
 				Vfx.sky_beam(u, a.global_position, Color("fff2b0"))
-				mend(a, amt(u, "a"))
+				mend(a, amt(u, "a") * u.ability_bonus())
 		"Archer":
 			for e in nearest_enemies(u, u.coord, 3):
 				Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(e), fx, 0.8)
@@ -164,14 +164,14 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Militia":
 			Vfx.wall(u, fx, 0.8)
 			Vfx.shockwave(u, u.board, u.coord, 1, fx, 0.35, 2)
-			u.add_timed_shield(amt(u, "a"), 4.0)
+			u.add_timed_shield(amt(u, "a") * u.ability_bonus(), 4.0)
 			for e in enemies_within(u, u.coord, 1):
 				e.apply_taunt(u, 2.0)
 		"Acolyte":
 			for a in lowest_hp_allies(u, 1):
 				Vfx.sky_beam(u, a.global_position, fx, 0.4, 0.5)
 				Vfx.wall(a, Color("cfe8ff"), 0.6)
-				a.add_timed_shield(amt(u, "a"), 4.0, true)
+				a.add_timed_shield(amt(u, "a") * u.ability_bonus(), 4.0, true)
 		"Apprentice":
 			var dmg := amt(u, "a")
 			var hit_list: Array[Unit] = [t]
@@ -237,7 +237,8 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Guardian":
 			Vfx.wall(u, fx, 2.5, 0.9)
 			Vfx.shockwave(u, u.board, u.coord, 2, fx, 0.3, 2)
-			u.add_buff("Shell Up", "dr", 0.5, 3.0)
+			u.add_buff("Shell Up", "armor", 100.0, 3.0)
+			u.add_buff("Shell Up mr", "mr", 100.0, 3.0)
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_taunt(u, 2.0)
 		"Bard":
@@ -251,14 +252,14 @@ static func cast(u: Unit, t: Unit) -> float:
 			for a in lowest_hp_allies(u, 1):
 				Vfx.arc_shot(u, Vfx._chest(u), Vfx._chest(a), Color("7fdc5a"), 1.6, 1.0, 0.22)
 				Vfx.rise(a, Color("ffe066"), 6)
-				mend(a, amt(u, "a"))
+				mend(a, amt(u, "a") * u.ability_bonus())
 				a.add_buff("Tonic Flask", "as", 0.2, 3.0)
 		"Ghoul":
 			Vfx.slash(u, t.global_position, fx)
 			hit(u, t, amt(u, "a"))
 			if t.dead or t.health < t.max_hp() * 0.3:
 				Vfx.stream(t, u, Vfx.HEAL, 5)
-				mend(u, amt(u, "b"))
+				mend(u, amt(u, "b") * u.ability_bonus())
 		"Sparkcaller":
 			var bolt: Array = [Vfx._chest(u)]
 			for e in enemies_in_line(u, t, 3):
@@ -279,7 +280,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.wall(u, fx, 0.6)
 			hit(u, t, amt(u, "a"))
 			t.apply_stun(1.5)
-			u.add_timed_shield(amt(u, "b"), 4.0)
+			u.add_timed_shield(amt(u, "b") * u.ability_bonus(), 4.0)
 		"Monk":
 			lock = 1.0
 			Vfx.rise(u, fx, 12, 1.0)
@@ -323,15 +324,15 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.shockwave(u, u.board, u.coord, 3, fx, 0.25, 1)
 			for a in allies(u):
 				Vfx.rise(a, Vfx.HEAL, 6, 0.6)
-				mend(a, amt(u, "a"))
+				mend(a, amt(u, "a") * u.ability_bonus())
 				a.add_buff("Eucalyptus Bloom", "regen", 0.01, 4.0)
 		"Skald":
 			Vfx.notes(u, Color("ff6b5a"), 3)
 			Vfx.rings(u, u.global_position, Color("ff6b5a"), 3, 3.2)
 			Vfx.wall(u, fx, 0.8)
 			for a in allies_within(u, u.coord, 2):
-				a.add_buff("War Chant", "dmg", amt(u, "b") / 100.0, 4.0)
-			u.add_timed_shield(amt(u, "c"), 4.0)
+				a.add_buff("War Chant", "ad", amt(u, "b") / 100.0, 4.0)
+			u.add_timed_shield(amt(u, "c") * u.ability_bonus(), 4.0)
 		"Shadowfist":
 			Vfx.cloud(u, u.global_position, Color("8a9a5a"), 1.5, 1.4)
 			Vfx.shockwave(u, u.board, u.coord, 1, Color("8a9a5a"), 0.25, 1)
@@ -355,7 +356,8 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.wall(u, Color("cfefff"), 1.0)
 			for e in enemies_within(u, u.coord, 1):
 				e.apply_chill(0.5, 3.0)
-			u.add_buff("Frozen Bulwark", "dr", 0.25, 4.0)
+			u.add_buff("Frozen Bulwark", "armor", 35.0, 4.0)
+			u.add_buff("Frozen Bulwark mr", "mr", 35.0, 4.0)
 		"Berserker":
 			Vfx.rise(u, Color("ff3b3b"), 10, 0.6)
 			Vfx.orbit(u, Color("d0304a"), 5.0, 5, 0.7, 1.0)
@@ -405,24 +407,26 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.rings(u, u.global_position, fx, 3, 2.5)
 			for a in allies(u):
 				Vfx.rise(a, fx, 5, 0.6)
-				a.add_buff("Rallying Cry", "dr", 0.2, 4.0)
+				a.add_buff("Rallying Cry", "armor", 25.0, 4.0)
+				a.add_buff("Rallying Cry mr", "mr", 25.0, 4.0)
 				a.add_buff("Rallying Cry speed", "as", 0.15, 4.0)
 				if a.data.tags.has(&"Order"):
-					mend(a, amt(u, "a"))
+					mend(a, amt(u, "a") * u.ability_bonus())
 		"Hellknight":
 			Vfx.pillar(u, u.global_position, fx, 1.8, 0.25)
 			Vfx.shockwave(u, u.board, u.coord, 2, fx, 0.4, 2)
 			for e in enemies_within(u, u.coord, 2):
 				e.apply_taunt(u, 2.0)
 			u.add_buff("Red Fury", "vamp", 0.3, 4.0)
-			u.add_buff("Red Fury guard", "dr", 0.2, 4.0)
+			u.add_buff("Red Fury guard", "armor", 25.0, 4.0)
+			u.add_buff("Red Fury guard mr", "mr", 25.0, 4.0)
 		"Dragon":
 			Vfx.breath(u, Vfx._chest(u) + Vector3(0, 0.4, 0), Vfx._chest(t), Color("ff7a2e"), 0.6, 1.0)
 			Vfx.orbit(u, Color("fff2b0"), 1.2, 4, 0.9, 1.2)
 			for e in enemies_in_cone(u, t):
 				hit(u, e, amt(u, "a"), false)
 				e.apply_burn(0.03 * e.max_hp(), u)
-			u.add_timed_shield(amt(u, "b"), 4.0)
+			u.add_timed_shield(amt(u, "b") * u.ability_bonus(), 4.0)
 		"Titan":
 			Vfx.shockwave(u, u.board, u.coord, 2, fx, 1.0, 3)
 			Vfx.shockwave(u, u.board, u.coord, 7, fx.darkened(0.2), 0.25, 1)
@@ -437,7 +441,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.orbit(u, fx, 2.0, 3, 0.55, 0.8)
 			u.leap_to(spot)
 			u.empower_hits = 3
-			u.empower_dmg = amt(u, "a") * u.damage_bonus()
+			u.empower_dmg = amt(u, "a") * u.ability_bonus()
 		"Nightblade":
 			var prey: Array[Unit] = []
 			for e in targets(u):
@@ -484,7 +488,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.cloud(u, u.global_position, Color("2a1f3d"), 1.8, 0.7)
 			u.untargetable_left = 2.0
 			u.empower_hits = 1
-			u.empower_dmg = amt(u, "a") * u.damage_bonus()
+			u.empower_dmg = amt(u, "a") * u.ability_bonus()
 			u.empower_crit = true
 			u.empower_after_stealth = true
 		"Seraph":
@@ -492,7 +496,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.rise(u, fx, 10)
 			for a in allies(u):
 				Vfx.sky_beam(u, a.global_position, Color("fff2b0"), 0.45, 0.6)
-				mend(a, amt(u, "a"))
+				mend(a, amt(u, "a") * u.ability_bonus())
 			for a in low:
 				Vfx.wall(a, Color("fff2b0"), 1.2)
 				a.untargetable_left = maxf(a.untargetable_left, 1.5)
@@ -530,7 +534,7 @@ static func cast(u: Unit, t: Unit) -> float:
 				var spot := u.board.display_pos(c.coord)
 				Vfx.arc_shot(u, Vfx._chest(u), spot + Vector3(0, 0.5, 0), Color("8fd14f"), 1.6, 1.0, 0.22)
 				Vfx.cloud(u, spot, Color("6f8f2f"), 4.0, 1.4)
-				gm.add_zone("miasma", c.coord, 1, 4.0, u.team, amt(u, "a") * u.damage_bonus(), u)
+				gm.add_zone("miasma", c.coord, 1, 4.0, u.team, amt(u, "a") * u.ability_bonus(), u)
 		"Druid":
 			Vfx.spikes(u, u.board, _cells_near(u, u.coord, 1, 1), Color("4f9a3a"), 1.1, 3.5)
 			Vfx.rise(u, Vfx.HEAL, 8)
@@ -541,7 +545,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			for a in lowest_hp_allies(u, 2):
 				Vfx.stream(u, a, fx, 4)
 				Vfx.wall(a, Color("7a9cff"), 0.8)
-				a.add_timed_shield(amt(u, "a"), 4.0)
+				a.add_timed_shield(amt(u, "a") * u.ability_bonus(), 4.0)
 				a.thorns = amt(u, "b")
 				a.thorns_left = 4.0
 		"Thief":
@@ -572,7 +576,7 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Paladin":
 			for a in lowest_hp_allies(u, 1):
 				Vfx.sky_beam(u, a.global_position, fx, 0.5, 0.6)
-				mend(a, amt(u, "a"))
+				mend(a, amt(u, "a") * u.ability_bonus())
 				if a != u:
 					Vfx.stream(u, a, fx, 4)
 					a.link_to = u
@@ -586,7 +590,7 @@ static func cast(u: Unit, t: Unit) -> float:
 		"Magma Guard":
 			Vfx.wall(u, fx, 1.0)
 			Vfx.orbit(u, Color("ff6a1f"), 5.0, 4, 0.8, 0.5)
-			u.add_timed_shield(amt(u, "a"), 5.0)
+			u.add_timed_shield(amt(u, "a") * u.ability_bonus(), 5.0)
 			u.erupt_dmg = amt(u, "a")
 		"Zen Master":
 			Vfx.slash(u, t.global_position, Color("fff2b0"), PI * 0.3, 0.8, 0.0)
@@ -627,7 +631,7 @@ static func cast(u: Unit, t: Unit) -> float:
 					big = e
 			if big != null:
 				big.doom_left = 4.0
-				big.doom_dmg = amt(u, "a") * u.damage_bonus()
+				big.doom_dmg = amt(u, "a") * u.ability_bonus()
 				big.doom_by = u
 				Vfx.beam(u, Vfx._chest(u), Vfx._chest(big), Color("b0306a"), 0.5)
 				Vfx.stream(u, big, Color("b0306a"), 6)
@@ -637,7 +641,7 @@ static func cast(u: Unit, t: Unit) -> float:
 			Vfx.rings(u, u.global_position, fx, 3, 2.2)
 			var gm = _gm(u)
 			if gm != null:
-				gm.add_zone("winter", Vector2i.ZERO, 99, 4.0, u.team, amt(u, "a") * u.damage_bonus(), u)
+				gm.add_zone("winter", Vector2i.ZERO, 99, 4.0, u.team, amt(u, "a") * u.ability_bonus(), u)
 		"Faerie Queen":
 			var list := targets(u)
 			list.sort_custom(func(a, b):
@@ -747,7 +751,7 @@ static func summon(u: Unit, sname: String, hp_key: String, dmg_key: String) -> U
 	u.board.get_node("Units").add_child(s)
 	s.setup(d, u.team)
 	s.summoned = true
-	s.stat_scale = u.stat_scale
+	s.stat_scale = u.stat_scale * (1.0 + u.summon_power)   # Summoners: what they call is stronger
 	s.get_node("ModelHolder").scale = Vector3.ONE * SUMMON_SIZE
 	u.board.claim(s, spot)
 	s.position = u.board.grid_to_world(spot)
@@ -861,7 +865,7 @@ static func hit(u: Unit, e: Unit, amount: float, fx := true) -> float:
 		Vfx.impact(u, e)
 	else:
 		Vfx.burst(e, Vfx._chest(e), Vfx.color_of(u), 5, 0.5)
-	var removed := e.take_damage(amount * u.damage_bonus(), u)
+	var removed := e.take_damage(amount * u.ability_bonus(), u)
 	u.damage_dealt += removed
 	var steal := u.omnivamp()
 	if steal > 0.0:
@@ -872,7 +876,7 @@ static func hit(u: Unit, e: Unit, amount: float, fx := true) -> float:
 static func _strike(u: Unit, amount: float) -> void:
 	var e := u.target if is_instance_valid(u.target) and not u.target.dead else u.board.nearest_enemy(u)
 	if e != null:
-		u._attack(e, amount * u.damage_bonus())
+		u._attack(e, amount * u.ability_bonus())
 
 # --- picking targets (deterministic) ------------------------------------------------------------
 

@@ -76,7 +76,7 @@ const RELICS := {
 const PROPHECY_CHOICES := 3
 const PROPHECIES := {
 	"level9": {"text": "Reach level 9.", "reward": "+40 gold."},
-	"legend": {"text": "Make a 3-star 5-cost unit.", "reward": "Your units +30% HP and damage for the rest of the run.", "fx": {"hp": 0.3, "dmg": 0.3}},
+	"legend": {"text": "Make a 3-star 5-cost unit.", "reward": "Your units +30% HP, attack power and ability power for the rest of the run.", "fx": {"hp": 0.3, "ad": 0.3, "ap": 0.3}},
 	"streak10": {"text": "Win 10 fights in a row.", "reward": "Your units +25% attack speed for the rest of the run.", "fx": {"as": 0.25}},
 	"traits7": {"text": "Fight with 7 active traits.", "reward": "Two special items."},
 	"stars3": {"text": "Have three 3-star units at once.", "reward": "+30 gold and a special item."},

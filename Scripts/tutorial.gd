@@ -171,7 +171,7 @@ func _build_steps():
 			"text": "The planner helps you aim for a team. Click a unit's portrait in it to add it to your plan: planned units get a gold star in the shop, and the planner lists the traits your plan would wake.\n\nPlan a unit, then close the planner with the Planner tab or P.",
 			"enter": func(): _open_right("planner"), "done": func(): return _planned and not _planner_open()},
 		{"title": "Equip an item", "target": "left", "task": "Drag the Longsword from the Items tab onto one of your units.",
-			"text": "Items make a unit stronger. Here is a Longsword: +15 damage. Drag it from the Items tab on the left onto one of your units.\n\nA unit carries up to 3 items. Items stay on unless Tinker's Tongs take them off; you'll find those in later runs.",
+			"text": "Items make a unit stronger. Here is a Longsword: +20% attack power, so its attacks hit 20% harder. Drag it from the Items tab on the left onto one of your units.\n\nA unit carries up to 3 items. Items stay on unless Tinker's Tongs take them off; you'll find those in later runs.",
 			"enter": func(): _enter_items(false), "done": func(): return _board().all_player_units().any(func(u): return not u.items.is_empty())},
 		{"title": "Resonance", "target": "items_unit", "task": "Put the Quick Bow on the unit holding the Longsword.",
 			"text": "Every basic item has an element, shown beside its name. Two items with different elements on the same unit wake a resonance, a bonus of its own.\n\nPut this Quick Bow (Swift) on the unit holding the Longsword (Might) to wake Flurry. The Items tab lists your resonances, and its Book shows all 16.",

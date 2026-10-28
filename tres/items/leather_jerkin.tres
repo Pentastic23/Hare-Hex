@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"leather_jerkin"
+display_name = "Leather Jerkin"
+description = "8 mitigation: every hit deals 8 less."
+color = Color(0.65, 0.45, 0.25, 1)
+mitigation = 8.0
+element = &"Vigor"
+drop_weight = 0.5

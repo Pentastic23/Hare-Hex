@@ -10,7 +10,7 @@
 extends Node
 
 const MAX_LINE_PX := 360.0   # Tip.MAX_WIDTH plus a little slack
-const MAX_LINES := 14
+const MAX_LINES := 16   # items v3: an item's 5 resonances plus the glossary lines for its two stats
 const WINDOW := Vector2(1152, 648)
 
 var fails := 0

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"feather_boots"
+display_name = "Feather Boots"
+description = "+28% attack speed, but -100 HP."
+color = Color(0.9, 0.9, 0.75, 1)
+attack_speed = 0.28
+hp = -100.0
+element = &"Swift"
+min_stage = 2

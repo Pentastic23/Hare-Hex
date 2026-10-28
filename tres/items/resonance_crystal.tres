@@ -6,7 +6,7 @@
 script = ExtResource("1_item")
 id = &"resonance_crystal"
 display_name = "Resonance Crystal"
-description = "The resonances on its unit are twice as strong. With none: +8% HP and damage."
+description = "The resonances on its unit are twice as strong. With none: +8% HP, attack power and ability power."
 color = Color(0.75, 0.55, 1, 1)
 kind = &"crystal"
 min_stage = 3

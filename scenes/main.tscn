@@ -33,6 +33,36 @@
 [ext_resource type="Resource" path="res://tres/items/twin_crest.tres" id="it_twin_crest"]
 [ext_resource type="Resource" path="res://tres/items/ancient_sigil.tres" id="it_ancient_sigil"]
 [ext_resource type="Resource" path="res://tres/items/twin_sigil.tres" id="it_twin_sigil"]
+[ext_resource type="Resource" path="res://tres/items/war_axe.tres" id="it_war_axe"]
+[ext_resource type="Resource" path="res://tres/items/serrated_dirk.tres" id="it_serrated_dirk"]
+[ext_resource type="Resource" path="res://tres/items/giants_maul.tres" id="it_giants_maul"]
+[ext_resource type="Resource" path="res://tres/items/troll_hide.tres" id="it_troll_hide"]
+[ext_resource type="Resource" path="res://tres/items/heart_locket.tres" id="it_heart_locket"]
+[ext_resource type="Resource" path="res://tres/items/ogres_girdle.tres" id="it_ogres_girdle"]
+[ext_resource type="Resource" path="res://tres/items/leather_jerkin.tres" id="it_leather_jerkin"]
+[ext_resource type="Resource" path="res://tres/items/hide_bracers.tres" id="it_hide_bracers"]
+[ext_resource type="Resource" path="res://tres/items/padded_gambeson.tres" id="it_padded_gambeson"]
+[ext_resource type="Resource" path="res://tres/items/stone_ring.tres" id="it_stone_ring"]
+[ext_resource type="Resource" path="res://tres/items/swift_gloves.tres" id="it_swift_gloves"]
+[ext_resource type="Resource" path="res://tres/items/wind_charm.tres" id="it_wind_charm"]
+[ext_resource type="Resource" path="res://tres/items/feather_boots.tres" id="it_feather_boots"]
+[ext_resource type="Resource" path="res://tres/items/tower_shield.tres" id="it_tower_shield"]
+[ext_resource type="Resource" path="res://tres/items/bronze_buckler.tres" id="it_bronze_buckler"]
+[ext_resource type="Resource" path="res://tres/items/plate_cuirass.tres" id="it_plate_cuirass"]
+[ext_resource type="Resource" path="res://tres/items/warding_cloak.tres" id="it_warding_cloak"]
+[ext_resource type="Resource" path="res://tres/items/silver_circlet.tres" id="it_silver_circlet"]
+[ext_resource type="Resource" path="res://tres/items/spellward_talisman.tres" id="it_spellward_talisman"]
+[ext_resource type="Resource" path="res://tres/items/nullstone_amulet.tres" id="it_nullstone_amulet"]
+[ext_resource type="Resource" path="res://tres/items/vampire_ring.tres" id="it_vampire_ring"]
+[ext_resource type="Resource" path="res://tres/items/hungering_blade.tres" id="it_hungering_blade"]
+[ext_resource type="Resource" path="res://tres/items/sanguine_tome.tres" id="it_sanguine_tome"]
+[ext_resource type="Resource" path="res://tres/items/apprentice_wand.tres" id="it_apprentice_wand"]
+[ext_resource type="Resource" path="res://tres/items/sages_staff.tres" id="it_sages_staff"]
+[ext_resource type="Resource" path="res://tres/items/hex_orb.tres" id="it_hex_orb"]
+[ext_resource type="Resource" path="res://tres/items/archmages_tome.tres" id="it_archmages_tome"]
+[ext_resource type="Resource" path="res://tres/items/spirit_bead.tres" id="it_spirit_bead"]
+[ext_resource type="Resource" path="res://tres/items/moon_tear.tres" id="it_moon_tear"]
+[ext_resource type="Resource" path="res://tres/items/focus_gem.tres" id="it_focus_gem"]
 [ext_resource type="Resource" path="res://tres/units/acolyte.tres" id="u_acolyte"]
 [ext_resource type="Resource" path="res://tres/units/alchemist.tres" id="u_alchemist"]
 [ext_resource type="Resource" path="res://tres/units/apprentice.tres" id="u_apprentice"]
@@ -111,7 +141,7 @@ script = ExtResource("1_ya4ey")
 [node name="Game Manager" type="Node" parent="." unique_id=1676986043]
 script = ExtResource("6_jbj1t")
 unit_pool = Array[ExtResource("7_muem4")]([ExtResource("8_dp3eg"), ExtResource("9_0ld40"), ExtResource("7_jkv2x"), ExtResource("8_jbj1t"), ExtResource("9_muem4"), ExtResource("10_dp3eg"), ExtResource("11_0ld40"), ExtResource("10_gqmmt"), ExtResource("11_yc10j"), ExtResource("14_gqmmt"), ExtResource("u_militia"), ExtResource("u_scout"), ExtResource("u_acolyte"), ExtResource("u_apprentice"), ExtResource("u_skeleton"), ExtResource("u_imp"), ExtResource("u_sprite"), ExtResource("u_firebrand"), ExtResource("u_frostling"), ExtResource("u_miner"), ExtResource("u_initiate"), ExtResource("u_bard"), ExtResource("u_alchemist"), ExtResource("u_necromancer"), ExtResource("u_ghoul"), ExtResource("u_sparkcaller"), ExtResource("u_frost_archer"), ExtResource("u_ironbeard"), ExtResource("u_druid"), ExtResource("u_monk"), ExtResource("u_cultist"), ExtResource("u_nightblade"), ExtResource("u_pyromancer"), ExtResource("u_paladin"), ExtResource("u_ice_mage"), ExtResource("u_dryad"), ExtResource("u_minstrel"), ExtResource("u_skald"), ExtResource("u_plague_doctor"), ExtResource("u_runesmith"), ExtResource("u_shadowfist"), ExtResource("u_sunmonk"), ExtResource("u_demonologist"), ExtResource("u_winter_knight"), ExtResource("u_warlord"), ExtResource("u_duelist"), ExtResource("u_nightstalker"), ExtResource("u_lich"), ExtResource("u_magma_guard"), ExtResource("u_frost_giant"), ExtResource("u_dwarf_gunner"), ExtResource("u_archmage"), ExtResource("u_herald"), ExtResource("u_hellknight"), ExtResource("u_beastmaster"), ExtResource("u_zen_master"), ExtResource("u_seraph"), ExtResource("u_deathlord"), ExtResource("u_titan"), ExtResource("u_phoenix"), ExtResource("u_archdemon"), ExtResource("u_frost_queen"), ExtResource("u_faerie_queen"), ExtResource("u_reaper"), ExtResource("u_treant")])
-item_roster = Array[ExtResource("15_itemdata")]([ExtResource("16_ironbelt"), ExtResource("17_longsword"), ExtResource("18_quickbow"), ExtResource("19_manacharm"), ExtResource("20_chainvest"), ExtResource("21_bloodfang"), ExtResource("it_heros_blade"), ExtResource("it_heartwood_charm"), ExtResource("it_resonance_crystal"), ExtResource("it_coin_purse"), ExtResource("it_merchants_ledger"), ExtResource("it_tinkers_tongs"), ExtResource("it_twin_sigil"), ExtResource("it_twin_crest"), ExtResource("it_ancient_sigil")])
+item_roster = Array[ExtResource("15_itemdata")]([ExtResource("16_ironbelt"), ExtResource("17_longsword"), ExtResource("18_quickbow"), ExtResource("19_manacharm"), ExtResource("20_chainvest"), ExtResource("21_bloodfang"), ExtResource("it_heros_blade"), ExtResource("it_heartwood_charm"), ExtResource("it_resonance_crystal"), ExtResource("it_coin_purse"), ExtResource("it_merchants_ledger"), ExtResource("it_tinkers_tongs"), ExtResource("it_twin_sigil"), ExtResource("it_twin_crest"), ExtResource("it_ancient_sigil"), ExtResource("it_war_axe"), ExtResource("it_serrated_dirk"), ExtResource("it_giants_maul"), ExtResource("it_troll_hide"), ExtResource("it_heart_locket"), ExtResource("it_ogres_girdle"), ExtResource("it_leather_jerkin"), ExtResource("it_hide_bracers"), ExtResource("it_padded_gambeson"), ExtResource("it_stone_ring"), ExtResource("it_swift_gloves"), ExtResource("it_wind_charm"), ExtResource("it_feather_boots"), ExtResource("it_tower_shield"), ExtResource("it_bronze_buckler"), ExtResource("it_plate_cuirass"), ExtResource("it_warding_cloak"), ExtResource("it_silver_circlet"), ExtResource("it_spellward_talisman"), ExtResource("it_nullstone_amulet"), ExtResource("it_vampire_ring"), ExtResource("it_hungering_blade"), ExtResource("it_sanguine_tome"), ExtResource("it_apprentice_wand"), ExtResource("it_sages_staff"), ExtResource("it_hex_orb"), ExtResource("it_archmages_tome"), ExtResource("it_spirit_bead"), ExtResource("it_moon_tear"), ExtResource("it_focus_gem")])
 enemy_base_scale = 0.4
 enemy_scale_per_round = 0.05
 

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"sanguine_tome"
+display_name = "Sanguine Tome"
+description = "+8% omnivamp, +10% ability power."
+color = Color(0.55, 0.2, 0.55, 1)
+lifesteal = 0.08
+ability_power = 0.1
+element = &"Blood"

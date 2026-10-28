@@ -153,12 +153,12 @@ func _tick_zones() -> void:
 			if not is_instance_valid(u) or u.dead or u.coord.x < 0 or Board.hex_distance(z.center, u.coord) > z.radius:
 				continue
 			if z.kind == "miasma" and u.team != z.team:
-				var removed := u.take_damage(z.amount * TICK, by)
+				var removed := u.take_damage(z.amount * TICK, by, false, false, Unit.MAGIC, true)
 				if by != null:
 					by.damage_dealt += removed
 				u.apply_curse(0.15, 0.25)
 			elif z.kind == "winter" and u.team != z.team:
-				var cold := u.take_damage(z.amount * TICK, by)
+				var cold := u.take_damage(z.amount * TICK, by, false, false, Unit.MAGIC, true)
 				if by != null:
 					by.damage_dealt += cold
 				u.apply_chill(0.5, 0.25)

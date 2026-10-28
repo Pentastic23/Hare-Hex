@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"vampire_ring"
+display_name = "Vampire Ring"
+description = "+8% omnivamp. Heals 15% of max HP on each kill."
+color = Color(0.7, 0.2, 0.3, 1)
+lifesteal = 0.08
+effects = {"kill_heal": 0.15}
+element = &"Blood"

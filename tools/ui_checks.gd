@@ -159,7 +159,7 @@ func _run():
 
 	print("--- items")
 	var bar := _find_item_bar(ui)
-	chk("item tooltips say which units an item suits", bar != null and bar.item_tip(I("longsword")).contains("Best on Warriors") and insp.item_tip(I("mana_charm"), 0).contains("Best on Casters"))
+	chk("item tooltips say which units an item suits", bar != null and bar.item_tip(I("longsword")).contains("Best on Rangers") and insp.item_tip(I("mana_charm"), 0).contains("Best on Casters"))
 
 	print("--- the team planner")
 	var dock = ui.get_node("RightDock")

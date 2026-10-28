@@ -7,6 +7,8 @@ class_name UnitData extends Resource
 @export var max_mana := 60.0
 @export var start_mana := 0.0
 @export var attack_damage := 10.0
+@export var armor := 0.0          # flat: physical damage taken x 100 / (100 + armor)
+@export var magic_resist := 0.0   # flat: magic damage taken, the same way
 @export var attack_range := 2.0
 @export var attacks_per_second := 1.0
 @export var move_speed := 3.0

@@ -479,12 +479,37 @@ class PixelIcon extends Control:
 				px.call(3, 7, 8, 3)
 				px.call(4, 10, 6, 1)
 				px.call(5, 11, 4, 1)
-			"shield":   # damage reduction
+			"shield":   # armour
 				px.call(2, 1, 10, 6)
 				px.call(3, 7, 8, 2)
 				px.call(4, 9, 6, 2)
 				px.call(5, 11, 4, 1)
 				px.call(6, 12, 2, 1)
+			"ward":   # magic resist: a shield outline with a rune in it
+				px.call(2, 1, 10, 2)
+				px.call(2, 3, 2, 5)
+				px.call(10, 3, 2, 5)
+				px.call(3, 8, 2, 2)
+				px.call(9, 8, 2, 2)
+				px.call(5, 10, 2, 2)
+				px.call(7, 10, 2, 2)
+				px.call(6, 12, 2, 1)
+				px.call(6, 4, 2, 4)
+				px.call(5, 5, 4, 1)
+			"orb":   # ability power: a four-pointed star over a glowing orb
+				px.call(6, 0, 2, 3)
+				px.call(6, 11, 2, 3)
+				px.call(0, 6, 3, 2)
+				px.call(11, 6, 3, 2)
+				px.call(4, 4, 6, 6)
+				px.call(3, 5, 8, 4)
+				px.call(5, 3, 4, 8)
+			"block":   # mitigation: a raised forearm guard, a bar across the blow
+				px.call(1, 2, 12, 3)
+				px.call(2, 5, 10, 2)
+				px.call(3, 9, 2, 4)
+				px.call(9, 9, 2, 4)
+				px.call(6, 8, 2, 5)
 			"fang":   # omnivamp
 				px.call(2, 2, 10, 2)
 				px.call(3, 4, 3, 3)

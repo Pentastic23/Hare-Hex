@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"plate_cuirass"
+display_name = "Plate Cuirass"
+description = "+50 armour, but -10% attack speed."
+color = Color(0.75, 0.78, 0.85, 1)
+armor = 50.0
+attack_speed = -0.1
+element = &"Guard"
+min_stage = 2
+drop_weight = 0.5

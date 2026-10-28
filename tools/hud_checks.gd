@@ -118,7 +118,7 @@ func _run():
 	u.setup(knight_data, 1)
 	u.begin_combat()
 	var hp0 := u.health
-	var removed := u.take_damage(100.0)
+	var removed := u.take_damage(100.0, null, false, true)   # true damage: no armour or magic resist in the way
 	chk("take_damage returns the HP removed and counts damage_taken", is_equal_approx(removed, 100.0) and is_equal_approx(u.damage_taken, 100.0) and is_equal_approx(u.health, hp0 - 100.0))
 	u.health = 30.0
 	removed = u.take_damage(100.0)
@@ -238,7 +238,7 @@ func _run():
 	var act: Array = shown.map(func(t): return Synergies.active_tier(t, cnt[t]) >= 0)
 	chk("Synergies tab: a row per tag on the board, active ones first", shown.size() == cnt.keys().filter(func(t): return Synergies.DEFS.has(t)).size() and shown.size() > 0 and not (act.find(false) != -1 and act.rfind(true) > act.find(false)), "%s %s" % [shown, act])
 	chk("the Synergies badge counts active synergies", left.synergy_badge.text == str(act.count(true)) and syn.active_count == act.count(true))
-	chk("tier effect text picks the reached tier", DockKit.effect_text("Order", 1) == "Order +25% HP" and DockKit.effect_text("Order", 0) == "Order +15% HP")
+	chk("tier effect text picks the reached tier", DockKit.effect_text("Order", 1) == "Order 16 mitigation" and DockKit.effect_text("Order", 0) == "Order 10 mitigation")
 	GameState.me.items.clear()
 	for it in ["longsword", "iron_belt", "longsword"]:
 		GameState.me.items.append(load("res://tres/items/%s.tres" % it))
@@ -333,20 +333,19 @@ func _run():
 	var insp2 = main.get_node("UI/UnitInspector")
 	insp2.shown = k
 	insp2._fill()
-	chk("benched Knight: base stats, no synergy", insp2.stats_label.text.begins_with("Health: 650\nDamage: 50"), insp2.stats_label.text.replace("\n", " | "))
+	chk("benched Knight: base stats, no synergy", insp2.stats_label.text.begins_with("Health: 650\nAttack damage: 50") and not insp2.stats_label.text.contains("Mitigation"),insp2.stats_label.text.replace("\n", " | "))
 	board.detach(k); board.put_on_tile(k, board.player_order[0])
 	insp2._fill()
 	chk("alone on the board: still base stats", insp2.stats_label.text.begins_with("Health: 650"))
 	board.detach(cl); board.put_on_tile(cl, board.player_order[1])
 	insp2._fill()
-	chk("Knight + Militia (Order 2): Knight health is 650 x 1.15", insp2.stats_label.text.begins_with("Health: %d
-Damage: 50" % roundi(650.0 * 1.15)), insp2.stats_label.text.replace("
+	chk("Knight + Militia (Order 2): the Knight gets Order's 10 mitigation", insp2.stats_label.text.begins_with("Health: 650") and insp2.stats_label.text.contains("Mitigation: 10"), insp2.stats_label.text.replace("
 ", " | "))
 	chk("the synergy isn't called out in the text", not insp2.stats_label.text.to_lower().contains("synerg") and not insp2.stats_label.text.contains("(+"))
 	var gold_item := load("res://tres/items/iron_belt.tres")
 	k.equip(gold_item)
 	insp2._fill()
-	chk("an item stacks with it: (650 + 150) x 1.15, item note kept", insp2.stats_label.text.begins_with("Health: %d  (+%d items)" % [roundi(800.0 * 1.15), roundi(150.0 * 1.15)]), insp2.stats_label.text.split("\n")[0])
+	chk("an item adds to it: 650 + 150, item note kept, mitigation still there", insp2.stats_label.text.begins_with("Health: 800  (+150 items)") and insp2.stats_label.text.contains("Mitigation: 10"), insp2.stats_label.text.split("\n")[0])
 	var timed := [false]
 	Events.phase_changed.connect(func(p):
 		if p == Events.Phase.COMBAT:
@@ -360,7 +359,7 @@ Damage: 50" % roundi(650.0 * 1.15)), insp2.stats_label.text.replace("
 	chk("fight: the timer counts down the fight (COMBAT m:ss)", (timer.phase_label.text == "COMBAT" and (timer.time_label.text == "1:00" or timer.time_label.text.begins_with("0:"))) or gm.phase != Events.Phase.COMBAT, "%s %s" % [timer.phase_label.text, timer.time_label.text])
 	if gm.fighting:
 		insp2._fill()
-		chk("during the fight the inspector shows the same real bonuses", insp2.stats_label.text.begins_with("Health: %d" % roundi(800.0 * 1.15)), insp2.stats_label.text.split("\n")[0])
+		chk("during the fight the inspector shows the same real bonuses", insp2.stats_label.text.begins_with("Health: 800") and insp2.stats_label.text.contains("Mitigation: 10"), insp2.stats_label.text.split("\n")[0])
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))

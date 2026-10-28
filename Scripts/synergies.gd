@@ -1,9 +1,13 @@
 # synergies.gd
 class_name Synergies extends RefCounted
 
-# Traits (design and reasoning: docs/synergies-v2.md). 35 traits: 11 origins, 16 classes, 8 uniques.
-# Breakpoints, not smooth curves: only the highest tier reached applies, and each tier lists its whole
-# effect (tiers don't stack). Top tiers of deep traits have a name and unlock a new mechanic.
+# Traits (design and reasoning: docs/synergies-v2.md; the stats they use since v3: docs/stats-and-items-v3.md).
+# 35 traits: 11 origins, 16 classes, 8 uniques. Breakpoints, not smooth curves: only the highest tier
+# reached applies, and each tier lists its whole effect (tiers don't stack). Top tiers of deep traits
+# have a name.
+#
+# No two traits give the same bonus: every (scope, effect key) pair below belongs to one trait only
+# (Brute has holder HP, Dwarven team HP; tools/roster_checks checks it).
 #
 # Each trait: kind ("origin" / "class" / "unique"), thresholds, desc (one line for tooltips), top (the
 # top tier's name, or ""), and tiers: one dict per threshold with
@@ -12,134 +16,137 @@ class_name Synergies extends RefCounted
 #   "tags": {tag: effects} for units with another tag (Lich King's Undead revive)
 #   "text": the tier as the player reads it
 # Effect keys (fractions unless noted):
-#   hp, dmg, as (attack speed), dr (damage reduction), vamp (omnivamp: heal for that share of damage
-#   dealt), shield (of max HP, at the start of a fight), regen (of max HP per second), ramp (attack
-#   speed per attack) with ramp_max (stacks), crit (every Nth attack deals double), execute (kill an
-#   enemy left below this share of max HP), revive (once per fight, at this share of max HP), burn (of
-#   the target's max HP per second, 3 s), chill (target's attack speed down, 2 s), dodge (every Nth
-#   attack against the unit misses), curse (target takes this much more damage, 3 s), range (tiles),
-#   kill_heal (of max HP, healed on a kill).
-# Mana effects are deliberately absent: casts do nothing until abilities exist.
+#   hp, ad (attack power), ap (ability power: ability damage, heals, shields), as (attack speed),
+#   armor, mr (magic resist) and mit (mitigation: flat damage off every hit) as flat numbers,
+#   vamp (omnivamp: heal for that share of damage dealt), shield (of max HP, at the start of a fight),
+#   regen (of max HP per second), ramp (attack speed per attack) with ramp_max (stacks), crit (every
+#   Nth attack deals double), execute (kill an enemy left below this share of max HP), revive (once per
+#   fight, at this share of max HP), burn (of the target's max HP per second, 3 s), chill (target's
+#   attack speed down, 2 s), dodge (every Nth attack against the unit misses), curse (target takes this
+#   much more damage, 3 s), sunder / shred (target's armour / magic resist down by this much, 3 s),
+#   range (tiles), kill_heal (of max HP, healed on a kill), summon (what the unit summons gets this much
+#   more HP and damage).
+# No trait uses mana (a design decision): mana feeds the unit abilities.
 
 const DEFS := {
 	# --- origins ---
-	"Order": {"kind": "origin", "thresholds": [2, 3, 4, 5], "top": "", "desc": "The kingdom's soldiers grow tougher with every unit.", "tiers": [
-		{"self": {"hp": 0.15}, "text": "Order +15% HP"},
-		{"self": {"hp": 0.25}, "text": "Order +25% HP"},
-		{"self": {"hp": 0.35, "dr": 0.10}, "text": "Order +35% HP, 10% damage reduction"},
-		{"self": {"hp": 0.40, "dr": 0.20}, "team": {"hp": 0.10}, "text": "Order +50% HP, 20% damage reduction; team +10% HP"},
+	"Order": {"kind": "origin", "thresholds": [2, 3, 4, 5], "top": "", "desc": "The kingdom's drilled soldiers shrug off every blow.", "tiers": [
+		{"self": {"mit": 10.0}, "text": "Order 10 mitigation"},
+		{"self": {"mit": 16.0}, "text": "Order 16 mitigation"},
+		{"self": {"mit": 24.0}, "text": "Order 24 mitigation"},
+		{"self": {"mit": 35.0}, "text": "Order 35 mitigation"},
 	]},
 	"Celestial": {"kind": "origin", "thresholds": [2, 4, 6], "top": "Heavenly Host", "desc": "Holy light shields the whole team.", "tiers": [
-		{"team": {"shield": 0.08}, "text": "team 8% shield"},
-		{"team": {"shield": 0.15}, "self": {"hp": 0.20}, "text": "team 15% shield; Celestial +20% HP"},
-		{"team": {"shield": 0.25, "regen": 0.01}, "self": {"hp": 0.40}, "text": "Heavenly Host: team 25% shield and 1% regen per second; Celestial +40% HP"},
+		{"team": {"shield": 0.10}, "text": "team 10% shield"},
+		{"team": {"shield": 0.18}, "text": "team 18% shield"},
+		{"team": {"shield": 0.32}, "text": "Heavenly Host: team 32% shield"},
 	]},
-	"Wild": {"kind": "origin", "thresholds": [3, 4, 5, 7], "top": "Stampede", "desc": "Wild units attack faster and faster.", "tiers": [
-		{"self": {"as": 0.15}, "text": "Wild +15% attack speed"},
-		{"self": {"as": 0.25}, "text": "Wild +25% attack speed"},
-		{"self": {"as": 0.35, "ramp": 0.03, "ramp_max": 10}, "text": "Wild +35% attack speed, +3% more per attack (max 10)"},
-		{"team": {"as": 0.40}, "self": {"ramp": 0.05, "ramp_max": 15}, "text": "Stampede: team +40% attack speed; Wild +5% more per attack (max 15)"},
+	"Wild": {"kind": "origin", "thresholds": [3, 4, 5, 7], "top": "Stampede", "desc": "Wild claws tear through armour.", "tiers": [
+		{"self": {"sunder": 15.0}, "text": "Wild attacks sunder 15 armour"},
+		{"self": {"sunder": 25.0}, "text": "Wild attacks sunder 25 armour"},
+		{"self": {"sunder": 35.0}, "text": "Wild attacks sunder 35 armour"},
+		{"self": {"sunder": 50.0}, "team": {"sunder": 20.0}, "text": "Stampede: Wild attacks sunder 50 armour; the team's attacks sunder 20"},
 	]},
-	"Shadow": {"kind": "origin", "thresholds": [2, 4, 6], "top": "Nightfall", "desc": "Shadow units hit hard and finish off the wounded.", "tiers": [
-		{"self": {"dmg": 0.20}, "text": "Shadow +20% damage"},
-		{"self": {"dmg": 0.35, "execute": 0.10}, "text": "Shadow +35% damage, execute below 10%"},
-		{"self": {"dmg": 0.55, "execute": 0.20}, "text": "Nightfall: Shadow +55% damage, execute below 20%"},
+	"Shadow": {"kind": "origin", "thresholds": [2, 4, 6], "top": "Nightfall", "desc": "Shadow units finish off the wounded.", "tiers": [
+		{"self": {"execute": 0.10}, "text": "Shadow execute below 10%"},
+		{"self": {"execute": 0.18}, "text": "Shadow execute below 18%"},
+		{"self": {"execute": 0.28}, "text": "Nightfall: Shadow execute below 28%"},
 	]},
-	"Arcane": {"kind": "origin", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Arcane power raises the whole team's damage.", "tiers": [
-		{"team": {"dmg": 0.05}, "text": "team +5% damage"},
-		{"team": {"dmg": 0.10}, "text": "team +10% damage"},
-		{"team": {"dmg": 0.15}, "text": "team +15% damage"},
-		{"team": {"dmg": 0.25}, "text": "team +25% damage"},
+	"Arcane": {"kind": "origin", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Arcane power raises the whole team's ability power.", "tiers": [
+		{"team": {"ap": 0.08}, "text": "team +8% ability power"},
+		{"team": {"ap": 0.14}, "text": "team +14% ability power"},
+		{"team": {"ap": 0.20}, "text": "team +20% ability power"},
+		{"team": {"ap": 0.30}, "text": "team +30% ability power"},
 	]},
 	"Undead": {"kind": "origin", "thresholds": [2, 4, 6], "top": "Undying", "desc": "The Undead refuse to stay down.", "tiers": [
-		{"self": {"hp": 0.15}, "text": "Undead +15% HP"},
-		{"self": {"hp": 0.15, "revive": 0.30}, "text": "Undead +15% HP, revive once at 30% HP"},
-		{"self": {"hp": 0.15, "revive": 0.60}, "team": {"hp": 0.15}, "text": "Undying: Undead revive once at 60% HP; team +15% HP"},
+		{"self": {"revive": 0.25}, "text": "Undead revive once at 25% HP"},
+		{"self": {"revive": 0.45}, "text": "Undead revive once at 45% HP"},
+		{"self": {"revive": 0.70}, "text": "Undying: Undead revive once at 70% HP"},
 	]},
 	"Ember": {"kind": "origin", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Ember attacks set their targets burning.", "tiers": [
 		{"self": {"burn": 0.02}, "text": "Ember attacks burn 2% of max HP per second"},
-		{"self": {"burn": 0.03}, "text": "Ember attacks burn 3% per second"},
-		{"self": {"burn": 0.05}, "text": "Ember attacks burn 5% per second"},
-		{"self": {"burn": 0.08, "dmg": 0.20}, "text": "Ember attacks burn 8% per second; Ember +20% damage"},
+		{"self": {"burn": 0.035}, "text": "Ember attacks burn 3.5% per second"},
+		{"self": {"burn": 0.055}, "text": "Ember attacks burn 5.5% per second"},
+		{"self": {"burn": 0.09}, "text": "Ember attacks burn 9% per second"},
 	]},
 	"Frost": {"kind": "origin", "thresholds": [2, 4, 6], "top": "Deep Freeze", "desc": "Frost attacks slow the enemy down.", "tiers": [
 		{"self": {"chill": 0.15}, "text": "Frost attacks chill 15%"},
-		{"self": {"chill": 0.30, "dr": 0.15}, "text": "Frost attacks chill 30%; Frost 15% damage reduction"},
-		{"self": {"chill": 0.50, "dr": 0.30}, "text": "Deep Freeze: Frost attacks chill 50%; Frost 30% damage reduction"},
+		{"self": {"chill": 0.30}, "text": "Frost attacks chill 30%"},
+		{"self": {"chill": 0.50}, "team": {"chill": 0.15}, "text": "Deep Freeze: Frost attacks chill 50%; the team's attacks chill 15%"},
 	]},
-	"Fey": {"kind": "origin", "thresholds": [2, 4, 6], "top": "Glamour", "desc": "The Fey dance through their attacks.", "tiers": [
-		{"self": {"as": 0.15}, "text": "Fey +15% attack speed"},
-		{"self": {"as": 0.30, "dmg": 0.15}, "text": "Fey +30% attack speed, +15% damage"},
-		{"self": {"as": 0.35, "dmg": 0.30}, "team": {"as": 0.15}, "text": "Glamour: Fey +50% attack speed, +30% damage; team +15% attack speed"},
+	"Fey": {"kind": "origin", "thresholds": [2, 4, 6], "top": "Glamour", "desc": "The Fey dance faster with every strike.", "tiers": [
+		{"self": {"ramp": 0.04, "ramp_max": 10}, "text": "Fey +4% attack speed per attack (max 10)"},
+		{"self": {"ramp": 0.06, "ramp_max": 12}, "text": "Fey +6% attack speed per attack (max 12)"},
+		{"self": {"ramp": 0.09, "ramp_max": 15}, "text": "Glamour: Fey +9% attack speed per attack (max 15)"},
 	]},
 	"Dwarven": {"kind": "origin", "thresholds": [3, 4, 5, 7], "top": "Mountain's Heart", "desc": "Dwarven grit toughens the whole team.", "tiers": [
 		{"team": {"hp": 0.08}, "text": "team +8% HP"},
-		{"team": {"hp": 0.12}, "self": {"shield": 0.15}, "text": "team +12% HP; Dwarven 15% shield"},
-		{"team": {"hp": 0.18}, "self": {"shield": 0.25}, "text": "team +18% HP; Dwarven 25% shield"},
-		{"team": {"hp": 0.35, "shield": 0.25}, "text": "Mountain's Heart: team +35% HP and a 25% shield"},
+		{"team": {"hp": 0.13}, "text": "team +13% HP"},
+		{"team": {"hp": 0.20}, "text": "team +20% HP"},
+		{"team": {"hp": 0.38}, "text": "Mountain's Heart: team +38% HP"},
 	]},
 	"Infernal": {"kind": "origin", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Infernal fury, more with every demon.", "tiers": [
-		{"self": {"dmg": 0.12}, "text": "Infernal +12% damage"},
-		{"self": {"dmg": 0.22}, "text": "Infernal +22% damage"},
-		{"self": {"dmg": 0.35}, "text": "Infernal +35% damage"},
-		{"self": {"dmg": 0.60}, "text": "Infernal +60% damage"},
+		{"self": {"ad": 0.15}, "text": "Infernal +15% attack power"},
+		{"self": {"ad": 0.25}, "text": "Infernal +25% attack power"},
+		{"self": {"ad": 0.40}, "text": "Infernal +40% attack power"},
+		{"self": {"ad": 0.65}, "text": "Infernal +65% attack power"},
 	]},
 	# --- classes ---
-	"Warrior": {"kind": "class", "thresholds": [3, 5, 7, 9], "top": "Warband", "desc": "Warriors hit harder and drink from their wounds.", "tiers": [
-		{"self": {"dmg": 0.15}, "text": "Warriors +15% damage"},
-		{"self": {"dmg": 0.25, "vamp": 0.10}, "text": "Warriors +25% damage, 10% omnivamp"},
-		{"self": {"dmg": 0.40, "vamp": 0.20}, "text": "Warriors +40% damage, 20% omnivamp"},
-		{"self": {"dmg": 0.40, "vamp": 0.30}, "team": {"dmg": 0.20}, "text": "Warband: Warriors +60% damage, 30% omnivamp; team +20% damage"},
+	"Warrior": {"kind": "class", "thresholds": [3, 5, 7, 9], "top": "Warband", "desc": "Warriors drink from their wounds.", "tiers": [
+		{"self": {"vamp": 0.12}, "text": "Warriors 12% omnivamp"},
+		{"self": {"vamp": 0.20}, "text": "Warriors 20% omnivamp"},
+		{"self": {"vamp": 0.30}, "text": "Warriors 30% omnivamp"},
+		{"self": {"vamp": 0.45}, "text": "Warband: Warriors 45% omnivamp"},
 	]},
-	"Caster": {"kind": "class", "thresholds": [3, 5, 7, 9], "top": "Archmagi", "desc": "Casters channel raw power into every attack.", "tiers": [
-		{"self": {"dmg": 0.15}, "text": "Casters +15% damage"},
-		{"self": {"dmg": 0.30}, "text": "Casters +30% damage"},
-		{"self": {"dmg": 0.40}, "team": {"dmg": 0.10}, "text": "Casters +50% damage; team +10% damage"},
-		{"self": {"dmg": 0.70, "crit": 3}, "team": {"dmg": 0.20}, "text": "Archmagi: Casters +90% damage, every 3rd attack crits; team +20% damage"},
+	"Caster": {"kind": "class", "thresholds": [3, 5, 7, 9], "top": "Archmagi", "desc": "Casters channel raw power into their spells.", "tiers": [
+		{"self": {"ap": 0.20}, "text": "Casters +20% ability power"},
+		{"self": {"ap": 0.40}, "text": "Casters +40% ability power"},
+		{"self": {"ap": 0.65}, "text": "Casters +65% ability power"},
+		{"self": {"ap": 1.00}, "text": "Archmagi: Casters +100% ability power"},
 	]},
 	"Protector": {"kind": "class", "thresholds": [2, 4, 6, 8], "top": "Bulwark", "desc": "Protectors raise shields and steady the line.", "tiers": [
 		{"self": {"shield": 0.20}, "text": "Protectors 20% shield"},
-		{"self": {"shield": 0.35}, "team": {"dr": 0.08}, "text": "Protectors 35% shield; team 8% damage reduction"},
-		{"self": {"shield": 0.55}, "team": {"dr": 0.15}, "text": "Protectors 55% shield; team 15% damage reduction"},
-		{"self": {"shield": 0.80}, "team": {"dr": 0.25}, "text": "Bulwark: Protectors 80% shield; team 25% damage reduction"},
+		{"self": {"shield": 0.35}, "team": {"mit": 5.0}, "text": "Protectors 35% shield; team 5 mitigation"},
+		{"self": {"shield": 0.55}, "team": {"mit": 10.0}, "text": "Protectors 55% shield; team 10 mitigation"},
+		{"self": {"shield": 0.80}, "team": {"mit": 16.0}, "text": "Bulwark: Protectors 80% shield; team 16 mitigation"},
 	]},
 	"Ranger": {"kind": "class", "thresholds": [2, 4, 6], "top": "Deadeye", "desc": "Rangers shoot faster and farther.", "tiers": [
 		{"self": {"as": 0.20}, "text": "Rangers +20% attack speed"},
 		{"self": {"as": 0.40, "range": 1}, "text": "Rangers +40% attack speed, +1 range"},
-		{"self": {"as": 0.70, "range": 1, "crit": 3}, "text": "Deadeye: Rangers +70% attack speed, +1 range, every 3rd attack crits"},
+		{"self": {"as": 0.80, "range": 1}, "text": "Deadeye: Rangers +80% attack speed, +1 range"},
 	]},
 	"Rogue": {"kind": "class", "thresholds": [2, 4, 6], "top": "Cutthroat", "desc": "Rogues land critical strikes.", "tiers": [
 		{"self": {"crit": 4}, "text": "every 4th Rogue attack crits"},
-		{"self": {"crit": 3, "dmg": 0.15}, "text": "every 3rd Rogue attack crits; Rogues +15% damage"},
-		{"self": {"crit": 2, "dmg": 0.30}, "text": "Cutthroat: every 2nd Rogue attack crits; Rogues +30% damage"},
+		{"self": {"crit": 3}, "text": "every 3rd Rogue attack crits"},
+		{"self": {"crit": 2}, "text": "Cutthroat: every 2nd Rogue attack crits"},
 	]},
-	"Brute": {"kind": "class", "thresholds": [2, 4, 6], "top": "Juggernaut", "desc": "Brutes are huge and hit like it.", "tiers": [
-		{"self": {"hp": 0.20}, "text": "Brutes +20% HP"},
-		{"self": {"hp": 0.40, "dmg": 0.15}, "text": "Brutes +40% HP, +15% damage"},
-		{"self": {"hp": 0.75, "dmg": 0.35}, "text": "Juggernaut: Brutes +75% HP, +35% damage"},
+	"Brute": {"kind": "class", "thresholds": [2, 4, 6], "top": "Juggernaut", "desc": "Brutes are huge.", "tiers": [
+		{"self": {"hp": 0.25}, "text": "Brutes +25% HP"},
+		{"self": {"hp": 0.50}, "text": "Brutes +50% HP"},
+		{"self": {"hp": 0.90}, "text": "Juggernaut: Brutes +90% HP"},
 	]},
 	"Warlock": {"kind": "class", "thresholds": [2, 4, 6], "top": "Soul Pact", "desc": "Warlocks curse their targets to take more damage.", "tiers": [
-		{"self": {"curse": 0.08}, "text": "Warlock attacks curse: the target takes 8% more damage"},
-		{"self": {"curse": 0.15}, "text": "Warlock curse 15%"},
-		{"self": {"curse": 0.25, "vamp": 0.20}, "text": "Soul Pact: Warlock curse 25%; Warlocks 20% omnivamp"},
+		{"self": {"curse": 0.10}, "text": "Warlock attacks curse: the target takes 10% more damage"},
+		{"self": {"curse": 0.18}, "text": "Warlock curse 18%"},
+		{"self": {"curse": 0.30}, "text": "Soul Pact: Warlock curse 30%"},
 	]},
 	"Knight": {"kind": "class", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Knights' armour gets heavier with every knight.", "tiers": [
-		{"self": {"dr": 0.15}, "text": "Knights 15% damage reduction"},
-		{"self": {"dr": 0.20, "dmg": 0.10}, "text": "Knights 20% damage reduction, +10% damage"},
-		{"self": {"dr": 0.30, "dmg": 0.20}, "text": "Knights 30% damage reduction, +20% damage"},
-		{"self": {"dr": 0.30, "dmg": 0.30}, "team": {"dr": 0.10}, "text": "Knights 40% damage reduction, +30% damage; team 10% damage reduction"},
+		{"self": {"armor": 20.0}, "text": "Knights +20 armour"},
+		{"self": {"armor": 30.0}, "text": "Knights +30 armour"},
+		{"self": {"armor": 45.0}, "text": "Knights +45 armour"},
+		{"self": {"armor": 70.0}, "text": "Knights +70 armour"},
 	]},
-	"Monk": {"kind": "class", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Monks strike faster with every monk.", "tiers": [
-		{"self": {"as": 0.20}, "text": "Monks +20% attack speed"},
-		{"self": {"as": 0.30}, "text": "Monks +30% attack speed"},
-		{"self": {"as": 0.45, "dr": 0.10}, "text": "Monks +45% attack speed, 10% damage reduction"},
-		{"self": {"as": 0.60, "dr": 0.20}, "text": "Monks +60% attack speed, 20% damage reduction"},
+	"Monk": {"kind": "class", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Monks' calm turns spells aside.", "tiers": [
+		{"self": {"mr": 20.0}, "text": "Monks +20 magic resist"},
+		{"self": {"mr": 30.0}, "text": "Monks +30 magic resist"},
+		{"self": {"mr": 45.0}, "text": "Monks +45 magic resist"},
+		{"self": {"mr": 70.0}, "text": "Monks +70 magic resist"},
 	]},
 	"Trickster": {"kind": "class", "thresholds": [2, 3, 4, 5], "top": "", "desc": "Tricksters are hard to hit.", "tiers": [
 		{"self": {"dodge": 5}, "text": "every 5th attack against Tricksters misses"},
 		{"self": {"dodge": 4}, "text": "every 4th attack against Tricksters misses"},
 		{"self": {"dodge": 3}, "text": "every 3rd attack against Tricksters misses"},
-		{"self": {"dodge": 2}, "team": {"dodge": 5}, "text": "every 2nd attack against Tricksters misses; the team dodges every 5th"},
+		{"self": {"dodge": 2}, "text": "every 2nd attack against Tricksters misses"},
 	]},
 	"Healer": {"kind": "class", "thresholds": [2, 3, 4], "top": "", "desc": "Healers mend the whole team during the fight.", "tiers": [
 		{"team": {"regen": 0.01}, "text": "team regen 1% of max HP per second"},
@@ -151,53 +158,53 @@ const DEFS := {
 		{"team": {"as": 0.15}, "text": "team +15% attack speed"},
 		{"team": {"as": 0.25}, "text": "team +25% attack speed"},
 	]},
-	"Summoner": {"kind": "class", "thresholds": [2, 3, 4], "top": "", "desc": "Summoners draw strength from what they call.", "tiers": [
-		{"self": {"hp": 0.20}, "text": "Summoners +20% HP"},
-		{"self": {"hp": 0.40}, "text": "Summoners +40% HP"},
-		{"self": {"hp": 0.65, "dmg": 0.20}, "text": "Summoners +65% HP, +20% damage"},
+	"Summoner": {"kind": "class", "thresholds": [2, 3, 4], "top": "", "desc": "What Summoners call comes out stronger.", "tiers": [
+		{"self": {"summon": 0.25}, "text": "Summoners' summons +25% HP and damage"},
+		{"self": {"summon": 0.50}, "text": "Summoners' summons +50% HP and damage"},
+		{"self": {"summon": 0.90}, "text": "Summoners' summons +90% HP and damage"},
 	]},
-	"Elementalist": {"kind": "class", "thresholds": [2, 3, 4], "top": "", "desc": "Elementalists burn and freeze what they hit.", "tiers": [
-		{"self": {"burn": 0.03, "chill": 0.15}, "text": "Elementalist attacks burn 3% per second and chill 15%"},
-		{"self": {"burn": 0.05, "chill": 0.25}, "text": "Elementalist attacks burn 5% per second and chill 25%"},
-		{"self": {"burn": 0.08, "chill": 0.40}, "text": "Elementalist attacks burn 8% per second and chill 40%"},
+	"Elementalist": {"kind": "class", "thresholds": [2, 3, 4], "top": "", "desc": "Elementalists strip away magic resist.", "tiers": [
+		{"self": {"shred": 15.0}, "text": "Elementalist attacks shred 15 magic resist"},
+		{"self": {"shred": 25.0}, "text": "Elementalist attacks shred 25 magic resist"},
+		{"self": {"shred": 40.0}, "text": "Elementalist attacks shred 40 magic resist"},
 	]},
-	"Duelist": {"kind": "class", "thresholds": [2, 3], "top": "", "desc": "Duelists speed up with every strike.", "tiers": [
-		{"self": {"ramp": 0.04, "ramp_max": 12}, "text": "Duelists +4% attack speed per attack (max 12)"},
-		{"self": {"ramp": 0.07, "ramp_max": 12}, "text": "Duelists +7% attack speed per attack (max 12)"},
+	"Duelist": {"kind": "class", "thresholds": [2, 3], "top": "", "desc": "Duelists recover with every duel they win.", "tiers": [
+		{"self": {"kill_heal": 0.20}, "text": "Duelists heal 20% of max HP on each kill"},
+		{"self": {"kill_heal": 0.35}, "text": "Duelists heal 35% of max HP on each kill"},
 	]},
-	"Alchemist": {"kind": "class", "thresholds": [2, 3], "top": "", "desc": "Alchemists' brews strengthen the team.", "tiers": [
-		{"team": {"hp": 0.06, "dmg": 0.06}, "text": "team +6% HP and damage"},
-		{"team": {"hp": 0.15, "dmg": 0.15}, "text": "team +15% HP and damage"},
+	"Alchemist": {"kind": "class", "thresholds": [2, 3], "top": "", "desc": "Alchemists' tonics let the team drink from its wounds.", "tiers": [
+		{"team": {"vamp": 0.06}, "text": "team 6% omnivamp"},
+		{"team": {"vamp": 0.12}, "text": "team 12% omnivamp"},
 	]},
 	# --- unique (1/1): one unit holds each ---
 	"Dragonlord": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Dragon's presence emboldens the team.", "tiers": [
-		{"team": {"dmg": 0.15}, "text": "team +15% damage"},
+		{"team": {"ad": 0.15}, "text": "team +15% attack power"},
 	]},
-	"Ascendant": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Seraph's grace sustains the team.", "tiers": [
-		{"team": {"vamp": 0.10, "regen": 0.01}, "text": "team 10% omnivamp and 1% regen per second"},
+	"Ascendant": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Seraph's grace wards the team.", "tiers": [
+		{"team": {"mr": 20.0}, "text": "team +20 magic resist"},
 	]},
 	"Lich King": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Deathlord commands the dead.", "tiers": [
-		{"self": {"vamp": 0.40}, "tags": {"Undead": {"revive": 0.30}}, "text": "Deathlord 40% omnivamp; every Undead revives once at 30% HP"},
+		{"tags": {"Undead": {"revive": 0.30}}, "text": "every Undead revives once at 30% HP"},
 	]},
 	"Earthshaker": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Titan steadies the ground under the team.", "tiers": [
-		{"team": {"hp": 0.20, "shield": 0.10}, "text": "team +20% HP and a 10% shield"},
+		{"team": {"armor": 20.0}, "text": "team +20 armour"},
 	]},
-	"Rebirth": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Phoenix rises again.", "tiers": [
-		{"self": {"revive": 0.60}, "text": "Phoenix revives once at 60% HP"},
+	"Rebirth": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Phoenix's flames mend it.", "tiers": [
+		{"self": {"regen": 0.03}, "text": "Phoenix regens 3% of max HP per second"},
 	]},
-	"Soulreaper": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Reaper harvests the weak.", "tiers": [
-		{"self": {"execute": 0.20, "kill_heal": 0.30}, "text": "Reaper executes below 20% and heals 30% of max HP on each kill"},
+	"Soulreaper": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Reaper teaches the team to harvest the weak.", "tiers": [
+		{"team": {"execute": 0.10}, "text": "team executes below 10%"},
 	]},
-	"Inferno": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Pyromancer's fire burns hotter.", "tiers": [
-		{"self": {"dmg": 0.35, "burn": 0.05}, "text": "Pyromancer +35% damage, attacks burn 5% per second"},
+	"Inferno": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Pyromancer sets the team's weapons alight.", "tiers": [
+		{"team": {"burn": 0.02}, "text": "team attacks burn 2% of max HP per second"},
 	]},
-	"Crusade": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Paladin's crusade hardens the team.", "tiers": [
-		{"team": {"dr": 0.10}, "text": "team 10% damage reduction"},
+	"Crusade": {"kind": "unique", "thresholds": [1], "top": "", "desc": "The Paladin's crusade guides every blow.", "tiers": [
+		{"team": {"crit": 6}, "text": "every 6th attack of the team crits"},
 	]},
 }
 
 # How effect keys combine when several traits give the same one: most add up; these take the best.
-const TAKE_MAX := ["execute", "revive", "ramp", "ramp_max"]
+const TAKE_MAX := ["execute", "revive", "ramp", "ramp_max", "sunder", "shred"]
 const TAKE_EVERY := ["crit", "dodge"]   # "every Nth": the smallest N wins
 
 static func count(units: Array) -> Dictionary:

@@ -63,14 +63,42 @@ func _run():
 	LocalSnapshotStore.root = "user://item_test_snapshots"
 	await load_main(5)
 
-	print("--- the 15 items")
+	print("--- the 45 items (items v3: 4 per stat, plus the 9 unique items)")
 	var roster: Array = gm.item_roster
 	var kinds := {}
 	for it in roster:
 		kinds[String(it.kind)] = int(kinds.get(String(it.kind), 0)) + 1
-	chk("15 item types: 6 basic, 2 bound, 2 economy, 2 benders, the Crystal, the Tongs and the Ancient Sigil", roster.size() == 15 and kinds == {"basic": 6, "bound": 2, "economy": 2, "bender": 2, "crystal": 1, "remover": 1, "ascension": 1}, str(kinds))
-	chk("every basic item has its own element", roster.filter(func(i): return i.kind == &"basic").map(func(i): return i.element).all(func(e): return Resonance.ELEMENTS.has(e)) and Resonance.ELEMENTS.all(func(e): return roster.filter(func(i): return i.kind == &"basic" and i.element == e).size() == 1))
-	chk("Mana Charm now also gives +8% damage", is_equal_approx(float(I("mana_charm").effects.get("dmg", 0.0)), 0.08))
+	chk("45 item types: 36 stat items, 2 bound, 2 economy, 2 benders, the Crystal, the Tongs and the Ancient Sigil", roster.size() == 45 and kinds == {"basic": 36, "bound": 2, "economy": 2, "bender": 2, "crystal": 1, "remover": 1, "ascension": 1}, str(kinds))
+	# Each stat's four items, the element that stat belongs to, and the property it raises.
+	var by_stat := {
+		"attack power": [&"Might", "attack_power", ["longsword", "war_axe", "serrated_dirk", "giants_maul"]],
+		"HP": [&"Vigor", "hp", ["iron_belt", "troll_hide", "heart_locket", "ogres_girdle"]],
+		"mitigation": [&"Vigor", "mitigation", ["leather_jerkin", "hide_bracers", "padded_gambeson", "stone_ring"]],
+		"attack speed": [&"Swift", "attack_speed", ["quick_bow", "swift_gloves", "wind_charm", "feather_boots"]],
+		"armour": [&"Guard", "armor", ["chain_vest", "tower_shield", "bronze_buckler", "plate_cuirass"]],
+		"magic resist": [&"Guard", "magic_resist", ["warding_cloak", "silver_circlet", "spellward_talisman", "nullstone_amulet"]],
+		"omnivamp": [&"Blood", "lifesteal", ["blood_fang", "vampire_ring", "hungering_blade", "sanguine_tome"]],
+		"ability power": [&"Arcane", "ability_power", ["apprentice_wand", "sages_staff", "hex_orb", "archmages_tome"]],
+		"mana": [&"Arcane", "mana", ["mana_charm", "spirit_bead", "moon_tear", "focus_gem"]],
+	}
+	var wrong: Array = []
+	var listed := {}
+	for stat in by_stat:
+		var row: Array = by_stat[stat]
+		for id in row[2]:
+			var it := I(id)
+			listed[id] = true
+			if it == null or it.kind != &"basic" or it.element != row[0] or float(it.get(row[1])) <= 0.0 or not roster.has(it):
+				wrong.append(id)
+	chk("4 items for each of the 9 stats, each in its stat's element and in the roster", wrong.is_empty() and listed.size() == 36, str(wrong))
+	var weight := {}
+	for it in roster.filter(func(i): return i.kind == &"basic"):
+		weight[it.element] = float(weight.get(it.element, 0.0)) + it.drop_weight
+	chk("every element drops as often as the others (equal drop weight), so resonances stay evenly spread", Resonance.ELEMENTS.all(func(e): return is_equal_approx(float(weight.get(e, 0.0)), 4.0)), str(weight))
+	var no_icon: Array = roster.filter(func(i): return not ResourceLoader.exists("res://textures/ui/items/%s.png" % i.id)).map(func(i): return i.id)
+	chk("every item has an icon", no_icon.is_empty(), str(no_icon))
+	chk("Mana Charm: +15 start mana, +8% ability power", is_equal_approx(I("mana_charm").mana, 15.0) and is_equal_approx(I("mana_charm").ability_power, 0.08))
+	chk("every stat item has a Best on line", roster.filter(func(i): return i.kind == &"basic" and i.best_on() == "").is_empty())
 
 	print("--- resonance")
 	chk("Longsword + Quick Bow: Flurry", Resonance.keys_for([I("longsword"), I("quick_bow")]) == ["Might+Swift"] and Resonance.unit_effects([I("longsword"), I("quick_bow")]).get("crit") == 3.0)
@@ -83,7 +111,7 @@ func _run():
 	var shielded := Resonance.unit_effects([I("iron_belt"), I("chain_vest"), I("resonance_crystal")])
 	chk("the Crystal doubles amounts: Bulwark's shield 25% -> 50%", is_equal_approx(float(shielded.get("shield", 0.0)), 0.5))
 	var alone := Resonance.unit_effects([I("resonance_crystal")])
-	chk("the Crystal with no resonance: +8% HP and damage", is_equal_approx(float(alone.get("hp", 0.0)), 0.08) and is_equal_approx(float(alone.get("dmg", 0.0)), 0.08))
+	chk("the Crystal with no resonance: +8% HP, attack power and ability power", is_equal_approx(float(alone.get("hp", 0.0)), 0.08) and is_equal_approx(float(alone.get("ad", 0.0)), 0.08) and is_equal_approx(float(alone.get("ap", 0.0)), 0.08))
 	var k := place("knight", 0)
 	k.equip(I("iron_belt"))
 	k.equip(I("chain_vest"))
@@ -103,7 +131,7 @@ func _run():
 	chk("one synergy bender per unit", not b.can_take(I("twin_crest")))
 	var dmg0 := a.damage()
 	a.end_combat()
-	chk("surviving a fight adds a stack: +4 damage", a.stacks_of(I("heros_blade")) == 1 and is_equal_approx(a.damage() - dmg0, 4.0))
+	chk("surviving a fight adds a stack: +4% attack power", a.stacks_of(I("heros_blade")) == 1 and is_equal_approx(a.damage() - dmg0, a.data.attack_damage * 0.04))
 	a.dead = true
 	a.end_combat()
 	chk("a fight it doesn't survive adds nothing", a.stacks_of(I("heros_blade")) == 1)
@@ -121,7 +149,7 @@ func _run():
 	var dmg2 := two.damage()
 	two.end_combat()
 	chk("two Hero's Blades on one unit keep their own stacks (2 and 1)", two.stacks_at(0) == 2 and two.stacks_at(1) == 1, str(two.item_stacks))
-	chk("both add their stacks to damage", is_equal_approx(two.damage() - dmg2, 8.0), str(two.damage() - dmg2))
+	chk("both add their stacks to attack power", is_equal_approx(two.damage() - dmg2, two.data.attack_damage * 0.08), str(two.damage() - dmg2))
 	board.sell_unit(two)
 	GameState.me.items.clear()
 	# Merge: three Knights, each blade keeps its own stacks on the kept unit.

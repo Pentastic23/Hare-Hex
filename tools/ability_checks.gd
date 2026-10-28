@@ -39,6 +39,14 @@ func load_main(seed := 0):
 	GameState.me.level = 8
 	board.refresh_unlocks(8, false)
 
+# A copy of a unit's data without its base armour and magic resist, so the mechanic checks measure
+# exact numbers (the resists have checks of their own in combat_checks).
+func no_resists(d: UnitData) -> UnitData:
+	var c := d.duplicate() as UnitData
+	c.armor = 0.0
+	c.magic_resist = 0.0
+	return c
+
 func UD(n: String) -> UnitData:
 	var p := "res://tres/units/%s.tres" % n
 	return load(p if ResourceLoader.exists(p) else "res://tres/%s.tres" % n)
@@ -47,7 +55,7 @@ func UD(n: String) -> UnitData:
 func place(n: String, c: Vector2i, team := 0, star := 1) -> Unit:
 	var u := (load("res://scenes/unit.tscn").instantiate() as Unit)
 	board.get_node("Units").add_child(u)
-	u.setup(UD(n), team)
+	u.setup(no_resists(UD(n)), team)
 	if star > 1:
 		u.set_star(star)
 	if team == 0:
@@ -309,6 +317,14 @@ func _run():
 	ne._cast(nfoe)
 	chk("one at a time: casting again heals it fully", ne.summons.size() == 1 and is_equal_approx(thrall.health, 300.0))
 	chk("a summon can't be sold or given items", not (load("res://Scripts/drag_controller.gd") == null) and main.get_node("DragController").equip_item_on(thrall, null) == false)
+	clear_units()
+	gm.new_summons.clear()
+	ne = place("necromancer", Vector2i(3, 6))
+	nfoe = place("knight", Vector2i(3, 2), 1)
+	ne.apply_synergy({"summon": 0.5})
+	ne._cast(nfoe)
+	thrall = ne.summons[0] if not ne.summons.is_empty() else null
+	chk("Summoners: summon +50% makes the Bone Thrall 450 HP, 45 damage", thrall != null and is_equal_approx(thrall.max_hp(), 450.0) and is_equal_approx(thrall.damage(), 45.0))
 	clear_units()
 	gm.new_summons.clear()
 

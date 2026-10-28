@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"giants_maul"
+display_name = "Giant's Maul"
+description = "+35% attack power, but -10% attack speed."
+color = Color(0.6, 0.45, 0.35, 1)
+attack_power = 0.35
+attack_speed = -0.1
+element = &"Might"
+min_stage = 2

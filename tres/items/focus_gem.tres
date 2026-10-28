@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"focus_gem"
+display_name = "Focus Gem"
+description = "+30 start mana, but -80 HP."
+color = Color(0.3, 0.7, 0.9, 1)
+mana = 30.0
+hp = -80.0
+element = &"Arcane"
+min_stage = 2
+drop_weight = 0.5

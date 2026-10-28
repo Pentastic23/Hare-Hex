@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"hide_bracers"
+display_name = "Hide Bracers"
+description = "6 mitigation, +80 HP."
+color = Color(0.7, 0.55, 0.4, 1)
+mitigation = 6.0
+hp = 80.0
+element = &"Vigor"
+drop_weight = 0.5

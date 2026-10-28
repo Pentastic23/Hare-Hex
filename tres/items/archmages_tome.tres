@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"archmages_tome"
+display_name = "Archmage's Tome"
+description = "+35% ability power, but -100 HP."
+color = Color(0.35, 0.45, 0.85, 1)
+ability_power = 0.35
+hp = -100.0
+element = &"Arcane"
+min_stage = 2
+drop_weight = 0.5

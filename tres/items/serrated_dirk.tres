@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"serrated_dirk"
+display_name = "Serrated Dirk"
+description = "+12% attack power. Attacks sunder 15 armour for 3 s."
+color = Color(0.8, 0.45, 0.3, 1)
+attack_power = 0.12
+effects = {"sunder": 15.0}
+element = &"Might"

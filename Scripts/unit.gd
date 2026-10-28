@@ -36,10 +36,13 @@ var stat_scale := 1.0
 @onready var ring: MeshInstance3D = $Ring   # the team ring at a model's feet (hidden for the capsule)
 var _last_mana_ratio := -1.0
 var bonus_hp := 0.0
-var bonus_dmg := 0.0
+var bonus_ad := 0.0      # attack power: attacks deal this much more (synergies)
+var bonus_ap := 0.0      # ability power: ability damage, heals and shields this much more
 var bonus_as := 0.0
 var bonus_mana := 0.0
-var dmg_reduction := 0.0
+var bonus_armor := 0.0   # flat armour (physical damage x 100 / (100 + armour))
+var bonus_mr := 0.0      # flat magic resist (magic damage, the same way)
+var bonus_mit := 0.0     # mitigation: flat damage off every hit (not burn or zone ticks)
 var lifesteal := 0.0
 # Synergy mechanics (docs/synergies-v2.md), set by apply_synergy and cleared with the bonuses above.
 var shield_pct := 0.0   # shield at the start of a fight, share of max HP
@@ -55,6 +58,9 @@ var dodge_every := 0    # every Nth attack against this unit misses (0 = never)
 var curse := 0.0        # attacks make the target take this much more damage
 var range_bonus := 0    # tiles
 var kill_heal := 0.0    # share of max HP healed on a kill
+var sunder := 0.0       # attacks cut the target's armour by this much for 3 s
+var shred := 0.0        # attacks cut the target's magic resist by this much for 3 s
+var summon_power := 0.0 # what this unit summons gets this much more HP and damage
 # Per-fight state of those mechanics (reset in _reset_fight_state). All stepped by the fixed combat
 # tick, so fights stay deterministic.
 var shield := 0.0
@@ -69,9 +75,14 @@ var chill_on := 0.0
 var chill_left := 0.0
 var curse_on := 0.0
 var curse_left := 0.0
+var sunder_on := 0.0
+var sunder_left := 0.0
+var shred_on := 0.0
+var shred_left := 0.0
 const BURN_TIME := 3.0
 const CHILL_TIME := 2.0
 const CURSE_TIME := 3.0
+const SUNDER_TIME := 3.0   # sunder and shred
 const CHILL_CAP := 0.8
 # Abilities (abilities.gd): crowd control, timed buffs, ability shields and the later hits of a cast.
 # All stepped by the combat tick in _tick_effects; cleared between fights.
@@ -81,7 +92,7 @@ var blind_hits := 0       # this many of its next attacks miss
 var taunt_by: Unit        # must target this unit while taunt_left runs
 var taunt_left := 0.0
 var cast_lock := 0.0      # casting: no attacks or moves
-var buffs := {}           # source -> [stat ("as", "dmg", "dr", "vamp", "regen"), amount, seconds left]
+var buffs := {}           # source -> [stat ("as", "ad", "ap", "armor", "mr", "vamp", "regen"), amount, seconds left]
 var ab_shield := 0.0      # the part of `shield` from an ability; it runs out
 var ab_shield_left := 0.0
 var ab_shield_heals := false   # Little Prayer: whatever is left heals when it runs out
@@ -124,10 +135,13 @@ const MAX_ITEMS := 3
 var items: Array[ItemData] = []
 var item_stacks := {}   # bound items (items v2): item id -> stacks, grown each fight this unit survives
 var item_hp := 0.0
-var item_dmg := 0.0
+var item_ad := 0.0    # attack power, fraction
+var item_ap := 0.0    # ability power, fraction
 var item_as := 0.0
 var item_mana := 0.0
-var item_dr := 0.0
+var item_armor := 0.0
+var item_mr := 0.0
+var item_mit := 0.0
 var item_lifesteal := 0.0
 var item_icons: Node3D   # row of item icons between the head and the bars, one per item
 static var _icon_tex: ImageTexture   # plain white square (items without an icon)
@@ -184,11 +198,30 @@ func max_hp() -> float:
 	return (data.max_health + item_hp) * stat_scale * star_mult(star, data.cost) * (1.0 + bonus_hp)
 
 func damage() -> float:
-	return (data.attack_damage + item_dmg) * stat_scale * star_mult(star, data.cost) * damage_bonus()
+	return data.attack_damage * stat_scale * star_mult(star, data.cost) * attack_bonus()
 
-# 1 + the damage bonus from synergies, items and ability buffs (attacks and ability damage).
-func damage_bonus() -> float:
-	return 1.0 + bonus_dmg + buff_total("dmg")
+# 1 + attack power from synergies, items and ability buffs: scales attacks (physical damage).
+func attack_bonus() -> float:
+	return 1.0 + bonus_ad + item_ad + buff_total("ad")
+
+# 1 + ability power: scales ability damage (magic), and the heals and shields its abilities give.
+func ability_bonus() -> float:
+	return 1.0 + bonus_ap + item_ap + buff_total("ap")
+
+# Armour and magic resist are flat: damage of that type is multiplied by 100 / (100 + value).
+# Sunder and shred take some off for a few seconds; never below 0.
+func armor() -> float:
+	return maxf(0.0, data.armor + bonus_armor + item_armor + buff_total("armor") - sunder_on)
+
+func magic_resist() -> float:
+	return maxf(0.0, data.magic_resist + bonus_mr + item_mr + buff_total("mr") - shred_on)
+
+# Flat damage taken off every hit (not off burn or zone ticks); a hit still does at least 1.
+func mitigation() -> float:
+	return maxf(0.0, bonus_mit + item_mit + buff_total("mit"))
+
+static func resist_mult(value: float) -> float:
+	return 100.0 / (100.0 + maxf(value, 0.0))
 
 func omnivamp() -> float:
 	return lifesteal + item_lifesteal + buff_total("vamp")
@@ -492,6 +525,10 @@ func _reset_fight_state():
 	chill_left = 0.0
 	curse_on = 0.0
 	curse_left = 0.0
+	sunder_on = 0.0
+	sunder_left = 0.0
+	shred_on = 0.0
+	shred_left = 0.0
 	stun_left = 0.0
 	silence_left = 0.0
 	blind_hits = 0
@@ -682,6 +719,10 @@ func _attack(t: Unit, fixed := -1.0):
 			t.apply_chill(chill)
 		if curse > 0.0:
 			t.apply_curse(curse)
+		if sunder > 0.0:
+			t.apply_sunder(sunder)
+		if shred > 0.0:
+			t.apply_shred(shred)
 		if execute > 0.0 and t.health < t.max_hp() * execute:
 			damage_dealt += t.take_damage(t.health + t.shield, self, false, true)
 	if t.dead and kill_heal > 0.0:
@@ -704,6 +745,15 @@ func apply_chill(amount: float, secs := CHILL_TIME):
 func apply_curse(amount: float, secs := CURSE_TIME):
 	curse_on = maxf(curse_on, amount)
 	curse_left = maxf(curse_left, secs)
+
+# Sunder (armour) and shred (magic resist): the bigger cut wins, and the timer refreshes.
+func apply_sunder(amount: float, secs := SUNDER_TIME):
+	sunder_on = maxf(sunder_on, amount)
+	sunder_left = maxf(sunder_left, secs)
+
+func apply_shred(amount: float, secs := SUNDER_TIME):
+	shred_on = maxf(shred_on, amount)
+	shred_left = maxf(shred_left, secs)
 
 # Crowd control from abilities: the same kind doesn't stack, the longer one wins.
 func apply_stun(secs: float):
@@ -782,7 +832,7 @@ func _tick_effects(delta: float):
 	if burn_left > 0.0:
 		burn_left -= delta
 		var by: Unit = burn_by if is_instance_valid(burn_by) else null
-		var removed := take_damage(burn_dps * delta, by)
+		var removed := take_damage(burn_dps * delta, by, false, false, MAGIC, true)
 		if by != null:
 			by.damage_dealt += removed
 			if by.nova_left > 0.0:
@@ -795,6 +845,14 @@ func _tick_effects(delta: float):
 		curse_left -= delta
 		if curse_left <= 0.0:
 			curse_on = 0.0
+	if sunder_left > 0.0:
+		sunder_left -= delta
+		if sunder_left <= 0.0:
+			sunder_on = 0.0
+	if shred_left > 0.0:
+		shred_left -= delta
+		if shred_left <= 0.0:
+			shred_on = 0.0
 	stun_left = maxf(0.0, stun_left - delta)
 	silence_left = maxf(0.0, silence_left - delta)
 	untargetable_left = maxf(0.0, untargetable_left - delta)
@@ -867,21 +925,32 @@ func _tick_effects(delta: float):
 			if not dead:
 				q[1].call()
 
-# Returns the damage actually taken (after curse and damage reduction, shield included, without
+# Damage types: attacks are physical (cut by armour), everything else is magic (cut by magic resist)
+# unless the caller says otherwise; true damage (pierce) ignores curse, resists and mitigation.
+enum { PHYSICAL, MAGIC, TRUE_DAMAGE }
+
+# Returns the damage actually taken (after curse, resists and mitigation, shield included, without
 # overkill), for the damage meter. by: the attacker (or burner); attack: a hit (gives mana, flinches);
-# pierce: ignores curse and damage reduction (executes). A killing blow is survived once with revive.
-func take_damage(amount: float, by: Unit = null, attack := false, pierce := false) -> float:
+# pierce: true damage (executes); kind: PHYSICAL / MAGIC (-1: physical for attacks, else magic);
+# tick: a slice of damage over time (burn, zones), which mitigation leaves alone. A killing blow is
+# survived once with revive.
+func take_damage(amount: float, by: Unit = null, attack := false, pierce := false, kind := -1, tick := false) -> float:
 	if dead:
 		return 0.0
-	if not pierce:
-		# synergies and items share the 60% cap; ability buffs (Shell Up) reduce what is left
-		amount *= (1.0 + curse_on) * (1.0 - minf(dmg_reduction + item_dr, 0.6)) * (1.0 - minf(buff_total("dr"), 0.9))
+	if pierce:
+		kind = TRUE_DAMAGE
+	elif kind < 0:
+		kind = PHYSICAL if attack else MAGIC
+	if kind != TRUE_DAMAGE:
+		amount *= (1.0 + curse_on) * resist_mult(armor() if kind == PHYSICAL else magic_resist())
+		if not tick and amount > 0.0:
+			amount = maxf(amount - mitigation(), minf(amount, 1.0))
 	if attack:
 		gain_mana(minf(amount * MANA_FROM_DAMAGE, MANA_HIT_CAP))
 	if link_left > 0.0 and is_instance_valid(link_to) and not link_to.dead and link_to != self:
 		var share := amount * 0.5   # Loyal Guard: the Paladin takes half (through its own armour and shield)
 		amount -= share
-		link_to.take_damage(share, by)
+		link_to.take_damage(share, by, false, false, kind, tick)
 	var absorbed := minf(shield, amount)
 	shield -= absorbed
 	ab_shield = maxf(0.0, ab_shield - absorbed)   # ability shields are used up first
@@ -1183,21 +1252,22 @@ func gain_mana(n: float):
 	mana = minf(mana + n, data.max_mana)
 
 func clear_bonuses():
-	bonus_hp = 0.0
-	bonus_dmg = 0.0
-	bonus_as = 0.0
 	bonus_mana = 0.0
-	dmg_reduction = 0.0
-	lifesteal = 0.0
 	apply_synergy({})
 
 # Sets this unit's synergy bonuses from Synergies.effects_for (effect keys as in Synergies.DEFS).
 func apply_synergy(fx: Dictionary):
 	bonus_hp = fx.get("hp", 0.0)
-	bonus_dmg = fx.get("dmg", 0.0)
+	bonus_ad = fx.get("ad", 0.0)
+	bonus_ap = fx.get("ap", 0.0)
 	bonus_as = fx.get("as", 0.0)
-	dmg_reduction = fx.get("dr", 0.0)
+	bonus_armor = fx.get("armor", 0.0)
+	bonus_mr = fx.get("mr", 0.0)
+	bonus_mit = fx.get("mit", 0.0)
 	lifesteal = fx.get("vamp", 0.0)
+	sunder = fx.get("sunder", 0.0)
+	shred = fx.get("shred", 0.0)
+	summon_power = fx.get("summon", 0.0)
 	shield_pct = fx.get("shield", 0.0)
 	regen = fx.get("regen", 0.0)
 	ramp = fx.get("ramp", 0.0)
@@ -1264,19 +1334,25 @@ func take_items() -> Array[ItemData]:
 
 func _recalc_items() -> void:
 	item_hp = 0.0
-	item_dmg = 0.0
+	item_ad = 0.0
+	item_ap = 0.0
 	item_as = 0.0
 	item_mana = 0.0
-	item_dr = 0.0
+	item_armor = 0.0
+	item_mr = 0.0
+	item_mit = 0.0
 	item_lifesteal = 0.0
 	for i in items.size():
 		var it: ItemData = items[i]
 		var stacks := stacks_at(i)
 		item_hp += it.hp + it.stack_hp * stacks
-		item_dmg += it.dmg + it.stack_dmg * stacks
+		item_ad += it.attack_power + it.stack_ad * stacks
+		item_ap += it.ability_power
 		item_as += it.attack_speed
 		item_mana += it.mana
-		item_dr += it.damage_reduction
+		item_armor += it.armor
+		item_mr += it.magic_resist
+		item_mit += it.mitigation
 		item_lifesteal += it.lifesteal
 	_update_item_icons()
 

@@ -10,7 +10,7 @@ class_name Glossary
 #     is over the word (the unit inspector's ability and rules).
 # Matching is by word start, any case, any ending ("burn", "burns", "burning"); a term is explained once.
 
-# [term, regex (word stems), explanation]. Order matters where words overlap (damage reduction before
+# [term, regex (word stems), explanation]. Order matters where words overlap (armour before
 # others). Keep explanations short: they go in tooltips.
 const TERMS := [
 	["Stun", "stun\\w*|frozen|freez\\w*", "Can't move, attack or cast, and gains no mana, until it wears off."],
@@ -18,10 +18,10 @@ const TERMS := [
 	["Blind", "blind\\w*", "Its next attacks miss."],
 	["Taunt", "taunt\\w*", "Enemies it taunts must attack it."],
 	["Root", "root\\w*", "Can still attack and cast, but can't move."],
-	["Charm", "(?<!mana )(?<!heartwood )charm\\w*","Fights for the other side for a while (marked with a pink hex sigil)."],
+	["Charm", "(?<!mana )(?<!heartwood )(?<!wind )charm\\w*","Fights for the other side for a while (marked with a pink hex sigil)."],
 	["Doom", "doom\\w*", "Takes a big hit when the timer runs out. If it dies first, the doom jumps to an ally."],
-	["Execute", "execut\\w*", "An enemy left below this share of its max HP dies at once, whatever its damage reduction."],
-	["Shield", "shield\\w*", "Soaks up damage before HP does; a white strip on the health bar. Ability shields run out after a while."],
+	["Execute", "execut\\w*", "An enemy left below this share of its max HP dies at once, whatever its armour or shield."],
+	["Shield", "(?<!tower )shield\\w*","Soaks up damage before HP does; a white strip on the health bar. Ability shields run out after a while."],
 	["Revive", "reviv\\w*", "Once per fight, gets back up after falling, with this share of its HP."],
 	["Dodge", "dodg\\w*", "Every Nth attack against it misses."],
 	["Crit", "crit\\w*", "Every Nth attack deals double damage."],
@@ -31,12 +31,18 @@ const TERMS := [
 	["Burn", "burn\\w*", "Takes a share of its max HP as damage every second for a few seconds; its health bar turns orange."],
 	["Chill", "chill\\w*", "Attacks more slowly for a short time (never more than 80% slower)."],
 	["Curse", "curse\\w*", "Takes more damage from everything for a short time."],
-	["Damage reduction", "damage reduction|less damage taken|reduction", "Takes this much less damage (60% at most, from all sources together)."],
+	["Attack power", "attack power", "Attacks deal this much more damage."],
+	["Ability power", "ability power", "Its ability's damage, heals and shields are this much bigger."],
+	["Armour", "armou?r\\w*","Cuts attack (physical) damage: x 100 / (100 + armour)."],
+	["Magic resist", "magic resist\\w*","Cuts ability, burn and zone (magic) damage: x 100 / (100 + magic resist)."],
+	["Mitigation", "mitigation", "Taken off every hit after armour or magic resist (not burns or zones); at least 1 gets through."],
+	["Sunder", "sunder\\w*","Lowers the target's armour for 3 s."],
+	["Shred", "shred\\w*","Lowers the target's magic resist for 3 s."],
 	["Summon", "summon\\w*", "A unit that fights for this fight only: no traits, items or selling, and gone when the fight ends."],
 	["Leap", "leap\\w*|charge\\w*|dash\\w*", "Jumps to another hex; enemies attacking it have to pick a new target."],
 	["Mana", "mana(?! charm)", "Fills by 10 per attack and a little when hit. Full mana: the unit casts its ability."],
 	["Ascend", "ascen\\w*|4-star\\w*|4 stars", "A 3-star unit carrying the Ancient Sigil that survives 8 wins becomes 4-star, its astral form: x5 HP and damage (5-costs x7.5). Merging never makes one."],
-	["Hex", "hexes|hex(?! ward)", "One tile of the board. Ranges and areas are counted in hexes."],
+	["Hex", "hexes|hex(?! ward)(?! orb)", "One tile of the board. Ranges and areas are counted in hexes."],
 ]
 
 # The game's own words (gold, bench, interest, resonance...), linked only where asked for

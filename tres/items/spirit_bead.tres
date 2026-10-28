@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"spirit_bead"
+display_name = "Spirit Bead"
+description = "+10 start mana, +15 magic resist."
+color = Color(0.6, 0.8, 0.95, 1)
+mana = 10.0
+magic_resist = 15.0
+element = &"Arcane"
+drop_weight = 0.5

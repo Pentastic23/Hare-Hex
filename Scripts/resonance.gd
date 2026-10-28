@@ -15,11 +15,11 @@ const ELEMENT_COLORS := {
 
 # Key: the two elements in ELEMENTS order, joined with "+".
 const PAIRS := {
-	"Might+Vigor": {"name": "Juggernaut", "effects": {"hp": 0.10, "dmg": 0.10}, "text": "+10% HP and damage"},
+	"Might+Vigor": {"name": "Juggernaut", "effects": {"hp": 0.10, "ad": 0.10}, "text": "+10% HP and attack power"},
 	"Might+Swift": {"name": "Flurry", "effects": {"crit": 3}, "text": "every 3rd attack crits"},
-	"Might+Guard": {"name": "Vanguard", "effects": {"dmg": 0.10, "dr": 0.10}, "text": "+10% damage, 10% damage reduction"},
+	"Might+Guard": {"name": "Vanguard", "effects": {"ad": 0.10, "armor": 15.0}, "text": "+10% attack power, +15 armour"},
 	"Might+Blood": {"name": "Hemorrhage", "effects": {"burn": 0.03}, "text": "attacks burn 3% of max HP per second"},
-	"Might+Arcane": {"name": "Spellblade", "effects": {"dmg": 0.20}, "text": "+20% damage"},
+	"Might+Arcane": {"name": "Spellblade", "effects": {"ad": 0.10, "ap": 0.10}, "text": "+10% attack and ability power"},
 	"Vigor+Swift": {"name": "Second Wind", "effects": {"regen": 0.015}, "text": "regen 1.5% of max HP per second"},
 	"Vigor+Guard": {"name": "Bulwark", "effects": {"shield": 0.25}, "text": "25% shield"},
 	"Vigor+Blood": {"name": "Undying", "effects": {"revive": 0.25}, "text": "revive once at 25% HP"},
@@ -31,8 +31,8 @@ const PAIRS := {
 	"Guard+Arcane": {"name": "Hex Ward", "effects": {"curse": 0.10}, "text": "attacks curse 10%"},
 	"Blood+Arcane": {"name": "Soul Siphon", "effects": {"execute": 0.10}, "text": "execute below 10%"},
 }
-const PRISM := {"name": "Prism", "effects": {"hp": 0.10, "dmg": 0.10, "as": 0.10}, "text": "+10% HP, damage and attack speed (three different elements)"}
-const CRYSTAL_ALONE := {"hp": 0.08, "dmg": 0.08}   # a Resonance Crystal on a unit with no resonance
+const PRISM := {"name": "Prism", "effects": {"hp": 0.10, "ad": 0.10, "ap": 0.10, "as": 0.10}, "text": "+10% HP, attack power, ability power and attack speed (three different elements)"}
+const CRYSTAL_ALONE := {"hp": 0.08, "ad": 0.08, "ap": 0.08}   # a Resonance Crystal on a unit with no resonance
 
 static func key(a: StringName, b: StringName) -> String:
 	var ia := ELEMENTS.find(a)
@@ -61,7 +61,7 @@ static func def(k: String) -> Dictionary:
 static func has_crystal(items: Array) -> bool:
 	return items.any(func(x): return x is ItemData and x.kind == &"crystal")
 
-# Every combat effect a unit's items give it: item effects (Mana Charm's damage), its resonances
+# Every combat effect a unit's items give it: item effects (Wind Charm's chill), its resonances
 # (doubled by a Crystal), or the Crystal's own bonus when there is no resonance.
 static func unit_effects(items: Array) -> Dictionary:
 	var fx := {}

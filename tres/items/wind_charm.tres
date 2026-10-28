@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"wind_charm"
+display_name = "Wind Charm"
+description = "+10% attack speed. Attacks chill 10%."
+color = Color(0.6, 0.9, 0.8, 1)
+attack_speed = 0.1
+effects = {"chill": 0.1}
+element = &"Swift"

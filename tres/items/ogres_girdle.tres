@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://Scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = &"ogres_girdle"
+display_name = "Ogre's Girdle"
+description = "+300 HP, but -10% attack speed."
+color = Color(0.5, 0.55, 0.3, 1)
+hp = 300.0
+attack_speed = -0.1
+element = &"Vigor"
+min_stage = 2
+drop_weight = 0.5

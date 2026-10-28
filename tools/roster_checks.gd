@@ -12,7 +12,7 @@ const EXPECT := {1: 14, 2: 13, 3: 14, 4: 14, 5: 10}
 # How many of each cost carry a unique (1/1) tag.
 const EXPECT_UNIQUE := {3: 2, 5: 6}
 const EXPECT_TRAITS := {"origin": 11, "class": 16, "unique": 8}   # 35 in all (docs/synergies-v2.md)
-const EFFECT_KEYS := ["hp", "dmg", "as", "dr", "vamp", "shield", "regen", "ramp", "ramp_max", "crit", "execute", "revive", "burn", "chill", "dodge", "curse", "range", "kill_heal"]
+const EFFECT_KEYS := ["hp", "ad", "ap", "as", "armor", "mr", "mit", "sunder", "shred", "summon", "vamp", "shield", "regen", "ramp", "ramp_max", "crit", "execute", "revive", "burn", "chill", "dodge", "curse", "range", "kill_heal"]
 
 var fails := 0
 
@@ -48,7 +48,7 @@ func _run():
 		if labels.has(lab):
 			dup_labels.append("%s/%s" % [labels[lab], d.display_name])
 		labels[lab] = d.display_name
-		if d.max_health <= 0 or d.attack_damage <= 0 or d.attacks_per_second <= 0 or d.attack_range < 1 or d.move_speed <= 0 or d.max_mana <= 0 or d.start_mana > d.max_mana or lab.length() > 3:
+		if d.max_health <= 0 or d.attack_damage <= 0 or d.armor < 0 or d.magic_resist < 0 or d.attacks_per_second <= 0 or d.attack_range < 1 or d.move_speed <= 0 or d.max_mana <= 0 or d.start_mana > d.max_mana or lab.length() > 3:
 			bad_stats.append(d.display_name)
 		var kinds := {"origin": 0, "class": 0, "unique": 0}
 		for t in d.tags:
@@ -92,6 +92,24 @@ func _run():
 					bad_defs.append("%s->%s" % [tag, other])
 	chk("35 traits: 11 origins, 16 classes, 8 uniques", Synergies.DEFS.size() == 35 and by_kind == EXPECT_TRAITS, str(by_kind))
 	chk("every trait has one tier per threshold, with text and known effects", bad_defs.is_empty(), str(bad_defs))
+
+	# No two traits give the same bonus: each (scope, effect key) pair belongs to one trait
+	# (ramp_max only goes with ramp).
+	var owner := {}
+	var shared: Array = []
+	for tag in Synergies.DEFS:
+		for tier in Synergies.DEFS[tag].tiers:
+			for part in ["self", "team", "tags"]:
+				var fx: Dictionary = tier.get(part, {})
+				var keys: Array = fx.keys() if part != "tags" else (["revive"] if not fx.is_empty() else [])
+				for k in keys:
+					if k == "ramp_max":
+						continue
+					var slot := "%s:%s" % [part, k]
+					if owner.has(slot) and owner[slot] != tag and not shared.has(slot):
+						shared.append("%s (%s, %s)" % [slot, owner[slot], tag])
+					owner[slot] = tag
+	chk("no two traits give the same bonus", shared.is_empty(), str(shared))
 
 	var unreachable: Array = []
 	for tag in Synergies.DEFS:
