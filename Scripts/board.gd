@@ -98,6 +98,54 @@ func nearest_enemy(u: Unit) -> Unit:
 			best = o
 	return best
 
+# The enemy `u` can reach soonest, for a unit that has to walk: a breadth-first walk over free tiles,
+# ring by ring, until a tile has an enemy within `range_tiles` (ties: the enemy nearer `u`, then the
+# lower tile; the step is the first one found towards it). Returns [enemy, first step]; the step is
+# NO_STEP when an enemy is already in range where `u` stands, and [null, NO_STEP] when none can be
+# reached (every way to them is blocked). Walls are occupied tiles, as in next_step.
+func nearest_reachable(u: Unit, range_tiles: int) -> Array:
+	var foes: Array[Unit] = []
+	for n in $Units.get_children():
+		var o := n as Unit
+		if o == null or o == u or o.team != u.foe_team() or o.dead or o.coord.x < 0 or o.is_queued_for_deletion() or o.untargetable_left > 0.0:
+			continue
+		foes.append(o)
+	if foes.is_empty():
+		return [null, NO_STEP]
+	var came := {u.coord: u.coord}
+	var ring: Array[Vector2i] = [u.coord]
+	while not ring.is_empty():
+		var best: Unit = null
+		var best_tile := NO_STEP
+		for cur in ring:
+			for o in foes:
+				if hex_distance(cur, o.coord) > range_tiles:
+					continue
+				if best == null or _nearer(u.coord, o, best):
+					best = o
+					best_tile = cur
+		if best != null:
+			if best_tile == u.coord:
+				return [best, NO_STEP]
+			while came[best_tile] != u.coord:
+				best_tile = came[best_tile]
+			return [best, best_tile]
+		var next: Array[Vector2i] = []
+		for cur in ring:
+			for n in neighbors(cur):
+				if came.has(n) or tiles[n].occupant != null:
+					continue
+				came[n] = cur
+				next.append(n)
+		ring = next
+	return [null, NO_STEP]
+
+# Whether enemy a beats enemy b as a pick from `from`: nearer, then the lower tile.
+static func _nearer(from: Vector2i, a: Unit, b: Unit) -> bool:
+	var da := hex_distance(from, a.coord)
+	var db := hex_distance(from, b.coord)
+	return da < db or (da == db and tile_order(a.coord) < tile_order(b.coord))
+
 static func tile_order(c: Vector2i) -> int:
 	return c.y * COLS + c.x
 

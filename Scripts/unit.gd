@@ -593,7 +593,8 @@ func combat_step(delta: float):
 		return   # stunned or casting (both counted down in _tick_effects)
 	cooldown = maxf(0.0, cooldown - delta)
 
-	if taunt_left > 0.0 and charm_left <= 0.0 and is_instance_valid(taunt_by) and not taunt_by.dead and taunt_by.coord.x >= 0:
+	var taunted := taunt_left > 0.0 and charm_left <= 0.0 and is_instance_valid(taunt_by) and not taunt_by.dead and taunt_by.coord.x >= 0
+	if taunted:
 		target = taunt_by
 	if is_instance_valid(target) and target.untargetable_left > 0.0:
 		target = null   # it vanished: pick another
@@ -603,6 +604,15 @@ func combat_step(delta: float):
 			return
 
 	var rng := roundi(data.attack_range) + range_bonus
+	var step := Board.NO_STEP
+	if not taunted and Board.hex_distance(coord, target.coord) > rng:
+		# Out of reach: look again before every step, so a unit never walks past an enemy in range (or
+		# round the board after one it can't get to) while it chases the one it picked first. In range,
+		# it stays on its target.
+		var pick := board.nearest_reachable(self, rng)
+		if pick[0] != null:
+			target = pick[0]
+			step = pick[1]
 	if Board.hex_distance(coord, target.coord) <= rng:
 		_face(target)
 		if data.max_mana > 0.0 and mana >= data.max_mana and charm_left <= 0.0:   # charmed units don't cast
@@ -616,7 +626,7 @@ func combat_step(delta: float):
 	else:
 		if root_left > 0.0:
 			return   # rooted: can't step
-		var next := board.next_step(coord, target.coord, rng)
+		var next := step if step != Board.NO_STEP else board.next_step(coord, target.coord, rng)
 		if next == Board.NO_STEP:
 			return   # blocked; try again next tick
 		board.claim(self, next)

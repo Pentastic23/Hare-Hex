@@ -345,6 +345,35 @@ func _run():
 		await get_tree().process_frame
 	chk("same result twice (tricksters, burns, chills, revives, executes, crits)", msigs[0] == msigs[1], msigs[0].left(120))
 
+	print("--- walking: a unit never walks past an enemy in range to chase the one it picked first")
+	await load_main(9)
+	board.refresh_unlocks(8, false)
+	Abilities.enabled = false
+	var walker := place("knight", Vector2i(3, 4))
+	var far := place("archer", Vector2i(6, 0), 1)
+	var beside := place("militia", Vector2i(3, 3), 1)
+	walker.target = far   # picked earlier, when the militia wasn't there yet
+	walker.combat_step(1.0 / 60.0)
+	chk("out of reach of its target with an enemy beside it, it turns on that enemy instead of walking off", walker.target == beside and not walker.moving and walker.coord == Vector2i(3, 4), "target %s, moving %s" % [walker.target.data.display_name, walker.moving])
+	await load_main(9)
+	board.refresh_unlocks(8, false)
+	walker = place("knight", Vector2i(3, 5))
+	var walled := place("mage", Vector2i(3, 0), 1)   # boxed in by its own side: nobody can reach it
+	for c in [Vector2i(2, 0), Vector2i(4, 0), Vector2i(2, 1), Vector2i(3, 1)]:
+		place("militia", c, 1)
+	place("archer", Vector2i(6, 2), 1)
+	walker.target = walled
+	walker.combat_step(1.0 / 60.0)
+	var pick := board.nearest_reachable(walker, 1)
+	chk("a target it can't reach is dropped for the nearest one it can, and it walks towards that", walker.target != walled and walker.moving and Board.hex_distance(walker.coord, walker.target.coord) < Board.hex_distance(Vector2i(3, 5), walker.target.coord), "target %s" % walker.target.data.display_name)
+	chk("nearest_reachable names an enemy and a first step one tile away", pick[0] != null and pick[1] != Board.NO_STEP and Board.hex_distance(walker.coord, pick[1]) == 1)
+	walker.taunt_left = 5.0
+	walker.taunt_by = walled
+	walker.moving = false
+	walker.combat_step(1.0 / 60.0)
+	chk("a taunted unit still goes for its taunter", walker.target == walled)
+	Abilities.enabled = true
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.path))
 	print("RESULT: ", "ALL PASS" if fails == 0 else "%d FAILED" % fails)
 	get_tree().quit()

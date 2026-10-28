@@ -31,8 +31,9 @@ class_name LobbyProtocol extends RefCounted
 #   reject {seq, why, of}             an intent that wasn't allowed (your state follows anyway)
 #   over {places: [{seat, name, place, hp}], round}
 
-const VERSION := 5   # 2: hello carries the king skin; fights carry home_king / away_king / away_level; 4: state carries recv / recv_items (items handed out)
+const VERSION := 6   # 2: hello carries the king skin; fights carry home_king / away_king / away_level; 4: state carries recv / recv_items (items handed out)
                      # 5: hello carries the arena; fights carry home_arena / away_arena
+                     # 6: units out of range re-pick the enemy they can reach soonest (fights play differently)
                      # 3: the opening round (state.opening), streaks in public, scout / board; fights carry
                      #    home_bench / away_bench (display only: each player sees the other's bench)
 const DEFAULT_PORT := 7777
