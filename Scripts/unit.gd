@@ -148,7 +148,7 @@ static var _icon_tex: ImageTexture   # plain white square (items without an icon
 const ICON_PX := 16
 const ICON_SIZE := 0.5     # world size of one item icon (readable, a row of 3 stays about one tile wide)
 const ICON_STEP := 0.52    # spacing between item icons
-const ICON_HEIGHT := -0.4  # where the row's middle sits from the bars' line: under the bar plate, over the head
+const ICON_HEIGHT := -0.62  # where the row's middle sits from the bars' line: clear of the bar plate, just over the head
 const ITEM_ROOM := 0.6     # the bars sit this much higher than before, so the item row fits under them
 
 const STAR_MULT := {1: 1.0, 2: 1.8, 3: 3.2, 4: 5.0}

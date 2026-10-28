@@ -290,7 +290,7 @@ func _synergy_bonuses(u: Unit) -> Dictionary:
 	if gm != null and gm.fighting:
 		return {"hp": u.bonus_hp, "ad": u.bonus_ad, "ap": u.bonus_ap, "as": u.bonus_as, "armor": u.bonus_armor, "mr": u.bonus_mr, "mit": u.bonus_mit, "sunder": u.sunder, "shred": u.shred, "summon": u.summon_power, "vamp": u.lifesteal, "shield": u.shield_pct, "regen": u.regen, "ramp": u.ramp, "ramp_max": u.ramp_max, "crit": u.crit_every, "execute": u.execute, "revive": u.revive, "burn": u.burn, "chill": u.chill, "dodge": u.dodge_every, "curse": u.curse, "range": u.range_bonus, "kill_heal": u.kill_heal}
 	if u.team != 0 or u.coord.x < 0 or board == null:
-		return Synergies.preview(null, [])
+		return Resonance.unit_effects(u.items)   # the bench: no traits, but its own items' effects and resonances
 	var team: Array = board.all_player_units().filter(func(x): return x.coord.x >= 0)
 	return Synergies.preview(u, team)
 
