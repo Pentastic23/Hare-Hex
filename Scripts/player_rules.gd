@@ -152,7 +152,8 @@ func roll_shop() -> void:
 		Events.shop_rolled.emit(offers)
 
 # must_offer (the tutorial: a Knight and a Militia) is in every shop: a missing one takes the place of the
-# last offer that isn't itself a must, which goes back to the pool. Deterministic (no RNG).
+# last offer that isn't itself a must, or else of a spare copy of one (five Knights: the last becomes a
+# Militia), which goes back to the pool. Deterministic (no RNG).
 func _guarantee(offers: Array) -> void:
 	for want in must_offer:
 		if offers.has(want) or pool.count(want) <= 0:
@@ -162,6 +163,11 @@ func _guarantee(offers: Array) -> void:
 			if not must_offer.has(offers[i]):
 				at = i
 				break
+		if at == -1:
+			for i in range(offers.size() - 1, -1, -1):
+				if offers[i] != null and offers.count(offers[i]) > 1:
+					at = i
+					break
 		if at == -1:
 			if offers.size() >= 5:
 				continue

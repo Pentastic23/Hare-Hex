@@ -47,6 +47,10 @@ var _stars_at_step := 0  # 2-star units when the merge step began: it waits for 
 var _inspected := false  # the inspector was opened since the inspect step began
 var _wait_next := false  # this step waits for Next after all (a merge made before the merge step)
 var _start_step := 3     # the "Start the fight" step: Start fight shows from there on
+var _inspect_step := 5   # the "Inspect a unit" step: the step after it may keep the inspector up, later ones close it
+var _watch_seen := false # the Watch step has seen its fight running
+var _watch_over := false # ... and seen it end: the card is open again with Next
+var _slide := 0.0        # tweened offset of the card as it drops in or pops open
 var _steps: Array[Dictionary] = []
 
 static func is_tutorial_run() -> bool:
@@ -92,7 +96,10 @@ func _ready():
 	row.add_theme_constant_override("separation", 8)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(row)
-	go_button = _button(row, "Got it", func(): _set_explaining(false))
+	go_button = _button(row, "Got it", func():
+		_set_explaining(false)
+		if _steps[step].get("watch", false):
+			_animate(-160.0))   # the strip drops in from above
 	next_button = _button(row, "Next", func(): _advance())
 	fight_button = _button(row, "Start fight", _start_fight)
 	help_button = DockKit.secondary_button("?")
@@ -109,10 +116,15 @@ func _ready():
 		if on:
 			_saw_lock = true)
 	Events.team_plan_changed.connect(func(): _planned = true)
+	Events.phase_changed.connect(func(p):   # straight to Watch as the fight starts, before anything moves
+		if p == Events.Phase.COMBAT and step == _start_step:
+			_advance())
 	_build_steps()
 	for i in _steps.size():
 		if _steps[i].get("start", false):
 			_start_step = i
+		if _steps[i].get("inspect", false):
+			_inspect_step = i
 	_enter_step.call_deferred(0)
 
 const PLATE := Color(0.098, 0.110, 0.161, 0.98)   # nearly solid, like the inspector
@@ -134,11 +146,17 @@ func _build_steps():
 		{"title": "Start the fight", "start": true, "target": "topbar", "task": "Press Start fight.",
 			"text": "Normally a fight starts when the prep timer at the top runs out. In the tutorial you start it yourself, whenever you're ready.\n\nPress Start fight.",
 			"done": func(): return _gm().phase == Events.Phase.COMBAT},
-		# No dim (you watch the fight); Next only once it is over, so a quick win doesn't skip the explanation.
-		{"title": "Watch the fight", "dim": false, "next": true, "target": "right",
-			"text": "Units walk to the nearest enemy and attack by themselves; when their mana is full they cast their ability. The Damage window on the right shows who dealt the most.\n\nA banner over the board says how it went: a win gives +1 gold, a loss costs HP (the You row at the top right). Click Next once the fight is over.",
-			"enter": func(): _open_right("damage"), "next_when": func(): return _gm().phase == Events.Phase.PREP and GameState.round_number >= 2},
-		{"title": "Inspect a unit", "target": "my_units", "task": "Right-click one of your units.",
+		# Entered as the fight starts, paused before the first move; Watch drops it to a small strip at the top
+		# while the fight runs, and it opens again with "after" and Next once the next PREP starts (_process_watch).
+		{"title": "Watch the fight", "watch": true, "target": "right",
+			"text": "Units walk to the nearest enemy and attack by themselves; when their mana is full they cast their ability. The Damage window on the right shows who dealt the most.\n\nPress Watch: this card gets out of the way and comes back when the fight is over.",
+			"task": "Watching the fight. This card opens again when it's over.",
+			"after": "A banner over the board said how it went: a win gives +1 gold, a loss costs HP (the You row at the top right). The Damage window still shows who did the most.\n\nClick Next to go on.",
+			"enter": func():
+				_watch_seen = false
+				_watch_over = false
+				_open_right("damage")},
+		{"title": "Inspect a unit", "inspect": true, "target": "my_units", "task": "Right-click one of your units.",
 			"text": "Right-click any unit, yours or an enemy's, to open the inspector: its health, damage, traits, ability and items. Gold words in it can be hovered too.\n\nRight-click empty ground to close it. Try it on one of your units.",
 			"enter": func(): _inspected = false, "done": func(): return _inspected},
 		# Waits for a merge made during this step (merging earlier doesn't skip it), or for Next if one was made already.
@@ -194,6 +212,10 @@ func _process(delta):
 	if explaining and not get_tree().paused:
 		get_tree().paused = true   # (the pause menu closing unpauses)
 	var s: Dictionary = _steps[step]
+	if s.get("watch", false):
+		_process_watch(gm)
+	if s.get("last", false):
+		visible = gm == null or gm.phase == Events.Phase.PREP   # out of the way while the last waves fight; back for Start fight
 	spot.hole = _target_rect(str(s.get("target", "")))
 	spot.dim = explaining
 	spot.mouse_filter = Control.MOUSE_FILTER_STOP if explaining else Control.MOUSE_FILTER_IGNORE
@@ -236,7 +258,34 @@ func _layout() -> void:
 				if score < best:
 					best = score
 					at = p
-	position = _on_screen(at, Vector2(w, h), view).round()
+	else:
+		at.y += _slide   # (the strip may sit above the screen while it drops in)
+		position = at.round()
+		return
+	position = (_on_screen(at, Vector2(w, h), view) + Vector2(0, _slide)).round()
+
+# The Watch step: once its fight has run and the next PREP starts, the card opens again with Next.
+func _process_watch(gm) -> void:
+	if _watch_over or gm == null:
+		return
+	if gm.phase == Events.Phase.COMBAT:
+		_watch_seen = true
+	elif _watch_seen and gm.phase == Events.Phase.PREP:
+		_watch_over = true
+		DockKit.set_rich(body_label, _steps[step].after, true)
+		_set_explaining(true)
+		_animate(24.0)
+
+# Slides the card from `from` px off its place back to it (and fades it in); none with Reduce motion.
+func _animate(from: float) -> void:
+	if Settings.reduce_motion:
+		_slide = 0.0
+		return
+	_slide = from
+	modulate.a = 0.0
+	var t := create_tween().set_parallel()
+	t.tween_property(self, "_slide", 0.0, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(self, "modulate:a", 1.0, 0.2)
 
 static func _on_screen(p: Vector2, s: Vector2, view: Vector2) -> Vector2:
 	return Vector2(clampf(p.x, 8.0, maxf(view.x - s.x - 8.0, 8.0)), clampf(p.y, 8.0, maxf(view.y - s.y - 8.0, 8.0)))
@@ -246,8 +295,11 @@ static func _on_screen(p: Vector2, s: Vector2, view: Vector2) -> Vector2:
 # waits for Next.
 func _update_buttons():
 	var s: Dictionary = _steps[step]
-	var waits: bool = s.get("next", false) or _wait_next
+	var watch: bool = s.get("watch", false)
+	var waits: bool = s.get("next", false) or _wait_next or (watch and _watch_over)
 	var action: bool = not waits and not s.get("last", false)
+	go_button.text = "Watch" if watch else "Got it"
+	progress_bar.visible = explaining or not watch   # the Watch strip is kept as small as it gets
 	next_button.visible = waits
 	next_button.disabled = s.has("next_when") and not s.next_when.call()
 	next_button.tooltip_text = Tip.wrap("After the fight.") if next_button.disabled else ""
@@ -256,7 +308,7 @@ func _update_buttons():
 	var prep: bool = gm != null and gm.phase == Events.Phase.PREP and not gm.game_over
 	fight_button.visible = prep and step >= _start_step and not waits and (not explaining or step == _start_step)
 	go_button.visible = explaining and action and step != _start_step
-	help_button.visible = not explaining and not waits and s.get("dim", true)
+	help_button.visible = not explaining and not waits and s.get("dim", true) and not watch
 	body_label.visible = explaining or not s.get("dim", true) and not s.has("task")
 	task_label.visible = not body_label.visible
 
@@ -267,6 +319,8 @@ func _advance():
 func _enter_step(i: int):
 	step = i
 	_wait_next = false
+	if i > _inspect_step + 1:
+		_close_inspector()   # left open from the Inspect step it would cover the panels later steps open
 	var s: Dictionary = _steps[i]
 	progress_label.text = "%d / %d" % [i + 1, _steps.size()]
 	progress_bar.segments = _steps.size()
@@ -321,6 +375,11 @@ func _process_inspector() -> void:
 	var insp = get_parent().get_node_or_null("UnitInspector")   # a sibling in the UI
 	if insp != null and insp.visible and insp.shown != null:
 		_inspected = true
+
+func _close_inspector() -> void:
+	var insp = get_parent().get_node_or_null("UnitInspector")
+	if insp != null and insp.visible:
+		insp._close()
 
 func _star_count() -> int:
 	return _board().all_player_units().filter(func(u): return u.star >= 2).size()

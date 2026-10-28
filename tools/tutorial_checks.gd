@@ -74,7 +74,7 @@ func _run():
 	chk("the words are linked to their meanings (gold, HP...)", tut.body_label.text.contains("[url=HP]") and Glossary.meaning("Gold") != "")
 	chk("tutorial settings: Knights and Militia only, 5 waves", gm.roster.size() == 2 and GameState.total_rounds() == 5)
 	var both := true
-	for i in 12:
+	for i in 60:   # (enough rolls to hit an all-Knight one)
 		gm.rules.roll_shop()
 		var names: Array = GameState.me.shop_offers.map(func(d): return d.display_name)
 		both = both and names.has("Knight") and names.has("Militia")
@@ -103,11 +103,16 @@ func _run():
 	tut.fight_button.pressed.emit()
 	await get_tree().process_frame
 	chk("Start fight starts combat right away", gm.phase == Events.Phase.COMBAT or GameState.round_number == 2)
+	chk("'Watch the fight' pops up as the fight starts, paused before anything moves, with Watch and no Next", tut.title_label.text == "Watch the fight" and tut.explaining and get_tree().paused and gm.phase == Events.Phase.COMBAT and tut.go_button.visible and tut.go_button.text == "Watch" and not tut.next_button.visible, tut.title_label.text)
 	await poll()
-	chk("during the fight: 'Watch the fight' with Next greyed out", tut.title_label.text == "Watch the fight" and tut.next_button.visible and (tut.next_button.disabled or gm.phase == Events.Phase.PREP))
+	chk("the fight waits while the card is up", gm.phase == Events.Phase.COMBAT and get_tree().paused)
+	tut.go_button.pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	chk("Watch: the fight runs and the card drops to a small strip at the top", not tut.explaining and not get_tree().paused and tut.task_label.visible and not tut.body_label.visible and not tut.help_button.visible and not tut.next_button.visible and tut.size.y < 130.0, str(tut.size))
 	await wait_phase(Events.Phase.PREP)
 	await get_tree().create_timer(1.5).timeout
-	chk("after the fight it waits on 'Watch the fight' with Next enabled", tut.title_label.text == "Watch the fight" and not tut.next_button.disabled, tut.title_label.text)
+	chk("after the fight it opens again on 'Watch the fight' with Next enabled", tut.title_label.text == "Watch the fight" and tut.explaining and tut.next_button.visible and not tut.next_button.disabled and tut.body_text().contains("banner"), tut.title_label.text)
 	chk("'Watch the fight' opens the Damage window it talks about", main.get_node("UI/RightDock").current == "damage")
 	chk("Start fight is hidden while the step waits for Next", not tut.fight_button.visible)
 	chk("the old prep timer didn't start a second fight", gm.phase == Events.Phase.PREP and GameState.round_number == 2)
@@ -124,6 +129,7 @@ func _run():
 	await poll()
 	var knights := board.all_player_units().filter(func(u): return u.data.display_name == "Knight")
 	chk("three Knights merge and the step moves to 'Synergies'", knights.size() == 1 and knights[0].star == 2 and tut.title_label.text == "Synergies")
+	chk("the inspector left open at the Inspect step is closed by then (it covered the planner)", not main.get_node("UI/UnitInspector").visible)
 	var left = main.get_node("UI/LeftDock")
 	chk("'Synergies' opens the Synergies tab", not left.collapsed and left.tab == "synergies")
 
@@ -203,15 +209,26 @@ func _run():
 				board.detach(u)
 				board.put_on_tile(u, c)
 				break
+	chk("the last step's strip shows in prep (Start fight)", tut.visible and tut.fight_button.visible)
 	var guard := 0
+	var hid_in_fight := true
+	var back_in_prep := true
 	while not gm.game_over and guard < 10:
 		guard += 1
 		gm.end_prep_early()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		if gm.phase == Events.Phase.COMBAT:
+			hid_in_fight = hid_in_fight and not tut.visible
 		# Wait until this fight is over: back in PREP, or the run ended (no PREP after the last wave).
 		var frames := 0
 		while frames < 20000 and not gm.game_over and (gm.fighting or gm.phase != Events.Phase.PREP):
 			await get_tree().process_frame
 			frames += 1
+		if not gm.game_over:
+			await get_tree().process_frame
+			back_in_prep = back_in_prep and tut.visible
+	chk("the last step's strip goes away while the waves fight and comes back in prep", hid_in_fight and back_in_prep)
 	var es = main.get_node("UI/End Screen")
 	chk("the tutorial ends with TUTORIAL COMPLETE", es.visible and es.title.text == "TUTORIAL COMPLETE", es.title.text)
 	chk("end screen offers Replay tutorial and Main menu, no Next level", es.restart_button.text == "Replay tutorial" and es.menu_button.visible and not es.next_button.visible)
